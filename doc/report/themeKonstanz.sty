@@ -1,0 +1,1059 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                                                     %
+% ThemeKonstanz für die Verwendung beim Erstellen von %
+% PDF-Dokumenten und Abschlussarbeiten mit dem        % 
+% Corporate Design der Universität Konstanz           %
+%                                                     %
+% Stand: 14.09.2016 - Michael Brendle (Version 0.4)   %
+%                                                     %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\NeedsTeXFormat{LaTeX2e}
+\usepackage{scrhack}
+% Farben
+\usepackage{xcolor}
+\usepackage{nameref}
+\usepackage{subcaption}
+
+% Seiten-Einrichtung
+\usepackage{geometry}
+\usepackage{changepage}
+% DinA4 Initialisierung
+% Benutzer kann es mittels \format aendern (siehe unten)
+\geometry{paperheight=29.7cm, paperwidth=21.0cm, left=2.5cm, right=2.5cm, bottom=2.5cm, top=2.5cm, headheight=14pt, headsep=0.8cm, footskip=1.2cm}%
+
+% Codierung
+\usepackage[english]{babel}
+\usepackage[T1]{fontenc}
+\usepackage{wrapfig}
+\usepackage{adjustbox}
+
+% Absolute Positionierung der Textfelder inkl. Uni Konstanz Logo
+\usepackage[absolute, overlay]{textpos}
+\usepackage{ragged2e}
+
+% Unterstreichungen (Anpassen der Dicke und der Farbe)
+\usepackage{soul}
+
+% % Fuer das Merken und Markieren Element, sowie Überschriften
+\usepackage{tikz}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.17}
+\usetikzlibrary{calc}
+\usetikzlibrary{arrows.meta}
+\usetikzlibrary{backgrounds,matrix,fadings,calc,positioning,decorations.pathreplacing,arrows.meta,shapes,shapes.multipart, plotmarks}
+\usepackage{longtable}
+\usepackage{lscape}
+
+
+% Fuer If-Then-Else
+\usepackage{ifthen}
+
+% Fur Makros mit Key-Value-Pairs
+\usepackage{keycommand}
+
+% http://www.techques.com/question/31-48501/soul:-broken-highlighting-with-xcolor-when-using-%5Cselectcolormodel
+% Problem von soul beheben, da Farben in RGB konvertiert werden. Konvertierung ist notwendig, da einige Pakete
+% kein HSB Model unterstuetzt.
+\newdimen\SOUL@dimen %new
+\def\SOUL@ulunderline#1{{%
+    \setbox\z@\hbox{#1}%
+    %\dimen@=\wd\z@
+    \SOUL@dimen=\wd\z@ %new
+    \dimen@i=\SOUL@uloverlap
+    \advance\SOUL@dimen2\dimen@i %\dimen@ exchanged too
+    \rlap{%
+        \null
+        \kern-\dimen@i
+        %\SOUL@ulcolor{\SOUL@ulleaders\hskip\dimen@}%
+        \SOUL@ulcolor{\SOUL@ulleaders\hskip\SOUL@dimen}% new
+    }%
+    \unhcopy\z@
+}}
+
+% Laengenberechnung
+\usepackage{calc}
+\usepackage{float}
+
+% Paket für Unter- und Überschrift für Abbildungen und Tabellen
+% Möchte man eine andere Unter- und / oder Überschrift können hier
+% Anpassungen vorgenommen werden. Siehe dazu auch die Paketdokumentation:
+%
+%     http://ftp.gwdg.de/pub/ctan/macros/latex/contrib/caption/caption-eng.pdf
+%
+\usepackage[format=plain, justification=justified, labelfont=bf, textfont=it, font=small, labelsep=space]{caption}
+
+
+% Paket für Tabellen im Corporate Design der Universität Konstanz
+\usepackage{tabu}
+\usepackage{booktabs}
+\usepackage{fancyhdr}
+
+% Referenzierung
+\usepackage[bookmarksopen,bookmarksdepth=5]{hyperref}
+
+% Code listings
+\usepackage[newfloat]{minted}
+
+% Zitatieren
+\usepackage{csquotes}
+\usepackage[backend=biber,style=numeric,
+citestyle=numeric]{biblatex}
+
+% Mathe und algos
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage[algoruled,boxed,vlined]{algorithm2e}
+\SetKwInOut{Parameters}{Parameters}
+\SetKwFor{For}{for}{do}{}
+\SetKwIF{If}{ElseIf}{Else}{if}{then}{else if}{else}{} 
+\newcommand{\hrulealg}[0]{\vspace{1mm} \hrule \vspace{1mm}}
+\usepackage{forest}
+\usepackage{multirow}
+
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+
+\newtheorem{definition}{Definition}[section]
+\newtheorem{theorem}{Theorem}[definition]
+\newtheorem{corollary}{Corollary}[theorem]
+\newtheorem*{remark}{Remark}
+\newtheorem*{example}{Example}
+
+% Randnotizen und Bilder für tufte style
+%\usepackage[side]{footmisc}
+%\usepackage{marginnote}
+
+% Bilder einbinden
+\usepackage{graphicx}
+\usepackage{cleveref}
+
+% Laengendefinitionen
+\newlength{\mylengthwidth}%
+\newlength{\mylengthheigth}%
+\newlength{\mylengthdepth}%
+\newlength{\mylengthwidthl}%
+\newlength{\mylengthheigthl}%
+\newlength{\mylengthdepthg}%
+\newlength{\mylengthdepthtest}%
+\newlength{\mylengthComplete}%
+\newlength{\headlength}%
+\newlength{\footspace}%
+\newlength{\heightspace}%
+\newlength{\oldbaseline}%
+\newlength{\currentfontsize}%
+\newlength{\logoheight}%
+\newlength{\merkenlength}%
+\newlength{\lengthfirst}%
+\newlength{\lengthsecond}%
+\newlength{\lengththird}%
+\newlength{\lengthfourth}%
+\newlength{\blskip}%
+\newlength{\underlinewidth}%
+\newlength{\bluelinewidth}%
+
+\newlength{\blockcolumnwidth}%
+\newlength{\spacewidth}%
+\newlength{\blockwidth}%
+\newlength{\templength}%
+
+\newlength{\argonelength}%
+\newlength{\argtwolength}%
+\newlength{\argthreelength}%
+\newlength{\argfourlength}%
+\newlength{\argfivelength}%
+
+\newlength{\boxlinewidth}%
+
+\newlength{\kapitelwidth}%
+\newlength{\linestart}%
+\newlength{\lineend}%
+\newlength{\textstart}%
+\newlength{\textwidthnew}%
+
+\newlength{\mylengthwidthfirst}%
+\newlength{\mylengthwidthsecond}%
+\newlength{\mylengthwidththird}%
+\newlength{\mylengthwidthfourth}%
+\newlength{\mylengthwidthfifth}%
+\newlength{\mylengthwidthsixth}%
+
+\newcounter{columnnumber}%
+\newcounter{tempnumber}%
+\newcounter{argonecounter}%
+\newcounter{argtwocounter}%
+\newcounter{argthreecounter}%
+\newcounter{argfourcounter}%
+\newcounter{argfivecounter}%
+
+% Initialisierung - DinA4 Standard
+\setlength{\logoheight}{20mm}
+\setlength{\boxlinewidth}{1pt}
+
+% Setzen von Laengen
+\setlength{\footspace}{\paperwidth - \textwidth}
+\setlength{\heightspace}{\paperheight - \textheight}
+\setlength{\currentfontsize}{\f@size pt}
+
+\newcommand{\getfontsize}{\setlength{\currentfontsize}{\f@size pt}\the\currentfontsize}
+
+% Setze die Nummerierungstiefe
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{2}
+
+\newcommand\frontmatter{%
+    \cleardoublepage
+  %\@mainmatterfalse
+  \pagenumbering{roman}}
+
+\newcommand\mainmatter{%
+    \cleardoublepage
+ % \@mainmattertrue
+  \pagenumbering{arabic}}
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Tabellenzusatzpezifikationen                          %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
+
+% Abstand zwischen Text und Linie
+\tabulinesep = 1.5ex
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Seitenformat / Foliengroesse %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\def\dinafuenf{a5}
+\def\dinavier{a4}
+\def\dinadrei{a3}
+\def\dinafuenfquer{a5quer}
+\def\dinavierquer{a4quer}
+\def\dinadreiquer{a3quer}
+\def\dinaviertufte{a4tufte}
+
+% Anpassung des Papierformates:
+% Zur Auswahl stehen:
+%
+%   Schlüssel  Beschreibung      Höhe      Breite
+%   -----------------------------------------------
+%   a3         DinA3 Hochformat  42.0  cm  29.7  cm
+%   a3quer     DinA3 Querformat  29.7  cm  42.0  cm
+%   a4         DinA4 Hochformat  29.7  cm  21.0  cm
+%   a4quer     DinA4 Querformat  21.0  cm  29.7  cm
+%   a5         DinA5 Hochformat  21.0  cm  14.8  cm
+%   a5quer     DinA5 Querformat  14.8  cm  21.0  cm
+%
+%
+% Falls keiner der unterstützten Schlüssel übergeben wird,
+% ist DinA4 Hochformat der Standard.
+
+% Zusätzlich wird auch gleich die Höhe des Logos anhand
+% des Corporate Design definiert.
+
+\newcommand{\format}[1]{%
+ 	\def\dinformat{#1}%
+	\ifx\dinformat\dinafuenf%
+		\geometry{paperheight=21.0cm, paperwidth=14.8cm, left=2.5cm, right=2.5cm, bottom=2.5cm, top=2.5cm, headheight=14pt, headsep=0.8cm, footskip=1.2cm}%
+		\setlength{\logoheight}{15mm}
+		\setlength{\boxlinewidth}{1pt}
+	\else%
+	\ifx\dinformat\dinafuenfquer%
+		\geometry{paperheight=14.8cm, paperwidth=21.0cm, left=2.5cm, right=2.5cm, bottom=2.5cm, top=2.5cm, headheight=14pt, headsep=0.8cm, footskip=1.2cm}%
+		\setlength{\logoheight}{15mm}
+		\setlength{\boxlinewidth}{1pt}
+	\else%
+	\ifx\dinformat\dinavier%
+		\geometry{paperheight=29.7cm, paperwidth=21.0cm, inner=2.5cm, outer=2.5cm, bottom=2.5cm, top=2.5cm, headheight=14pt, headsep=0.8cm, footskip=1.5cm}%
+		\setlength{\logoheight}{20mm}
+		\setlength{\boxlinewidth}{1pt}
+	\else%
+	\ifx\dinformat\dinavierquer%
+		\geometry{paperheight=21.0cm, paperwidth=29.7cm, left=2.5cm, right=2.5cm, bottom=2.5cm, top=2.5cm, headheight=14pt, headsep=0.8cm, footskip=1.2cm}%
+		\setlength{\logoheight}{20mm}
+		\setlength{\boxlinewidth}{1pt}
+	\else%	
+	\ifx\dinformat\dinadrei%
+		\geometry{paperheight=42.0cm, paperwidth=29.7cm, left=2.5cm, right=2.5cm, bottom=2.5cm, top=2.5cm, headheight=14pt, headsep=0.8cm, footskip=1.2cm}%
+		\setlength{\logoheight}{30mm}
+		\setlength{\boxlinewidth}{1.5pt}
+	\else%
+	\ifx\dinformat\dinadreiquer%
+		\geometry{paperheight=29.7cm, paperwidth=42.0cm, left=2.5cm, right=2.5cm, bottom=2.5cm, top=2.5cm, headheight=14pt, headsep=0.8cm, footskip=1.2cm}%
+		\setlength{\logoheight}{30mm}
+		\setlength{\boxlinewidth}{1.5pt}
+	\else%
+	\ifx\dinformat\dinaviertufte%
+		\geometry{paperheight=29.7cm, paperwidth=21.0cm, inner=2.5cm, outer=6.5cm, bottom=2.5cm, top=2.5cm, headheight=14pt, headsep=0.8cm, footskip=1.2cm, marginparwidth=5cm}%
+		\setlength{\logoheight}{20mm}
+		\setlength{\boxlinewidth}{1pt}
+	\fi%
+	\fi%
+	\fi%
+	\fi%
+	\fi%
+	\fi%
+	\fi%
+}%
+
+\newcommand{\positionnumber}{%
+  \ifnum\c@section=0 %
+  \thechapter
+  \else
+  \ifnum\c@subsection=0 %
+  \thesection
+  \else
+  \ifnum\c@subsubsection=0 %
+  \thesubsection
+  \else
+  \thesubsubsection
+  \fi
+  \fi
+  \fi
+}
+\newcommand*{\fullref}[1]{\hyperref[{#1}]{\Cref{#1}}}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%
+% Datum, Autor, etc.    %
+%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\def\datum{}
+\renewcommand{\date}[1]{
+\def\datum{#1}
+}
+
+\def\jahr{}
+\renewcommand{\year}[1]{
+\def\jahr{#1}
+}
+
+\def\autor{}
+\renewcommand{\author}[1]{
+\def\autor{#1}
+}
+
+\def\docTitle{}
+\renewcommand{\title}[1]{
+\def\docTitle{#1}
+}
+
+\def\docTrack{}
+\newcommand{\track}[1]{
+\def\docTrack{#1}
+}
+
+\def\docInstitute{}
+\newcommand{\institute}[1]{
+\def\docInstitute{#1}
+}
+
+\def\docUnisection{}
+\newcommand{\unisection}[1]{
+\def\docUnisection{#1}
+}
+
+\def\docDepartment{}
+\newcommand{\department}[1]{
+\def\docDepartment{#1}
+}
+
+\def\docUni{}
+\newcommand{\uni}[1]{
+\def\docUni{#1}
+}
+
+\def\docGroup{}
+\newcommand{\group}[1]{
+\def\docGroup{#1}
+}
+
+\def\docSupervisorOne{}
+\newcommand{\supervisorOne}[1]{
+\def\docSupervisorOne{#1}
+}
+
+\def\docSupervisorTwo{}
+\newcommand{\supervisorTwo}[1]{
+\def\docSupervisorTwo{#1}
+}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Uni-Titelseite               %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Mit Hilfe des Makros
+%
+%    \unititlepage
+%
+% kann die Titleseite des Dokumentes im Corporate Design der
+% Universität Konstanz erstellt werden.
+%
+% Das Makro besitzt drei optionale Argumente, die mit
+% Key-Value-Pairs eingesetzt werden können:
+%
+%    \unititlepage[Optionen mit Key-Value-Pairs]
+%
+% Dabei stehen folgende Optionen zur Verfügung:
+%
+%    graphic      Möchte man ein Bild, Grafik, o.ä. auf der
+%                 Titelseite platzieren, so muss nur der Pfad
+%                 dieser Grafik eingesetzt werden (Beispiel siehe
+%                 unten).
+%
+%                 Wird kein Grafikpfad angegeben oder wird dieses
+%                 optionale Argument weggelassen, so wird ein
+%                 leeres graues Rechteck entsprechend CD-Richtlinien
+%                 erstellt.
+%
+%    partnerlogo  Möchte man ein Partner- bzw. Zweitlogo auf der
+%                 Titelseite platzieren, so muss auch hier der
+%                 Pfad angegeben werden, und es wird in der linken
+%                 oberen Ecke platziert (Beispiel siehe unten).
+%
+%                 Wird dieses optionale Argument weggelassen, so wird
+%                 an dieser Stelle natürlich kein Logo präsentiert.
+%
+%    unilogo      Standardmäßig wird in der rechten oberen Ecke auf 
+%                 der Titelseite das Unilogo platziert.
+%
+%                 Möchte man an dieser Stelle ein anderes Logo, so muss
+%                 auch hier der Pfad angegeben werden. Dies sollte jedoch
+%                 nur in besonderen Fällen erfolgen, da das Uni-Logo nach
+%                 CD Richtlinien i.d.R. in der oberen rechten Ecke
+%                 platziert werden sollte.
+%
+%                 Wird das optionale Argument verwendet, jedoch kein Pfad
+%                 angegeben, so wird auch kein Logo in der rechten oberen
+%                 Ecke angezeigt.
+%
+%                 Wird das optionale Argument weggelassen, so wird
+%                 standardmäßig das Uni-Logo in der rechten oberen
+%                 Ecke präsentiert.
+
+\newkeycommand{\unititlepage}[unilogo=logo, partnerlogo=, graphic=][0]{%
+\thispagestyle{empty}%
+\begin{sffamily}%
+% Setze das Uni Logo nach oben rechts auf der Titelseite
+\begin{textblock*}{\paperwidth}(0pt, 0pt)%
+\hfill\includegraphics[height=\logoheight * 9/4]{\commandkey{unilogo}}%
+\end{textblock*}%
+%
+\def\keynone{}%
+\def\partner{\commandkey{partnerlogo}}%
+\def\titlegraphic{\commandkey{graphic}}%
+% Setze das Partnerlogo oben links, falls es einen Pfad gibt.
+\ifthenelse{\equal{\keynone}{\partner}}%
+{}{%
+	\begin{textblock*}{\paperwidth}(0.75\logoheight, 0.5\logoheight)%
+	\includegraphics[height=\logoheight]{\commandkey{partnerlogo}}\hfill%
+	\end{textblock*}%
+}% Setze die Tielgrafik an die entsprechende Position, falls es einen Pfad gibt.
+% Ansonsten wird ein grauer Platzhalter platziert.
+\ifthenelse{\equal{\keynone}{\titlegraphic}}%
+{%
+	\begin{textblock*}{\paperwidth}(-0.5cm, \paperheight * 1/4 + 0.6cm)%
+	\begin{tikzpicture}%
+	\draw [schwarz10, fill=schwarz10, line width=0mm] (0,0) -- (\paperwidth-2.5cm,0) -- (\paperwidth-2.5cm,\paperheight - 12.2cm) -- (0,\paperheight - 12.2cm) -- (0,0);%
+	\end{tikzpicture}%
+	\end{textblock*}%
+}%
+{%
+	\begin{textblock*}{\paperwidth}(-0.5cm, \paperheight * 1/4 + 0.6cm)%
+	\includegraphics[width=\paperwidth - 2.5cm]{\commandkey{graphic}}\hfill%
+	\end{textblock*}%
+}%
+% Ertelle das Merken Objekt über der Grafik enstprechend in der
+% CD Richtlinien.
+\begin{textblock*}{\paperwidth}(2cm, \paperheight * 1/5)%
+\selectfontsize{25pt}%
+\merken{\paperheight * 1/4}{\selectfontsize{16pt}\datum}{\docTitle}%
+\end{textblock*}%
+% Erstelle ein Textfeld mit dem Autor des Dokumentes unterhalb der Grafik
+\begin{textblock*}{\paperwidth}(2cm, \paperheight - 3.2cm)%
+\selectfontsize{16pt}%
+\textbf{\autor}%
+\end{textblock*}%
+
+\newpage%
+\thispagestyle{empty} $ $%
+\newpage%
+\end{sffamily}
+}%
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Thesis-Titelseite            %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Mit Hilfe des Makros
+%
+%    \thesistitlepage
+%
+% kann die Titleseite des Dokumentes an die Vorgaben 
+% einer Arbeit (Bachelorarbeit, Masterarbeit, ... ) des
+% Fachbereichs Informatik und Informationswissenschaft
+% angepasst werden.
+%
+% Das Makro besitzt ein festes und ein optionales Argument.
+%
+%    \unititlepage[language=<language>]{<Art der Arbeit>}
+%
+% Dabei stehen folgende Optionen zur Verfügung:
+%
+%    language        Mit diesem Optionalen Argument kann die
+%                    Sprache der Titelseite angepasst werden.
+%       
+%                    Mögliche Werte sind
+%
+%                        german
+%                        english
+%
+%                    Je nach dem übergebenen Wert, wird die Titelseite
+%                    entweder auf Deutsch oder English erstellt.
+%
+%                    Sollte diese Option weggelassen werden, wird
+%                    die Titelseite auf Deutsch erstellt.
+%
+%    Art der Arbeit  Hier kann die Art der Arbeit übergeben werden,
+%                    welche auf der Titelseite erscheint.
+%
+%                    Hier kann alles übergeben werden. Normalerweise
+%                    wird hier Bachelorarbeit, Masterarbeit, o.ä.
+%                    angegeben.
+%
+% Diese Thesis-Titelseite ist auf DinA4 optimiert!
+
+\newkeycommand{\thesistitlepage}[language=german][0]{%
+% Verwende Serifenlose Schrift auf der Titelseite
+\begin{sffamily}%
+% Dokumenten Titel
+\begin{textblock*}{\textwidth}(0.5\footspace, 6cm)%
+\selectfontsize{18pt}\centering\textbf{\docTitle}
+\end{textblock*}%
+% Art der Arbeit, z.b. Bachelorarbeit, Masterarbeit, ...
+\begin{textblock*}{\textwidth}(0.5\footspace, 9cm)%
+\selectfontsize{14pt}\centering
+A laboratory report submitted by\\%
+\vskip 2pt
+\autor%
+\end{textblock*}%
+% % Gutachter (Deutsch, English)
+ \begin{textblock*}{\textwidth}(0.5\footspace, 11cm)%
+ \selectfontsize{14pt}\centering%
+ Supervised by \vspace{2pt}\\
+ \begin{tabular}{L{0.1cm}l}%
+   & \docSupervisorOne\\[2pt]%
+   & \docSupervisorTwo%
+ \end{tabular}%
+ \end{textblock*}%
+ % Logo der Institute
+ \begin{textblock*}{\textwidth}(0.5\footspace, 13.5cm)%
+ \centering\includegraphics[keepaspectratio, width=0.375\textwidth, height=0.2\textheight]{img/logo_hertie.png} \vspace{1cm}\\
+ \includegraphics[keepaspectratio, width=0.5\textwidth, height=0.2\textheight]{img/logo.png}\\
+ \end{textblock*}%
+% Uni-Sektion und Fachebereich
+\begin{textblock*}{\textwidth}(0.5\footspace, 19cm)%
+\selectfontsize{14pt}\centering%
+\docInstitute \\
+and \\
+\docTrack\\
+\docDepartment\\%
+\docUnisection\\
+\docUni
+\end{textblock*}%
+% % Autor (Deutsch, English)
+\begin{textblock*}{\textwidth}(0.5\footspace, 24cm)%
+\selectfontsize{14pt}\centering%
+\vskip 2pt%
+Tübingen, \jahr%
+\end{textblock*}%
+\newpage%
+\thispagestyle{empty} $ $%
+\newpage%
+\end{sffamily}%
+}%
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%
+% Schriftgröße       %
+%%%%%%%%%%%%%%%%%%%%%%
+
+% Da innerhalb eines Plakates es meistens mehrere verschiedene Schriftgrößen
+% gibt, steht hier das Makro
+%
+%     \selectfontsize
+%
+% zur Verfügung.
+%
+% Dieses Makro besitzt ein unbedingt notwendiges Argument und ein optionales
+% Feld, indem Key-Value Pairs übergeben werden können.
+%
+%     \selectfontsize[<Key Value Pairs>]{<Schriftgröße>}
+%
+% Das Argument hat dabei folgende Bedeutung:
+% 
+%   1. Argument:         Hier wird die neue Schriftgröße angegeben, die verwendet werden
+%                        soll.
+% Die weiteren Formatierungsoptionen werden alle innerhalb des optionalen Argumentes mittels
+% Key-Value Pairs bestimmt.
+%
+% Dabei stehen folgende Optionen zur Verfügung:
+%
+%     baselineskip    Hier wird der baselineskip angegeben, welcher verwendet werden soll
+%                     Mögliche Werte:
+%                         0      Ist dieser 0, dann wird der baselinefaktor verwendet  
+%                         sonst
+%                    Standardwert: 0
+%
+%     baselinefaktor Hier wird der Faktor angegeben, der verwendet wird, um den neuen
+%                    baselineskip zu berechnen.
+%                    Dieser wird nur benutzt, falls der baselineskip 0 beträgt.
+%                    
+%                        baselineskip = baselinefaktor * #1
+%
+%                    Standardwert: 12/10
+%
+%                    Da hier keine Fließkommazahl in der Dezimalschreibweise angegeben werden
+%                    kann, müssen diese als Brüche repräsentiert werden, wie z.b. 12/10 anstatt
+%                    1.2.
+
+\newkeycommand{\selectfontsize}[baselineskip=0, baselinefaktor=12/10][1]{%
+\ifthenelse{\equal{\commandkey{baselineskip}}{0}}{%
+\setlength{\blskip}{#1 * \commandkey{baselinefaktor}}%
+\fontsize{#1}{\blskip}\selectfont}%
+{\setlength{\blskip}{\commandkey{baselineskip}}%
+\fontsize{#1}{\blskip}\selectfont}}%
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%
+% Textfeld           %
+%%%%%%%%%%%%%%%%%%%%%%
+
+% Damit ein problemloses Anordnen der Elemente auf dem Plakat möglich ist,
+% steht ein neue Umgebeung mit dem Namen
+%
+%     textfeld
+%
+% zur Verfügung.
+%
+% Diese Umgebung besteht aus zwei unbedingt notwendigen Argumenten und einem
+% optionalen Argument.
+%
+%     \begin{textfeld}[optionales Argument]{1. Argument}{2. Argument}
+%          ...
+%     \end{textfeld}
+%
+% Innerhalb der Umgebung kann dann der Inhalt des Textfeldes hinterlegt werden.
+%
+% Die Argumente haben dabei folgende Bedeutung:
+% 
+%   Optionales Argument: Hier wird die Breite des Textfeldes festgelegt.
+%                        Wird dies Weggelassen wird einfach die Papierbreite
+%                        als Breite des Textfeldes angegeben. Dies kann nützlich sein
+%                        wenn man nicht weiß, wie breit der Inhalt werden kann.
+%                        Dringend verwenden sollte man dieses Argument, wenn man
+%                        beispielsweise Textumbrüche erzeugen will anhand der vorgegebenen
+%                        Breite.
+%
+%   1. Argument:         Hier wird die x-Koordinate der linken oberen Ecke des Textfeldes
+%                        angegeben.
+%
+%   2. Argument:         Hier wird die y-Koordinate der linken oberen Ecke des Textfeldes
+%                        angegeben.
+%
+% Für die beiden Argumente, ist noch wichtig zu wissen, wie die Koordinaten verstanden
+% werden sollten:
+%
+%                x-Achse
+%
+%                0                         \paperwidth
+%           y  0 -------------------------------------
+%           -    |                                   |
+%           A    |                                   |
+%           c    |                                   |
+%           h    |                                   |
+%           s    |                                   |
+%           e    |                                   |
+%                |                                   |
+%                |               ...                 |
+%                |                                   |
+%                |                                   |
+%                |                                   |
+%                |                                   |
+%                |                                   |
+%                |                                   |
+%                |                                   |
+%                |                                   |
+%   \paperheight -------------------------------------
+%
+%   - Dabei handelt es sich überall um positive Werte und um absolute Koordinaten.
+%
+%   - Zudem muss immer die jeweilige Einheit an den Wert hinzuegfügt werden, damit der
+%     Wert richtig interpretiert werden kann. Möchte man vorher beispielsweise eine Skizze
+%     machen, dann empfiehlt es sich hier cm als Einheit zu verwenden.
+%
+%   - Mittles \paperwidth und \paperheight können auch Koordinaten angegeben werden,
+%     die relativ zum Papierformat sind. Durch das calc Paket ist es zudem möglich
+%     Rechnungen innerhalb der Argumente vorzunehmen.
+%     
+%     Möchte man beispielsweise fünf Zentimeter sowohl vom linken als auch unteren Ende
+%     ein Textfeld beginnen, so würde der Befehl wie folgt aussehen:
+%
+%         \begin{textfeld}{\paperwidth - 5cm}{\paperheight - 5cm}
+%             ...
+%         \end{textfeld}
+%
+%
+% Zudem sollte man noch wissen, dass alle neueren Textfelder, also jene die weiter unten
+% stehen, die älteren überdecken. Dadurch sollte das Plakat von hinten nach vorne aufgebaut
+% werden.
+
+\newenvironment{textfeld}[3][\paperwidth]{%
+\begin{textblock*}{#1}(#2, #3)%
+\noindent%
+}{\end{textblock*}}%
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%
+% Sonstiges          %
+%%%%%%%%%%%%%%%%%%%%%%
+
+\pagestyle{empty}%
+
+
+%%%% Figure command
+
+\newcommand{\fig}[4]{
+\begin{figure}[htp]
+    \centering
+    \includegraphics[width=#4\textwidth, keepaspectratio]{#1}
+    \caption{#3}
+    \label{fig:#2}
+\end{figure}
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Tufte-style Sidenotes and images
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newcommand{\marginfigure}[4]{
+    \ifthispageodd{
+        \marginnote{
+            \captionsetup{type=figure, justification=raggedright}
+            \begin{figure}[H]
+                \includegraphics[width=\marginparwidth,keepaspectratio]{#1}
+            \end{figure}
+            \captionof{figure}{#3}\label{fig:#2}
+        }[#4]
+    }{
+        \marginnote{
+        %\begin{flushright}
+            \begin{minipage}[H]{0.99\marginparwidth}
+                \captionsetup{type=figure, justification=raggedright}
+                \begin{figure}[H]
+                       \includegraphics[width=\linewidth,keepaspectratio]{#1}
+                \end{figure}
+                \captionof{figure}{#3}\label{fig:#2}
+            \end{minipage}
+        }[#4]
+        %\end{flushright}
+    }
+}
+
+\newcommand{\margincode}[5]{
+    \marginnote{
+        \begin{minipage}[H]{0.99\marginparwidth}
+        \captionsetup{type=listing, justification=raggedright}
+            \inputminted[fontsize=\tiny]{#4}{#1}
+            \captionof{listing}{#3}\label{lst:#2}
+        \end{minipage}
+    }[#5]
+}
+
+\newcommand{\note}[1]{\footnote{\noindent\textit{#1}}}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Kopf- und Fusszeile                                   %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Mit Hilfe des Makros
+%
+%    \headFoot
+%
+% kann aus 20 vordefinierten Kopf- und Fusszeilen
+% gewählt werden.
+%
+% Dieses Makro besitzt ein Argument, nämlich die
+% ID aus den 20 vordefinierten Kopf- und Fusszeilen:
+%
+%    \headFoot{<ID>}
+%
+% Bei den IDs 1, 2, 5, 6, 9, 10, 13, 14, 17 und 18 
+% mit | wird auf ungerade und gerade Seite geachtet.
+%
+% Bei den restlichen IDs ist die Kopf- und Fusszeile auf 
+% ungeraden und geraden Seiten gleich.
+%
+%
+%   ID    Beschreibung
+%   ------------------
+%   1     Kopfzeile: Seite --- Kapitel --- Autor | Autor --- Kapitel --- Seite
+%         Fusszeile:
+%
+%   2     Kopfzeile: 
+%         Fusszeile: Seite --- Kapitel --- Autor | Autor --- Kapitel --- Seite
+%
+%   3     Kopfzeile: Autor --- Kapitel --- Seite
+%         Fusszeile:
+%
+%   4     Kopfzeile: 
+%         Fusszeile: Autor --- Kapitel --- Seite
+%
+%   5     Kopfzeile: Seite --- Autor --- Kapitel | Kapitel --- Autor --- Seite
+%         Fusszeile:
+%
+%   6     Kopfzeile: 
+%         Fusszeile: Seite --- Autor --- Kapitel | Kapitel --- Autor --- Seite
+%
+%   7     Kopfzeile: Kapitel --- Autor --- Seite
+%         Fusszeile:
+%
+%   8     Kopfzeile: 
+%         Fusszeile: Kapitel --- Autor --- Seite
+%
+%   9     Kopfzeile: Seite --- --- Kapitel | Name --- --- Seite
+%         Fusszeile:
+%
+%   10    Kopfzeile: 
+%         Fusszeile: Seite --- --- Kapitel | Name --- --- Seite
+%
+%   11    Kopfzeile: Kapitel --- --- Seite
+%         Fusszeile:
+%
+%   12    Kopfzeile: 
+%         Fusszeile: Kapitel --- --- Seite
+%
+%   13    Kopfzeile: Seite --- --- Autor | Kapitel --- --- Seite
+%         Fusszeile:
+%
+%   14    Kopfzeile:
+%         Fusszeile: Seite --- --- Autor | Kapitel --- --- Seite
+%
+%   15    Kopfzeile: Autor --- --- Seite
+%         Fusszeile:
+%
+%   16    Kopfzeile:
+%         Fusszeile: Autor --- --- Seite
+%
+%   17    Kopfzeile: Seite --- --- | --- --- Seite
+%         Fusszeile:
+%
+%   18    Kopfzeile: 
+%         Fusszeile: Seite --- --- | --- --- Seite
+%
+%   19    Kopfzeile: --- --- Seite
+%         Fusszeile:
+%
+%   20    Kopfzeile: 
+%         Fusszeile: --- --- Seite
+
+
+
+\pagestyle{fancyplain}
+\fancyhf{} % zunaechst mal alles loeschen
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+%\fancyhfoffset{0mm}
+
+
+\newcommand{\headFoot}[1]{
+%
+% Variante 1:
+%    Kopfzeile: Seite --- Kapitel --- Autor | Autor --- Kapitel --- Seite
+%    Fusszeile:
+%
+\ifthenelse{\equal{#1}{1}}{%
+\fancyhead[L]{\ifthenelse{\isodd{\value{page}}}{\small\autor\hfill\rightmark\hfill\thepage}{}}%
+\fancyhead[R]{\ifthenelse{\isodd{\value{page}}}{}{\small\thepage\hfill\rightmark\hfill\autor}}%
+}{}%
+%
+% Variante 2:
+%    Kopfzeile: 
+%    Fusszeile: Seite --- Kapitel --- Autor | Autor --- Kapitel --- Seite
+%
+\ifthenelse{\equal{#1}{2}}{%
+\fancyfoot[L]{\ifthenelse{\isodd{\value{page}}}{\small\autor\hfill\rightmark\hfill\thepage}{}}%
+\fancyfoot[R]{\ifthenelse{\isodd{\value{page}}}{}{\small\thepage\hfill\rightmark\hfill\autor}}%
+}{}%
+%
+% Variante 3:
+%    Kopfzeile: Autor --- Kapitel --- Seite
+%    Fusszeile:
+%
+\ifthenelse{\equal{#1}{3}}{%
+\fancyhead[L]{\small\autor\hfill\rightmark\hfill\thepage}%
+}{}%
+%
+% Variante 4:
+%    Kopfzeile: 
+%    Fusszeile: Autor --- Kapitel --- Seite
+%
+\ifthenelse{\equal{#1}{4}}{%
+\fancyfoot[L]{\small\autor\hfill\rightmark\hfill\thepage}%
+}{}%
+%
+% Variante 5:
+%    Kopfzeile: Seite --- Autor --- Kapitel | Kapitel --- Autor --- Seite
+%    Fusszeile:
+%
+\ifthenelse{\equal{#1}{5}}{%
+\fancyhead[L]{\ifthenelse{\isodd{\value{page}}}{\small\rightmark\hfill\autor\hfill\thepage}{}}%
+\fancyhead[R]{\ifthenelse{\isodd{\value{page}}}{}{\small\thepage\hfill\autor\hfill\rightmark}}%
+}{}%
+%
+% Variante 6:
+%    Kopfzeile: 
+%    Fusszeile: Seite --- Autor --- Kapitel | Kapitel --- Autor --- Seite
+%
+\ifthenelse{\equal{#1}{6}}{%
+\fancyfoot[L]{\ifthenelse{\isodd{\value{page}}}{\small\rightmark\hfill\autor\hfill\thepage}{}}%
+\fancyfoot[R]{\ifthenelse{\isodd{\value{page}}}{}{\small\thepage\hfill\autor\hfill\rightmark}}%
+}{}%
+%
+% Variante 7:
+%    Kopfzeile: Kapitel --- Autor --- Seite
+%    Fusszeile:
+%
+\ifthenelse{\equal{#1}{7}}{%
+\fancyhead[L]{\small\rightmark\hfill\autor\hfill\thepage}%
+}{}%
+%
+% Variante 8:
+%    Kopfzeile: 
+%    Fusszeile: Kapitel --- Autor --- Seite
+%
+\ifthenelse{\equal{#1}{8}}{%
+\fancyfoot[L]{\small\rightmark\hfill\autor\hfill\thepage}%
+}{}%
+%
+% Variante 9:
+%    Kopfzeile: Seite --- --- Kapitel | Name --- --- Seite
+%    Fusszeile:
+%
+\ifthenelse{\equal{#1}{9}}{%
+\fancyhead[L]{\ifthenelse{\isodd{\value{page}}}{\small\autor\hfill\thepage}{}}%
+\fancyhead[R]{\ifthenelse{\isodd{\value{page}}}{}{\small\thepage\hfill\rightmark}}%
+}{}%
+%
+% Variante 10:
+%    Kopfzeile: 
+%    Fusszeile: Seite --- --- Kapitel | Name --- --- Seite
+%
+\ifthenelse{\equal{#1}{10}}{%
+\fancyfoot[L]{\ifthenelse{\isodd{\value{page}}}{\small\hfill\thepage}{}}%
+\fancyfoot[R]{\ifthenelse{\isodd{\value{page}}}{}{\small\thepage\hfill\rightmark}}%
+}{}%
+%
+% Variante 11:
+%    Kopfzeile: Kapitel --- --- Seite
+%    Fusszeile:
+%
+\ifthenelse{\equal{#1}{11}}{%
+\fancyhead[L]{\small\rightmark\hfill\thepage}%
+}{}%
+%
+% Variante 12:
+%    Kopfzeile: 
+%    Fusszeile: Kapitel --- --- Seite
+%
+\ifthenelse{\equal{#1}{12}}{%
+\fancyfoot[L]{\small\rightmark\hfill\thepage}%
+}{}%
+%
+% Variante 13:
+%    Kopfzeile: Seite --- --- Autor | Kapitel --- --- Seite
+%    Fusszeile:
+%
+\ifthenelse{\equal{#1}{13}}{%
+\fancyhead[L]{\ifthenelse{\isodd{\value{page}}}{\small\rightmark\hfill\thepage}{}}%
+\fancyhead[R]{\ifthenelse{\isodd{\value{page}}}{}{\small\thepage\hfill\autor}}%
+}{}%
+%
+% Variante 14:
+%    Kopfzeile:
+%    Fusszeile: Seite --- --- Autor | Kapitel --- --- Seite
+%
+\ifthenelse{\equal{#1}{14}}{%
+\fancyhead[L]{\ifthenelse{\isodd{\value{page}}}{\small\rightmark}{}}%
+\fancyfoot[L]{\ifthenelse{\isodd{\value{page}}}{\hfill\small\thepage\hfill}{}}%
+\fancyfoot[R]{\ifthenelse{\isodd{\value{page}}}{}{\hfill\small\thepage\hfill}}%
+}{}%
+%
+% Variante 15:
+%    Kopfzeile: Autor --- --- Seite
+%    Fusszeile:
+%
+\ifthenelse{\equal{#1}{15}}{%
+\fancyhead[L]{\small\autor\hfill\thepage}%
+}{}%
+%
+% Variante 16:
+%    Kopfzeile:
+%    Fusszeile: Autor --- --- Seite
+%
+\ifthenelse{\equal{#1}{16}}{%
+\fancyfoot[L]{\small\autor\hfill\thepage}%
+}{}%
+%
+% Variante 17:
+%    Kopfzeile: Seite --- --- | --- --- Seite
+%    Fusszeile:
+%
+\ifthenelse{\equal{#1}{17}}{%
+\fancyhead[L]{\ifthenelse{\isodd{\value{page}}}{\small\hfill\thepage}{}}%
+\fancyhead[R]{\ifthenelse{\isodd{\value{page}}}{}{\small\thepage\hfill}}%
+}{}%
+%
+% Variante 18:
+%    Kopfzeile: 
+%    Fusszeile: Seite --- --- | --- --- Seite
+%
+\ifthenelse{\equal{#1}{18}}{%
+\fancyfoot[L]{\ifthenelse{\isodd{\value{page}}}{\small\hfill\thepage}{}}%
+\fancyfoot[R]{\ifthenelse{\isodd{\value{page}}}{}{\small\thepage\hfill}}%
+}{}%
+%
+% Variante 19:
+%    Kopfzeile: --- --- Seite
+%    Fusszeile:
+%
+\ifthenelse{\equal{#1}{19}}{%
+\fancyhead[L]{\small\hfill\thepage}%
+}{}%
+%
+% Variante 20:
+%    Kopfzeile: 
+%    Fusszeile: --- --- Seite
+%
+\ifthenelse{\equal{#1}{20}}{%
+\fancyfoot[L]{\small\hfill\thepage}%
+}{}%
+
+}
+

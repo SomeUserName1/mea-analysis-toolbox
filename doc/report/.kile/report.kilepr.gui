@@ -1,0 +1,385 @@
+[General]
+kile_livePreviewEnabled=false
+kile_livePreviewStatusUserSpecified=true
+kile_livePreviewTool=LivePreview-PDFLaTeX
+lastDocument=00-main.tex
+
+[document-settings,item:../../README.md]
+Bookmarks=
+Encoding=UTF-8
+Highlighting=Markdown
+Highlighting Set By User=false
+Indentation Mode=normal
+Mode=Markdown
+Mode Set By User=false
+
+[document-settings,item:00-main.tex]
+Bookmarks=
+Encoding=UTF-8
+Highlighting=LaTeX
+Highlighting Set By User=false
+Indentation Mode=normal
+Mode=LaTeX
+Mode Set By User=false
+
+[document-settings,item:01-abstract.tex]
+Bookmarks=
+Encoding=UTF-8
+Highlighting=LaTeX
+Highlighting Set By User=false
+Indentation Mode=normal
+Mode=LaTeX
+Mode Set By User=false
+
+[document-settings,item:02-introduction.tex]
+Bookmarks=
+Encoding=UTF-8
+Highlighting=LaTeX
+Highlighting Set By User=false
+Indentation Mode=normal
+Mode=LaTeX
+Mode Set By User=false
+
+[document-settings,item:03-graphs.tex]
+Bookmarks=
+Encoding=UTF-8
+Highlighting=LaTeX
+Highlighting Set By User=false
+Indentation Mode=normal
+Mode=LaTeX
+Mode Set By User=false
+
+[document-settings,item:03-related_work.tex]
+Bookmarks=
+Encoding=UTF-8
+Highlighting=LaTeX
+Highlighting Set By User=false
+Indentation Mode=normal
+Mode=LaTeX
+Mode Set By User=false
+
+[document-settings,item:04-databases.tex]
+Bookmarks=
+Encoding=UTF-8
+Highlighting=LaTeX
+Highlighting Set By User=false
+Indentation Mode=normal
+Mode=LaTeX
+Mode Set By User=false
+
+[document-settings,item:04-toolbox.tex]
+Bookmarks=
+Encoding=UTF-8
+Highlighting=LaTeX
+Highlighting Set By User=false
+Indentation Mode=normal
+Mode=LaTeX
+Mode Set By User=false
+
+[document-settings,item:05-discussion.tex]
+Bookmarks=
+Encoding=UTF-8
+Highlighting=LaTeX
+Highlighting Set By User=false
+Indentation Mode=normal
+Mode=LaTeX
+Mode Set By User=false
+
+[document-settings,item:05-problem_def.tex]
+Bookmarks=
+Encoding=UTF-8
+Highlighting=LaTeX
+Highlighting Set By User=false
+Indentation Mode=normal
+Mode=LaTeX
+Mode Set By User=false
+
+[document-settings,item:06-conclusion.tex]
+Bookmarks=
+Encoding=UTF-8
+Highlighting=LaTeX
+Highlighting Set By User=false
+Indentation Mode=normal
+Mode=LaTeX
+Mode Set By User=false
+
+[document-settings,item:06-methods.tex]
+Bookmarks=
+Encoding=UTF-8
+Highlighting=LaTeX
+Highlighting Set By User=false
+Indentation Mode=normal
+Mode=LaTeX
+Mode Set By User=false
+
+[document-settings,item:07-eval.tex]
+Bookmarks=
+Encoding=UTF-8
+Highlighting=LaTeX
+Highlighting Set By User=false
+Indentation Mode=normal
+Mode=LaTeX
+Mode Set By User=false
+
+[document-settings,item:08-conclusions.tex]
+Bookmarks=
+Encoding=UTF-8
+Highlighting=LaTeX
+Highlighting Set By User=false
+Indentation Mode=normal
+Mode=LaTeX
+Mode Set By User=false
+
+[document-settings,item:09-appendix.tex]
+Bookmarks=
+Encoding=UTF-8
+Highlighting=LaTeX
+Highlighting Set By User=false
+Indentation Mode=normal
+Mode=LaTeX
+Mode Set By User=false
+
+[document-settings,item:additional.tex]
+Bookmarks=
+Encoding=UTF-8
+Highlighting=LaTeX
+Highlighting Set By User=false
+Indentation Mode=normal
+Mode=LaTeX
+Mode Set By User=false
+
+[document-settings,item:masterthesis.kilepr]
+Bookmarks=
+Encoding=UTF-8
+Highlighting=None
+Highlighting Set By User=false
+Indentation Mode=normal
+Mode=Normal
+Mode Set By User=false
+
+[document-settings,item:resources.bib]
+Bookmarks=
+Encoding=UTF-8
+Highlighting=BibTeX
+Highlighting Set By User=false
+Indentation Mode=normal
+Mode=BibTeX
+Mode Set By User=false
+
+[document-settings,item:themeKonstanz.sty]
+Bookmarks=
+Encoding=UTF-8
+Highlighting=LaTeX
+Highlighting Set By User=false
+Indentation Mode=normal
+Mode=LaTeX
+Mode Set By User=false
+
+[document-settings,item:tuetitle.sty]
+Bookmarks=
+Encoding=
+Highlighting=LaTeX
+Highlighting Set By User=false
+Indentation Mode=normal
+Mode=LaTeX
+Mode Set By User=false
+
+[item:00-main.tex]
+open=true
+order=0
+
+[item:01-abstract.tex]
+open=false
+order=-1
+
+[item:02-introduction.tex]
+open=false
+order=-1
+
+[item:03-related_work.tex]
+open=false
+order=-1
+
+[item:04-toolbox.tex]
+open=true
+order=0
+
+[item:05-discussion.tex]
+open=false
+order=-1
+
+[item:06-conclusion.tex]
+open=false
+order=-1
+
+[item:resources.bib]
+open=true
+order=1
+
+[item:themeKonstanz.sty]
+open=false
+order=-1
+
+[item:tuetitle.sty]
+open=false
+order=-1
+
+[view-settings,view=0,item:../../README.md]
+CursorColumn=0
+CursorLine=0
+Dynamic Word Wrap=false
+JumpList=
+TextFolding={"checksum":"ba88a2f4657ec3d49cfe1e74e6eadefa09217419","ranges":[]}
+ViMarks=
+
+[view-settings,view=0,item:00-main.tex]
+CursorColumn=14
+CursorLine=34
+Dynamic Word Wrap=false
+JumpList=
+TextFolding={"checksum":"ad7c29dfe79cdc0cff66bd072fe2369cdf5f1d75","ranges":[]}
+ViMarks=
+
+[view-settings,view=0,item:01-abstract.tex]
+CursorColumn=0
+CursorLine=0
+Dynamic Word Wrap=false
+JumpList=
+TextFolding={"checksum":"139597f9cb07c5d48bed18984ec4747f4b4f3438","ranges":[]}
+ViMarks=
+
+[view-settings,view=0,item:02-introduction.tex]
+CursorColumn=0
+CursorLine=0
+Dynamic Word Wrap=false
+JumpList=
+TextFolding={"checksum":"8b137891791fe96927ad78e64b0aad7bded08bdc","ranges":[]}
+ViMarks=
+
+[view-settings,view=0,item:03-graphs.tex]
+CursorColumn=0
+CursorLine=0
+Dynamic Word Wrap=false
+JumpList=
+TextFolding={"checksum":"","ranges":[]}
+ViMarks=
+
+[view-settings,view=0,item:03-related_work.tex]
+CursorColumn=0
+CursorLine=0
+Dynamic Word Wrap=false
+JumpList=
+TextFolding={"checksum":"e69de29bb2d1d6434b8b29ae775ad8c2e48c5391","ranges":[]}
+ViMarks=
+
+[view-settings,view=0,item:04-databases.tex]
+CursorColumn=0
+CursorLine=0
+Dynamic Word Wrap=false
+JumpList=
+TextFolding={"checksum":"","ranges":[]}
+ViMarks=
+
+[view-settings,view=0,item:04-toolbox.tex]
+CursorColumn=0
+CursorLine=0
+Dynamic Word Wrap=true
+JumpList=
+TextFolding={"checksum":"e69de29bb2d1d6434b8b29ae775ad8c2e48c5391","ranges":[]}
+ViMarks=
+
+[view-settings,view=0,item:05-discussion.tex]
+CursorColumn=0
+CursorLine=0
+Dynamic Word Wrap=true
+JumpList=
+TextFolding={"checksum":"e69de29bb2d1d6434b8b29ae775ad8c2e48c5391","ranges":[]}
+ViMarks=
+
+[view-settings,view=0,item:05-problem_def.tex]
+CursorColumn=0
+CursorLine=0
+Dynamic Word Wrap=false
+JumpList=
+TextFolding={"checksum":"","ranges":[]}
+ViMarks=
+
+[view-settings,view=0,item:06-conclusion.tex]
+CursorColumn=0
+CursorLine=0
+Dynamic Word Wrap=true
+JumpList=
+TextFolding={"checksum":"8b137891791fe96927ad78e64b0aad7bded08bdc","ranges":[]}
+ViMarks=
+
+[view-settings,view=0,item:06-methods.tex]
+CursorColumn=0
+CursorLine=0
+Dynamic Word Wrap=false
+JumpList=
+TextFolding={"checksum":"","ranges":[]}
+ViMarks=
+
+[view-settings,view=0,item:07-eval.tex]
+CursorColumn=0
+CursorLine=0
+Dynamic Word Wrap=false
+JumpList=
+TextFolding={"checksum":"","ranges":[]}
+ViMarks=
+
+[view-settings,view=0,item:08-conclusions.tex]
+CursorColumn=0
+CursorLine=0
+Dynamic Word Wrap=false
+JumpList=
+TextFolding={"checksum":"","ranges":[]}
+ViMarks=
+
+[view-settings,view=0,item:09-appendix.tex]
+CursorColumn=0
+CursorLine=0
+Dynamic Word Wrap=false
+JumpList=
+TextFolding={"checksum":"","ranges":[]}
+ViMarks=
+
+[view-settings,view=0,item:additional.tex]
+CursorColumn=0
+CursorLine=0
+Dynamic Word Wrap=false
+JumpList=
+TextFolding={"checksum":"","ranges":[]}
+ViMarks=
+
+[view-settings,view=0,item:masterthesis.kilepr]
+CursorColumn=0
+CursorLine=0
+Dynamic Word Wrap=false
+JumpList=
+TextFolding={"checksum":"","ranges":[]}
+ViMarks=
+
+[view-settings,view=0,item:resources.bib]
+CursorColumn=28
+CursorLine=304
+Dynamic Word Wrap=false
+JumpList=
+TextFolding={"checksum":"394f5dc3c86c844c2c75671221255cf0f68bec16","ranges":[]}
+ViMarks=
+
+[view-settings,view=0,item:themeKonstanz.sty]
+CursorColumn=0
+CursorLine=0
+Dynamic Word Wrap=false
+JumpList=
+TextFolding={"checksum":"03e5f9c9cdb1d7fe3644decaf519485ae268906e","ranges":[]}
+ViMarks=
+
+[view-settings,view=0,item:tuetitle.sty]
+CursorColumn=0
+CursorLine=0
+Dynamic Word Wrap=false
+JumpList=
+TextFolding={"checksum":"","ranges":[]}
+ViMarks=

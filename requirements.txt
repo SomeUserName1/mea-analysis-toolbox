@@ -1,0 +1,12 @@
+dash
+dash-bootstrap-components
+fooof
+matplotlib
+mcspydatatools
+nose
+numba
+numpy
+pyif
+scikit-learn
+scipy
+wand
