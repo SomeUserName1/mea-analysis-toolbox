@@ -1,4 +1,4 @@
-# LFP Toolbox
+# Multi-Electrode Array Analysis
 
 ## Installation
 Using anaconda:  
@@ -21,10 +21,3 @@ cd src && python -m webapp
 git fetch && git pull
 ```
 
-
-# TODOs
-- Support CMOS
-- Extend analysis to spontaneous acitvity too
-- Use [Fastplotlib](https://github.com/kushalkolar/fastplotlib) for plotting
-- Use mne with MEA declared as ECoG for CSD, functional connectivities and the like.
-- Detect bad channels using pyprep
