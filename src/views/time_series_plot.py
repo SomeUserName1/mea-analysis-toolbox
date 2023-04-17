@@ -9,17 +9,15 @@ import numpy as np
 from model.io.import_mcs import get_mcs_256mea_row_order
 
 
+# FIXME: Data is in row major now. undo all the plot in grid bs and pull out single fns!.
 def plot_in_grid(kind, signals, electrode_idxs, names, fs=None, t_start=None, t_end=None, double=None, scatter=None, burst_idxs_all=None, burst_idxs_longest=None):
     use('TkAgg')
 
     if kind == 'time_series':
-        t_start_idx = int(np.round(fs * t_start / 1000000))
-        t_end_idx = int(np.round(fs * t_end / 1000000))
-        n_samples = t_end_idx - t_start_idx + 1
         time = np.linspace(t_start / 1000000, t_end / 1000000, signals[0].shape[0])
         y_range = [np.amin(signals), np.amax(signals)]
 
-        if double is not None:
+        if double:
             y_range = [min(y_range[0], np.amin(double)), max(y_range[1], np.amax(double))]
 
     elif kind == 'spectrograms':
@@ -28,24 +26,14 @@ def plot_in_grid(kind, signals, electrode_idxs, names, fs=None, t_start=None, t_
             if np.amax(spect) > max_pow:
                 max_pow = np.amax(spect)
 
-
-    row_order = get_mcs_256mea_row_order()
     grid_sz = 16
-
     offset = 0
     plotted = np.zeros((grid_sz, grid_sz))
-    for i in range(16):
-        if i * grid_sz >= 252:
-            break
-        for j in range(16):
-            if i * grid_sz + j >= 252:
+    for i in range(grid_sz):
+        for j in range(grid_sz):
+            if i * grid_sz + j >= grid_size * grid_size:
                 break
 
-            if i * grid_sz + j == 0 \
-                    or i * grid_sz + j == grid_sz - 1 \
-                    or i * grid_sz + j == grid_sz * (grid_sz - 1) \
-                    or i * grid_sz + j == grid_sz * grid_sz - 1:
-                offset += 1
                 if i * grid_sz + j == 0 and 'B1' in names and 'A2' in names \
                     or i * grid_sz + j == grid_sz - 1 and 'P1' in names and 'R2' in names \
                     or i * grid_sz + j == grid_sz * (grid_sz - 1) and 'A15' in names and 'B16' in names \
@@ -53,7 +41,7 @@ def plot_in_grid(kind, signals, electrode_idxs, names, fs=None, t_start=None, t_
                     plotted[i, j] = 1
                 continue
 
-            if row_order[i * grid_sz + j - offset] in electrode_idxs:
+            if i * grid_sz + j in electrode_idxs:
                 plotted[i, j] = 1
 
     empty_rows = []

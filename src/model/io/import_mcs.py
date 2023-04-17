@@ -42,6 +42,8 @@ def import_mcs(path, que):
             data[channel_row_map[i]] -= \
                     stream.channel_infos[i].get_field('ADZero')
 
+        data = sort_data_row_major(data)
+
         info = print_info(path, file_contents)
         data = Data(date, num_channels, sampling_rate, data)
         del file_contents
@@ -149,7 +151,7 @@ def print_info(h5filename, data):
 
     return info_string + tabulate(all_rows, headers=table_header)
 
-
+# FIXME sth is off here.
 def extract_baseline_std(baseline, que):
     """
     Extracts the standard deviation per channel from a file without creating a \
@@ -214,6 +216,17 @@ def extract_baseline_std(baseline, que):
     que.put((stds, mv_std_stds, mv_mad_stds))
 
 
+def sort_data_row_major(data: np.ndarray) -> np.ndarray:
+    order = get_mcs_256mea_row_order()
+
+    data = data[order]
+    
+    for i in [0, 15, 239, 255]:
+        np.insert(ordered_data, i, np.nan, axis=0)
+    
+    return data
+
+
 def get_mcs_256mea_names():
     """
     Constructs the list of channel names for the 256 electrode MEA system as \
@@ -265,6 +278,7 @@ def get_mcs_256mea_name_row_dict():
     channel_order = get_mcs_256mea_row_order()
 
     return dict(zip(names, channel_order))
+
 
 def get_selected_electrode_names(data):
     """
