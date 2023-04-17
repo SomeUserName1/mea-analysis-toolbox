@@ -15,8 +15,8 @@ def plot_in_grid(kind, signals, electrode_idxs, names, fs=None, t_start=None, t_
     if kind == 'time_series':
         t_start_idx = int(np.round(fs * t_start / 1000000))
         t_end_idx = int(np.round(fs * t_end / 1000000))
-        n_samples = t_end_idx - t_start_idx
-        time = np.linspace(t_start / 1000000, t_end / 1000000, n_samples)
+        n_samples = t_end_idx - t_start_idx + 1
+        time = np.linspace(t_start / 1000000, t_end / 1000000, signals[0].shape[0])
         y_range = [np.amin(signals), np.amax(signals)]
 
         if double is not None:

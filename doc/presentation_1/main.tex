@@ -39,123 +39,77 @@
 
 \titlegraphic{\includegraphics[keepaspectratio, height=0.15\textheight]{img/logo_hertie.png} \\ [1em] \includegraphics[keepaspectratio, height=0.1\textheight]{img/logo.png}}
 
-\title{\textbf{MEA LFP Analysis Toolbox}}
+\title{\textbf{MEA Analysis Toolbox}}
 \author{\vspace{-0.7cm}F. Klopfer}
 \date{\today}
 
 \begin{document}
 \frame{\titlepage}
-
-\section{Introduction}
-\begin{frame}
-\begin{center}
- \begin{Huge}
-  \textbf{Introduction}
- \end{Huge}
- \end{center}
-\end{frame}
-
-\begin{frame}[allowframebreaks]{Epilepsy \& Migraine as Channelopathies}
-    \begin{center}
-  \includegraphics[keepaspectratio,width=0.48\framewidth]{img/0_channelo_epilepsy_eeg.png}
-    \includegraphics[keepaspectratio,width=0.48\framewidth]{img/0_channelo_nav11.jpg}
-
- \end{center}
- \framebreak
-     \begin{center}
-  \includegraphics[keepaspectratio,width=0.38\framewidth]{img/0_channelo_migraine.jpg}
-  \includegraphics[keepaspectratio,width=0.58\framewidth]{img/0_channelo_nav11_mig.png}
- \end{center}
-\end{frame}
-
-
-\begin{frame}[allowframebreaks]{Recording Setup}
-  \begin{center}
-  \includegraphics[keepaspectratio,width=0.95\framewidth]{img/1_setup_mea.png}
- \end{center}
- \framebreak
- \begin{center}
-  \includegraphics[keepaspectratio,width=0.47\framewidth]{img/1_setup_top.jpg}
-   \end{center}
- \framebreak
- \begin{center}
-    \includegraphics[keepaspectratio,width=0.8\framewidth]{img/1_setup_close.jpg}
- \end{center}
-  \framebreak
- \begin{center}
-  \includegraphics[keepaspectratio,width=0.6\framewidth]{img/1_setup_mea_layout.png}
-   \end{center}
-  \framebreak
- \begin{center}
-    \includegraphics[keepaspectratio,width=0.9\framewidth]{img/1_setup_slice_.jpg}
-
- \end{center}
-\end{frame}
-
-\begin{frame}[allowframebreaks]{Data}
-\begin{center}
-  \includegraphics[keepaspectratio,width=0.35\framewidth]{img/2_lfp.png}
-  \includegraphics[keepaspectratio,width=0.64\framewidth]{img/2_lfp_mur.png}
- \end{center}
- \framebreak
- \begin{center}
-  \includegraphics[keepaspectratio,width=0.8\framewidth]{img/2_lfp_origins.png}
- \end{center}
-  \framebreak
- \begin{center}
-  \includegraphics[keepaspectratio,width=\framewidth]{img/4_raw.png}
- \end{center}
-\end{frame}
-
+\section{Task}
 \begin{frame}{Task}
 \begin{itemize}
- \item Task: Detect peaks, seizure-like bursts \& characterize them. Provide GUI. \\ [2em]
+ \item Task: Detect peaks, seizure-like bursts \& characterize them. \\
+    Provide GUI. \\ [1em]
  \item Contraints: \begin{itemize}
                     \item many channels \\ [1em]
                     \item high sampling rate \\ [1em]
-                    \item high heterogeneity \\ [2em]
+                    \item high heterogeneity (slices) \\ [2em]
                    \end{itemize}
   \item Existing toolboxes are
   \begin{itemize}
    \item proprietary or vendor specific
-   \item scale specific (Single Unit vs. EEG/MEG)
    \item quality-wise insufficient
   \end{itemize}
 \end{itemize}
 \end{frame}
 
-\section{Software}
+\section{What's there}
 \begin{frame}
 \begin{center}
  \begin{Huge}
-  \textbf{Software}
+  \textbf{What's there}
  \end{Huge}
  \end{center}
 \end{frame}
 
+\begin{frame}{So far...}
+  What is there so far  \vspace{0.5em}
+  \begin{itemize}
+    \item was developed in $\approx10$ weeks, \\ [1em]
+    \item without recording a single slice myself, \\ [1em]
+    \item without analyzing more than 1-2 samples myself, \\ [1em]
+    \item without having extensive knowledge about the setup. \\ [2em]
+  \end{itemize}
+  $\Rightarrow$ that's exactly what will follow in the next 6 months.
+\end{frame}
 
-\begin{frame}[allowframebreaks]{MEA LFP Analysis Toolbox}
-    Semi-automated data analysis pipeline with UI. \\ [1em]
-    \begin{itemize}
-     \item Currently supports MultiChannel Systems 256 electrode MEA \\ [1em]
+\begin{frame}[allowframebreaks]{MEA Analysis Toolbox}
+    Semi-automated data analysis pipeline with UI. \\
+   
+     Currently supports MultiChannel Systems 256 electrode MEA \\ [1em]
       \begin{center}
         \includegraphics[keepaspectratio,width=0.8\framewidth]{img/4_import.png}
       \end{center}
       \framebreak
       
-     \item Allows graphical selection of electrodes and time window \\ [1em]
+     Graphical selection of electrodes and time window \\ 
       \begin{center}
         \includegraphics[keepaspectratio,width=0.8\framewidth]{img/4_select.png}
       \end{center}
       \framebreak
       
-     \item Preprocessing: Electrical humming filter, bandpass filter, downsampling \\ [1em]
+     Preprocessing: electrical humming, bandpass, bandstop, downsampling \\
       \begin{center}
         \includegraphics[keepaspectratio,width=0.8\framewidth]{img/4_preproc.png}
       \end{center} 
       \framebreak
       
-     \item Exploration: raw signal plots, absolute amplitude video, PSD, Spectrogram \\ [1em]
+    Exploration \& Analysis: 
+      \begin{center}
+      \includegraphics[keepaspectratio,width=0.8\framewidth]{img/4_analyze.png}
+      \end{center}
+      \framebreak
+    Exploration: raw signals, absolute amplitude animation, PSD, spectrogram \\ 
       \begin{center}
         \includegraphics[keepaspectratio,width=0.9\framewidth]{img/4_raw.png}
       \end{center}
@@ -169,51 +123,114 @@
       \end{center}
       \framebreak
       
-     \item Analysis: Peak detection based on theshold derived from std or based on moving average, burst detection based on moving average or moving std (instead of peaks) \\ [1em]
-        \begin{center}
-      \includegraphics[keepaspectratio,width=0.8\framewidth]{img/4_analyze.png}
+     Analysis: Peak detection by threshold based STD per channel, burst detection based on moving STD or moving mean absolute deviation \\
+      \begin{center}
+       \includegraphics[keepaspectratio,width=\framewidth]{img/4_peaks_amplitude.png}
       \end{center}
-      \framebreak
-      \hspace{-1cm}\includegraphics[keepaspectratio,width=\framewidth]{img/4_peaks_amplitude.png}
-      \framebreak
-      \hspace{-1cm}\includegraphics[keepaspectratio,width=\framewidth]{img/4_peaks_avg.png}
       \framebreak
       \begin{center}
-      \includegraphics[keepaspectratio,width=0.58\framewidth]{img/4_raster_amplitude.png}
-      \includegraphics[keepaspectratio,width=0.58\framewidth]{img/4_raster_avg.png}
+      \includegraphics[keepaspectratio,width=\framewidth]{img/4_raster_amplitude.png}
       \end{center}
       \framebreak
       
-      \hspace{-1cm}\includegraphics[keepaspectratio,width=\framewidth]{img/4_bursts_std.png} \\
-      \hspace{-1cm}\includegraphics[keepaspectratio,width=\framewidth]{img/4_bursts_avg.png}
+      \begin{center}
+       \includegraphics[keepaspectratio,width=\framewidth]{img/4_bursts_std.png}
+      \end{center}
+      \framebreak
+      \begin{center}
+       \includegraphics[keepaspectratio,width=\framewidth]{img/bursts_new.png}
+      \end{center}
       \framebreak
       
-     \item seizure-like event quantification: \\ 
-      \hspace*{-1.5cm}\includegraphics[keepaspectratio,width=1.1\framewidth]{img/4_event_stats_std.png} \\
-      \hspace*{-1.5cm}\includegraphics[keepaspectratio,width=1.1\framewidth]{img/4_event_stats_avg.png}
-     \end{itemize}
-     \end{frame}
+     seizure-like event quantification: \\ 
+     \begin{center}
+      \hspace*{-1cm}\includegraphics[keepaspectratio,width=1.18\framewidth]{img/4_event_stats_std.png}
+     \end{center}
+  \end{frame}
 
-\section{Outlook}
+\section{The next 6 months (and further)}
 \begin{frame}
 \begin{center}
  \begin{Huge}
-  \textbf{Outlook}
+  \textbf{The next 6 months \\(and further)}
  \end{Huge}
  \end{center}
 \end{frame}
 
-\begin{frame}{Outlook}
+\begin{frame}{Computing}
 \begin{itemize}
- \item Transfer Entropy, Granger Causality and CSD \\ [1em]
- \item Group analysis \\ [1em]
- \item Other setups: CMOS, deep brain stimulation electrodes \\ [1em]
- \item in-vitro/MEA - in-vivo/Tetrode correlation \\ [1em]
- \item 2-Photon Ca$^{2+}$ imaging \\ [1em]
-\end{itemize}
+  \item batch processing (multiple files/recordings) \\ [2em]
+  \item server deployment \\ [2em]
+  \item parallelization \\ [2em]
+  \item Qt-based GUI?
+  \end{itemize}
 \end{frame}
-     
-     
+  
+\begin{frame}{Setup}
+  \begin{itemize}
+   \item HD/CMOS MEA support \\ [2em]
+   \item setup micrograph co-registration \\ [2em]
+   \item if $\not\exists$: protocol \& documentation for measurements
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Preprocessing}
+  \begin{itemize}
+   \item Bad channel detection based on SNR, impedances \\ [1em]
+   \item (re-) referencing \\ [1em]
+   \item between group alignment \\ [1em]
+   \item artifact removal using ICA \\ [1em]
+   \item epoching \\ [1em]
+   \item detrending
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Visualization}
+ \begin{itemize}
+  \item per band power animation \\ [2em]
+  \item between group comparisons \\ [2em]
+  \item spatial and temporal visualization of analysis
+ \end{itemize}
+
+\end{frame}
+
+
+\begin{frame}[allowframebreaks]{Analysis}
+  \begin{itemize}
+   \item Per electrode:
+  \begin{itemize}
+      \item improve peak detection \\ 
+      \item improve burst detection \\
+      \item FOOOF: periodic \& aperiodic component separation \\
+      \item waveform/event sorting, further features \\
+      \item waveform \& spike analysis combined \\
+      \item spectral (and other kinds of) entropy/complexity meassures \\ [1em]
+  \end{itemize}
+  \framebreak
+  
+  \item Between electrodes:
+  \begin{itemize}
+   \item current source densities \\
+   \item transfer entropy/granger causality \\
+   \item coherence/``connectivity'' \\
+   \item correlation \\
+   \item phase-amplitude coupling \\
+   \item spontaneous activity
+  \end{itemize}
+  \framebreak
+
+  \item Within subject: coregistration with atlases \\ $\Rightarrow$ structure-specific comparison
+  \item Between subjects: aggregation to group
+   \item Group analysis: t-tests, automated listing of significant p-values for the above
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+ \Huge Famous last words
+\end{frame}
+
+
+
 \section{References}
     \begin{frame}[allowframebreaks]
       \frametitle{References}
