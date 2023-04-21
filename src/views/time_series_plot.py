@@ -9,39 +9,24 @@ import numpy as np
 from model.io.import_mcs import get_mcs_256mea_row_order
 
 
-# FIXME: Data is in row major now. undo all the plot in grid bs and pull out single fns!.
-def plot_in_grid(kind, signals, electrode_idxs, names, fs=None, t_start=None, t_end=None, double=None, scatter=None, burst_idxs_all=None, burst_idxs_longest=None):
-    use('TkAgg')
-
-    if kind == 'time_series':
-        time = np.linspace(t_start / 1000000, t_end / 1000000, signals[0].shape[0])
-        y_range = [np.amin(signals), np.amax(signals)]
-
-        if double:
-            y_range = [min(y_range[0], np.amin(double)), max(y_range[1], np.amax(double))]
-
-    elif kind == 'spectrograms':
-        max_pow = 0
-        for spect in signals[0]:
-            if np.amax(spect) > max_pow:
-                max_pow = np.amax(spect)
-
+def get_plot_grid_sz(names, electrode_idxs):
     grid_sz = 16
     offset = 0
     plotted = np.zeros((grid_sz, grid_sz))
     for i in range(grid_sz):
         for j in range(grid_sz):
-            if i * grid_sz + j >= grid_size * grid_size:
+            idx = i * grid_sz + j
+            if idx >= grid_size * grid_size:
                 break
-
-                if i * grid_sz + j == 0 and 'B1' in names and 'A2' in names \
-                    or i * grid_sz + j == grid_sz - 1 and 'P1' in names and 'R2' in names \
-                    or i * grid_sz + j == grid_sz * (grid_sz - 1) and 'A15' in names and 'B16' in names \
-                    or i * grid_sz + j == grid_sz * grid_sz - 1 and 'R15' in names and 'R16' in names:
+                
+            if idx == 0 and 'A1' in names and 'B1' in names \
+                or idx == grid_sz - 1 and 'P1' in names and 'R2' in names \
+                or idx == grid_sz * (grid_sz - 1) and 'A15' in names and 'B16' in names \
+                or idx == grid_sz * grid_sz - 1 and 'R15' in names and 'R16' in names:
                     plotted[i, j] = 1
-                continue
+                    continue
 
-            if i * grid_sz + j in electrode_idxs:
+            if idx in electrode_idxs:
                 plotted[i, j] = 1
 
     empty_rows = []
@@ -55,8 +40,38 @@ def plot_in_grid(kind, signals, electrode_idxs, names, fs=None, t_start=None, t_
 
     grid_y = grid_sz - len(empty_rows)
     grid_x = grid_sz - len(empty_cols)
-    fig, ax_array = plt.subplots(grid_y, grid_x, sharey=True, sharex=True)
+   
+   return grid_x, grid_y 
 
+
+def plot_spectrogram():
+    max_pow = 0
+    for spect in signals[0]:
+        if np.amax(spect) > max_pow:
+            max_pow = np.amax(spect)
+
+    pass
+
+def plot_time_series():
+    time = np.linspace(t_start / 1000000, t_end / 1000000, signals[0].shape[0])
+    y_range = [np.amin(signals), np.amax(signals)]
+
+    if double:
+        y_range = [min(y_range[0], np.amin(double)), max(y_range[1], np.amax(double))]
+
+    pass
+
+
+def plot_psd():
+    pass
+
+def plot_fooof():
+
+# FIXME: Data is in row major now. undo all the plot in grid bs and pull out single fns!.
+def plot_in_grid(kind, signals, electrode_idxs, names, fs=None, t_start=None, t_end=None, double=None, scatter=None, burst_idxs_all=None, burst_idxs_longest=None):
+    use('TkAgg')
+    grid_x, grid_y = get_plot_grid_sz()
+    fig, ax_array = plt.subplots(grid_y, grid_x, sharey=True, sharex=True)
 
     if grid_y == 1:
         ax_array = np.expand_dims(ax_array, axis=0)
@@ -69,34 +84,7 @@ def plot_in_grid(kind, signals, electrode_idxs, names, fs=None, t_start=None, t_
     offset = 0
     cont = False
     for i in range(grid_sz):
-        col_offset = 0
-        if i in empty_rows:
-            row_offset += 1
-
-            if i == 0:
-                offset += 2
-
-            continue
-
-        for j in range(grid_sz):
-            if i * grid_sz + j == 0\
-                    or i * grid_sz + j == grid_sz - 1\
-                    or i * grid_sz + j == grid_sz * (grid_sz - 1)\
-                    or i * grid_sz + j == grid_sz * grid_sz - 1:
-                offset += 1
-                cont = True
-
-            if j in empty_cols:
-                col_offset += 1
-                cont = True
-
-            if cont:
-                cont = False
-                continue
-
-            if row_order[i * grid_sz + j - offset] not in electrode_idxs:
-                continue
-
+            idx = i * grid_sz + j
             ax_i = i - row_offset
             ax_j = j - col_offset
 

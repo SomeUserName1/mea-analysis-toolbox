@@ -15,6 +15,73 @@ from views.raster_plot import plot_raster, plot_psth
 from views.event_stats import show_events, export_events
 
 
+# FIXME sth is off here.
+# FIXME just create a normal data object, and the code from analyze!
+def extract_baseline_std(baseline, que):
+    """
+    Extracts the standard deviation per channel from a file without creating a \
+            Data object.
+
+        @param baseline: path to the McS h5 file with the baseline data.
+        @param selected_rows: the rows of the selected electrodes of the \
+                stimulus data (see detect_peaks/detect_events in controllers/ \
+                analyze.py)
+        @param moving_avg: boolean indicating if the std of the moving \
+                average shall be extracted.
+
+        @return the std of the channel or of the moving average of the channel
+    """
+    file_contents = McsPy.McsData.RawData(baseline)
+    stream = file_contents.recordings[0].analog_streams[0]
+    num_electrodes = stream.channel_data.shape[0]
+    sampling_rate = stream.channel_infos[2].sampling_frequency.magnitude
+    data = stream.channel_data
+    data = np.array(data)
+    # downsample signal to speed things up
+    q = int(np.round(sampling_rate / 1000))
+    q_it = 0
+    for i in range(12):
+        if q % (12 - i) == 0:
+            q_it = 12 - i
+            break
+
+    if q_it == 0:
+        q_it = 10
+
+    i = 0
+    while q > 13:
+        q = int(np.round(q / q_it))
+        data = sg.decimate(data, q_it)
+        i += 1
+
+    sampling_rate = sampling_rate / q_it ** i
+
+    q = int(np.floor(q))
+    if q != 0:
+        data = sg.decimate(data, q)
+        sampling_rate = sampling_rate / q
+    stds = []
+    mv_std_stds = []
+    mv_mad_stds = []
+    window = int(np.round(data.shape[1] / 20))
+
+    for i in range(num_electrodes):
+        abs_dev = np.abs(data[i] - np.mean(data[i]))
+        mv_mad = np.convolve(abs_dev, np.ones(window), 'same') / window
+
+        mv_std = np.convolve(np.square(abs_dev), np.ones(window), 'same') / window
+        mv_std = np.sqrt(mv_std)
+        
+        mv_std_stds.append(np.std(mv_std))
+        mv_mad_stds.append(np.std(mv_mad))
+        stds.append(np.std(data[i]))
+
+    del file_contents
+
+    que.put((stds, mv_std_stds, mv_mad_stds))
+
+
+
 def animate_amplitude_grid(data, fps, slow_down, t_start, t_stop):
     if t_start is None:
         t_start = 0
