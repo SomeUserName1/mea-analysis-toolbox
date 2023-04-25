@@ -1,12 +1,15 @@
 # Work Packages
 ## Programming
 ### 1. CMOS support & code simplification
-- rearange matrix on input and follow-up
-    - [ ] import & model
-    - [ ] selection
+- rearange matrix on input and follow-up, also check doc and formatting
+    - [x] import
+    - [x] model
+    - [x] Event
+    - [ ] selection & electrode grid
     - [ ] preproc
     - [ ] analyze
     - [ ] views
+    - [ ] webapp
 - support CMOS
 
 ### 2. Batch processing & Group analysis

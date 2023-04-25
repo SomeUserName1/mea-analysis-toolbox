@@ -7,21 +7,22 @@ import os
 from multiprocessing import Process, Queue
 import multiprocessing as mp
 
-# Dash server, html and core components as well as bootstrap components and callback parameters
+# Dash server, html and core components as well as bootstrap components and
+# callback parameters
 from dash import dcc, html, Dash
 from dash.dependencies import Input, Output, State
 import dash_bootstrap_components as dbc
 
 # controllers to select, preprocess and analyze data.
-from controllers.select import update_electrode_selection, \
-        convert_to_jpeg, max_time, update_grid, \
-        convert_time, apply_selection, \
-        plot_selected_rows
-from controllers.preproc import frequency_filter, downsample, \
-        filter_el_humming
-from controllers.analyze import animate_amplitude_grid, show_psds, \
-        show_moving_averages, detect_peaks_amplitude, show_spectrograms, \
-        show_periodic_aperiodic_decomp, detect_events_moving_dev
+from controllers.select import (update_electrode_selection, convert_to_jpeg, 
+                                max_time, convert_time, apply_selection, 
+                                plot_selected_rows)
+from controllers.preproc import frequency_filter, downsample, filter_el_humming
+from controllers.analyze import (animate_amplitude_grid, show_psds,
+                                 show_moving_averages, detect_peaks_amplitude,
+                                 show_spectrograms,
+                                 show_periodic_aperiodic_decomp,
+                                 detect_events_moving_dev)
 
 # Code used to import data into a Data object, see model/Data.py
 from model.io.import_mcs import import_mcs, extract_baseline_std
@@ -29,7 +30,7 @@ from model.io.import_mcs import import_mcs, extract_baseline_std
 # Dash-wrapped html code for the UI
 from ui.nav import navbar, nav_items
 from ui.home_import import home, build_import_infos
-from ui.select import select
+from ui.select import select, no_data, next_button
 from ui.preproc import preproc
 from ui.analyze import analyze
 
@@ -64,7 +65,7 @@ def render_page_content(pathname):
         return home, None
 
     if pathname == "/select":
-        grid = update_grid(DATA)
+        grid = draw_electrode_grid(DATA)
         return select(grid), nav_items
 
     if pathname == "/preproc":
@@ -218,7 +219,8 @@ def select_update_selection_and_grid(selected_electrodes, clicked_electrode, pre
 
     update_electrode_selection(DATA, selected_electrodes,
             clicked_electrode)
-    grid = update_grid(DATA)
+    grid = draw_electrode_grid(DATA)
+
 
     return grid, None, None
 
@@ -246,7 +248,7 @@ def select_plot_raw(clicked, t_start, t_end):
         return None
 
     # converts the start and end time from s:ms:mus to mus
-    start_cut, end_cut = convert_time(t_start, t_end, DATA)
+    start_cut, end_cut = convert_time(t_start, t_end, DATA.duration_mus)
 
     plot_selected_rows(DATA, start_cut, end_cut)
 
@@ -282,8 +284,8 @@ def select_apply(clicked, t_start, t_stop, prev_button):
     start_cut, end_cut = convert_time(t_start, t_stop, DATA)
     # discard all but the selected electrodes and data points outside the time
     # window. returns a next button to the preprocessing screen on success
-    return apply_selection(DATA, start_cut, end_cut)
-
+    apply_selection(DATA, start_cut, end_cut)
+    return next_button if data.selection_applied else no_data
 
 @app.callback(Output("preproc-bndpss-result", "children"),
               Input("preproc-bndpss-apply", "n_clicks"),

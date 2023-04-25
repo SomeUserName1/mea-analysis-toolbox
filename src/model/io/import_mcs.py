@@ -6,6 +6,7 @@ Importer for multi channel systems 256MEAs chip, assuming all data is in a singl
         analog stream in the same recording.
 """
 import datetime
+from multiprocessing import Queue
 import os.path
 
 import McsPy
@@ -18,12 +19,13 @@ from model.Data import Data
 from controllers.preproc import downsample
 
 
-def mcs_256mea_import(path, que):
+def mcs_256mea_import(path: str, que: Queue) -> None:
     """
     Import data recorded with a MultiChannel Systems MEA into A Data object, \
             see model/Data.py.
 
         @param path: the path to the file containing the data in McS h5 format.
+        @param que: A python Queue, to return the loaded data asynchronously.
 
         @return a Data object containing the data in-memory and metadata or \
                 None and an error message
@@ -40,7 +42,7 @@ def mcs_256mea_import(path, que):
         sampling_rate = stream.channel_infos[2].sampling_frequency.magnitude
         data = np.array(stream.channel_data)
 
-        units = np.empty(252)
+        units = np.empty(num_channels)
         channel_row_map = {}
         row_order = None
 
@@ -54,8 +56,9 @@ def mcs_256mea_import(path, que):
             adc_step = self.channel_infos[i].adc_step.magnitude
             ad_zero = stream.channel_infos[i].get_field('ADZero')
             units[channel_row_map[i]] = stream.channel_infos[i].adc_step.units
-            data[channel_row_map[i]] = (data[channel_row_map[i]] - ad_zero) * adc_step
-        
+            data[channel_row_map[i]] = ((data[channel_row_map[i]] - ad_zero)
+                                        * adc_step)
+
         with open("assets/mcs_256mea_mapping.txt", "r") as ids_file:
             row_order = np.array([int(v) for v in ids_file.read().split(",") \
                     if v.strip() != ''])
@@ -65,8 +68,9 @@ def mcs_256mea_import(path, que):
             np.insert(data, i, np.nan, axis=0)
             np.insert(units, i, np.nan, axis=0)
 
+
         info = print_info(path, file_contents)
-        data = Data(date, num_channels, sampling_rate, data)
+        data = Data(date, sampling_rate, units, data)
         del file_contents
 
     except IOError as err:
@@ -78,20 +82,22 @@ def mcs_256mea_import(path, que):
     que.put((data, info))
 
 
-def mcs_256mea_print_header_info(h5filename, data):
+def mcs_256mea_print_header_info(h5filename: str,
+                                 data: McsPy.McsData.RawData
+                                 ) -> str:
     """
     Prints infos that are contained in the header of the McS h5 file, like \
             the MEA name, the version, ...
 
-            @param h5filename: Name of the file containing the data.
-            @param data: : the object returned by calling McsPy.McData.RawData
+        @param h5filename: Name of the file containing the data.
+        @param data: McsPy.McData.RawData object
 
         @return the information formatted as a table
     """
     header_info = "\nFile path:" + h5filename + "\n\n"
     t_row = []
-    date = datetime.datetime(1, 1, 1) + datetime.timedelta(
-        microseconds=int(data.date_in_clr_ticks) / 10)
+    delta = datetime.timedelta(microseconds=int(data.date_in_clr_ticks) / 10)
+    date = datetime.datetime(1, 1, 1) + delta
     t_row.append(str(date.strftime("%Y-%m-%d %H:%M:%S")))
     t_row.append(data.program_name)
     t_row.append(data.program_version)
@@ -105,7 +111,7 @@ def mcs_256mea_print_header_info(h5filename, data):
     return header_info + tabulate(real_row, headers=table_header)
 
 
-def mcs_256mea_print_info(h5filename, data):
+def mcs_256mea_print_info(h5filename: str, data: McsPy.McsData.RawData) -> str:
     """
     Prints infos about the McS h5 file and the available stream(s)
 
@@ -145,7 +151,7 @@ def mcs_256mea_print_info(h5filename, data):
     return info_string + tabulate(all_rows, headers=table_header)
 
 
-def mcs_256mea_get_names():
+def mcs_256mea_get_names() -> list[str]:
     """
     Constructs the list of channel names for the 256 electrode MEA system as \
             specified in the manual.
@@ -163,7 +169,7 @@ def mcs_256mea_get_names():
     return names
 
 
-def mcs_256mea_get_name_row_map():
+def mcs_256mea_get_name_row_map() -> dict[str, int]:
     """
     Returns a map from channel names to channel ids
     """

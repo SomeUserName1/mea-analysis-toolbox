@@ -2,6 +2,7 @@
 Plots related to visualizations of the MEA electrode grid.
 """
 from subprocess import Popen
+import math
 import os
 
 from plotly import graph_objects as go
@@ -14,7 +15,7 @@ from model.io.import_mcs import get_mcs_256mea_row_name_dict, \
 
 grid_size = 500
 
-def align_image(x, y, sizex, sizey, sizing):
+def align_image(x: int, y: int, sizex: int, sizey: int, sizing: str) -> None:
     """
     Stub to be used to align the image in the selection screen to the \
             electrode grid when the image is set as background \
@@ -26,7 +27,14 @@ def align_image(x, y, sizex, sizey, sizing):
     pass
 
 
-def align_grid_to_rows(data):
+def align_grid_to_rows(data: Data
+                       ) -> tuple[np.ndarray, # x values for selected electr.
+                                  np.ndarray, # y values for selected electr.
+                                  np.ndarray, # x values for unsel electr.
+                                  np.ndarray, # y values for unsel electr.
+                                  list[str], # names of selected el.
+                                  list[str], # names of unsel. el.
+                                  list[float]]: # limits of array
     """
     returns the coordinates in the grid of each electrode for both selected \
             and unselected electrodes, along with the names of the selected \
@@ -39,15 +47,28 @@ def align_grid_to_rows(data):
                 selected electrodes and the min and max values of the data.
     """
     # generate the grid
-    x_label = np.linspace(1, 16, 16)
+    side_len = math.sqrt(data.num_electrodes)
+    x_label = np.linspace(1, side_len, side_len)
     xx_all, yy_all = np.meshgrid(x_label, x_label, sparse=False, indexing='xy')
-    xx_all = np.delete(xx_all.flatten(), [0, 15, 240, 255])
-    yy_all = np.delete(yy_all.flatten(), [0, 15, 240, 255])
+    xx_all = np.delete(xx_all.flatten(), [0, 
+                                          side_len - 1,
+                                          (side_len - 1) * side_len,
+                                          side_len * side_len - 1])
+    yy_all = np.delete(yy_all.flatten(), [0, 
+                                          side_len - 1,
+                                          (side_len - 1) * side_len,
+                                          side_len * side_len - 1])
     names = get_mcs_256mea_row_name_dict()
-    order = get_mcs_256mea_row_order()
-    lims = [np.amin(data.data), np.amax(data.data)]
-    unsel = [x for x in range(data.num_electrodes) \
-                         if x not in data.selected_rows]
+    unsel = [x for x in range(data.num_electrodes) 
+             if x not in data.selected_rows]
+
+    # simplify to 
+    # xx = xx_all[data.selected_rows]
+    # yy = yy_all[data.selected_rows]
+    # names_sel = names[data.selected_rows]
+    # FIXME continue here.
+    # Decide if keep all data or discard whats not selected.
+    # Think from batch perspective.
 
     xx = []
     yy = []
@@ -57,15 +78,14 @@ def align_grid_to_rows(data):
     names_un = []
     # reorder it such that x[i], y[i] correspond to data[i]
     for idx in range(data.num_electrodes):
-        coord_idx = np.where(order == idx)[0][0]
         if idx in data.selected_rows:
-            xx.append(xx_all[coord_idx])
-            yy.append(yy_all[coord_idx])
+            xx.append(xx_all[idx])
+            yy.append(yy_all[idx])
             names_sel.append(names[idx])
         elif idx in unsel:
             names_un.append(names[idx])
-            xx_un.append(xx_all[coord_idx])
-            yy_un.append(yy_all[coord_idx])
+            xx_un.append(xx_all[idx])
+            yy_un.append(yy_all[idx])
         else:
             raise RuntimeError(f"Found a channel that is neither selected"
                                " not unselected. Row ID: {idx}")
@@ -74,8 +94,7 @@ def align_grid_to_rows(data):
             names_sel, names_un, lims
 
 
-def draw_electrode_grid(n_electrodes_per_side, x_selected, y_selected,
-        names_selected, x_unselected, y_unselected, names_unselected):
+def draw_electrode_grid(data: Data):
     """
     MEA electrode grid visualization using the Dash/plotly framework, i.e. \
             in the browser.
@@ -84,6 +103,8 @@ def draw_electrode_grid(n_electrodes_per_side, x_selected, y_selected,
         Plotly figure with n_electrodes electrodes rendered as scatter plot.
 
     """
+    x_sel, y_sel, x_un, y_un, names_sel, names_un = align_grid_to_rows(data)
+
     grid = go.Figure()
     grid.add_trace(
         go.Scatter(x=x_unselected, y=y_unselected, marker={'color': 'red',
@@ -102,10 +123,10 @@ def draw_electrode_grid(n_electrodes_per_side, x_selected, y_selected,
                    showlegend=False))
 
     grid.update_xaxes(showline=True, linewidth=1, linecolor='black',
-                      range=[0, n_electrodes_per_side + 1], mirror=True)
+                      range=[0, math.sqrt(data.num_electrodes) + 1], mirror=True)
 
     grid.update_yaxes(showline=True, linewidth=1, linecolor='black',
-                      mirror=True, range=[0, n_electrodes_per_side + 1],
+                      mirror=True, range=[0, math.sqrt(data.num_electrodes) + 1],
                       autorange="reversed")
 
     grid.update_layout(template="plotly_white", width=grid_size,
@@ -128,7 +149,7 @@ def create_video(data, bins, fps):
     base_path = os.path.join(os.getcwd(), "plots")
     video_name = os.path.join(base_path, "amplitude-animation.mp4")
 
-    xx, yy, xx_un, yy_un, _, _, _ = align_grid_to_rows(data)
+    xx, yy, xx_un, yy_un, _, _ = align_grid_to_rows(data)
     lims = [0, np.amax(bins)]
 
     fig = plt.figure()
@@ -162,7 +183,8 @@ def plot_value_grid(data, values):
         @param values: a 1D array with exactly 252 values aligned to the data \
                 rows
     """
-    xx, yy, xx_un, yy_un, names_sel, _, lims = align_grid_to_rows(data)
+    xx, yy, xx_un, yy_un, names_sel, _ = align_grid_to_rows(data)
+    lims = [np.amin(data.data), np.amax(data.data)]
 
     _ = plt.figure()
     plt.scatter(xx, yy, c=values, cmap='seismic', vmin=lims[0], vmax=lims[1])
