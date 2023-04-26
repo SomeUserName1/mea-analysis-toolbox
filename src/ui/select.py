@@ -5,10 +5,6 @@ Dash-based HTML code for the selection the ui to be displayed in the \
 from dash import html, dcc
 import dash_bootstrap_components as dbc
 
-next_button = html.A(dbc.Row([dbc.Col([dbc.Button("Next", n_clicks=0)],
-        width="auto")], align="center", justify="center",
-        style={"padding": "20px"}), href="/preproc")
-
 no_data = dbc.Col([
                 dbc.Alert("Please select at least one electrode!",
                           color="danger"),
@@ -73,6 +69,10 @@ def select(grid):
             justify="center",
             style={"padding": "25px"}),
         dbc.Row([], id="select-output-dummy"),
+    html.A(dbc.Row([dbc.Col([dbc.Button("Next", n_clicks=0)],
+        width="auto")], align="center", justify="center",
+        style={"padding": "20px"}), href="/preproc")
+
     ],
     style={"padding": "50px"}, fluid=True
 )

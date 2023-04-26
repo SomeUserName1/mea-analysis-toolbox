@@ -14,25 +14,27 @@ from dash.dependencies import Input, Output, State
 import dash_bootstrap_components as dbc
 
 # controllers to select, preprocess and analyze data.
-from controllers.select import (update_electrode_selection, convert_to_jpeg, 
-                                max_time, convert_time, apply_selection, 
-                                plot_selected_rows)
-from controllers.preproc import frequency_filter, downsample, filter_el_humming
-from controllers.analyze import (animate_amplitude_grid, show_psds,
-                                 show_moving_averages, detect_peaks_amplitude,
-                                 show_spectrograms,
-                                 show_periodic_aperiodic_decomp,
-                                 detect_events_moving_dev)
-
-# Code used to import data into a Data object, see model/Data.py
-from model.io.import_mcs import import_mcs, extract_baseline_std
+from controllers.select import (update_electrode_selection, convert_to_jpeg,
+                                max_duration, str_to_mus, update_time_window)
+#from controllers.preproc import frequency_filter, downsample, filter_el_humming
+#from controllers.analyze import (animate_amplitude_grid, show_psds,
+#                                 show_moving_averages, detect_peaks_amplitude,
+#                                 show_spectrograms,
+#                                 show_periodic_aperiodic_decomp,
+#                                 detect_events_moving_dev)
+#
+## Code used to import data into a Data object, see model/Data.py
+from model.io.import_mcs import mcs_256mea_import #extract_baseline_std
 
 # Dash-wrapped html code for the UI
 from ui.nav import navbar, nav_items
 from ui.home_import import home, build_import_infos
-from ui.select import select, no_data, next_button
+from ui.select import select, no_data
 from ui.preproc import preproc
 from ui.analyze import analyze
+
+# Plots using Plotly for selection and matplotlib for everything else
+from views.electrode_grid import draw_electrode_grid
 
 # setup for the server and initialization of the data global
 app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
@@ -73,8 +75,8 @@ def render_page_content(pathname):
 
     if pathname == "/analyze":
         global STD_BASE, STD_BASE_MV_MAD
-        STD_BASE, STD_BASE_MV_STD, STD_BASE_MV_MAD = BL_QUE.get()
-        BL_PROC.join()
+#        STD_BASE, STD_BASE_MV_STD, STD_BASE_MV_MAD = BL_QUE.get()
+#        BL_PROC.join()
         return analyze, nav_items
 
     # If the user tries to reach a different page, return a 404 message
@@ -92,7 +94,8 @@ def render_page_content(pathname):
               Input("import-submit-input-file-path", "n_clicks"),
               State("import-cond-input-file-path", "value"),
               State("import-base-input-file-path", "value"),
-              State("import-radios", "value"))
+              State("import-radios", "value"),
+              prevent_initial_call=True)
 def import_file(n_clicks, cond_input_file_path, base_input_file_path, file_type):
     """
     Used on home/import screen.
@@ -110,9 +113,6 @@ def import_file(n_clicks, cond_input_file_path, base_input_file_path, file_type)
         @return feedback if the import was successful. If so metadata shall be \
                 displayed, if not an error message is shown.
     """
-    if n_clicks == 0:
-        return None
-
     if base_input_file_path is None or cond_input_file_path is None or file_type is None:
         return build_import_infos("Please enter a file path!", success=False)
 
@@ -121,11 +121,11 @@ def import_file(n_clicks, cond_input_file_path, base_input_file_path, file_type)
         import_que = Queue()
         BL_QUE = Queue()
 
-        proc_import = Process(target=import_mcs, args=(cond_input_file_path, import_que))
-        BL_PROC = Process(target=extract_baseline_std, args=(base_input_file_path, BL_QUE))
+#        BL_PROC = Process(target=extract_baseline_std, args=(base_input_file_path, BL_QUE))
 
+#        BL_PROC.start()
+        proc_import = Process(target=mcs_256mea_import, args=(cond_input_file_path, import_que))
         proc_import.start()
-        BL_PROC.start()
 
         DATA, info = import_que.get()
 
@@ -141,8 +141,9 @@ def import_file(n_clicks, cond_input_file_path, base_input_file_path, file_type)
 
 
 @app.callback(Output("select-mea-setup-img", "src"),
-    Input("select-image-file-path", "value"),
-    State("select-mea-setup-img", "src"))
+              Input("select-image-file-path", "value"),
+              State("select-mea-setup-img", "src"),
+              prevent_initial_call=True)
 def select_set_recording_image(image, prev_src):
     """
     Used on select screen.
@@ -161,8 +162,6 @@ def select_set_recording_image(image, prev_src):
                 jpeg to assure compatibility across browsers (e.g. if the \
                 input is in tiff format.
     """
-    if image is None:
-        return prev_src
 
     img = convert_to_jpeg(image)
 
@@ -185,7 +184,7 @@ def set_time_span(_):
         @return the minimum and maximum possible time in s:ms:mus
     """
     s_start, ms_start, mus_start = 0, 0, 0
-    s_end, ms_end, mus_end = max_time(DATA)
+    s_end, ms_end, mus_end = max_duration(DATA)
 
     return f"{s_start}:{ms_start:03}:{mus_start:03}", \
             f"{s_end}:{ms_end:03}:{mus_end:03}"
@@ -196,8 +195,8 @@ def set_time_span(_):
               Output("select-electrode-grid", "clickData"),
               Input("select-electrode-grid", "selectedData"),
               Input("select-electrode-grid", "clickData"),
-              State("select-electrode-grid", "figure"))
-def select_update_selection_and_grid(selected_electrodes, clicked_electrode, prev_grid):
+              prevent_initial_call=True)
+def select_update_selection_and_grid(selected_electrodes, clicked_electrode):
     """
     Used on select screen.
 
@@ -214,9 +213,6 @@ def select_update_selection_and_grid(selected_electrodes, clicked_electrode, pre
 
         @return the updated electrode grid to be shown
     """
-    if selected_electrodes is None and clicked_electrode is None:
-        return prev_grid, None, None
-
     update_electrode_selection(DATA, selected_electrodes,
             clicked_electrode)
     grid = draw_electrode_grid(DATA)
@@ -225,10 +221,11 @@ def select_update_selection_and_grid(selected_electrodes, clicked_electrode, pre
     return grid, None, None
 
 
-@app.callback(Output("select-output-dummy", "children"),
+@app.callback(Output("select-output-dummy", "children", allow_duplicate=True),
               Input("select-show-signals", "n_clicks"),
               State("select-start", "value"),
-              State("select-stop", "value"))
+              State("select-stop", "value"),
+              prevent_initial_call=True)
 def select_plot_raw(clicked, t_start, t_end):
     """
     Used on select screen.
@@ -244,23 +241,24 @@ def select_plot_raw(clicked, t_start, t_end):
                 done in a separate process by matplotlib (as Dash plots are \
                 only suitable for small amounts of data)
     """
-    if clicked == 0:
-        return None
-
+    # FIXME come back here after viz is fixed
     # converts the start and end time from s:ms:mus to mus
-    start_cut, end_cut = convert_time(t_start, t_end, DATA.duration_mus)
+    update_time_window(DATA, t_start, t_end)
 
-    plot_selected_rows(DATA, start_cut, end_cut)
+    #proc = Process(target=plot_in_grid, args=('time_series', signals, data.selected_rows, \
+    #        names_selected_sorted, data.sampling_rate, start, end))
+    #proc.start()
+    #proc.join()
 
     return None
 
 
-@app.callback(Output("select-next", "children"),
+@app.callback(Output("select-output-dummy", "children", allow_duplicate=True),
               Input("select-apply", "n_clicks"),
               State("select-start", "value"),
               State("select-stop", "value"),
-              State("select-next", "children"))
-def select_apply(clicked, t_start, t_stop, prev_button):
+              prevent_initial_call=True)
+def select_apply(clicked, t_start, t_stop):
     """
     Used by select screen.
 
@@ -277,263 +275,255 @@ def select_apply(clicked, t_start, t_stop, prev_button):
 
         @retrun a next button to get to the preprocessing page.
     """
-    if clicked is None or clicked == 0:
-        return prev_button
+    update_time_window(DATA, t_start, t_stop)
 
-    # convert the user input from s:ms:mus to mus
-    start_cut, end_cut = convert_time(t_start, t_stop, DATA)
-    # discard all but the selected electrodes and data points outside the time
-    # window. returns a next button to the preprocessing screen on success
-    apply_selection(DATA, start_cut, end_cut)
-    return next_button if data.selection_applied else no_data
-
-@app.callback(Output("preproc-bndpss-result", "children"),
-              Input("preproc-bndpss-apply", "n_clicks"),
-              State("preproc-bndpss-lower", "value"),
-              State("preproc-bndpss-upper", "value"),
-              State("preproc-bndpss-type", "value"))
-def preproc_bandpass(clicked, lower, upper, ftype):
-    """
-    Used by the preprocessing screen.
-
-    Filters all data rows with a bandpass filter, either butterworth or \
-            chebyshev.
-    If the lower frequency is 0 or None, it applies a low pass. If the upper \
-            frequency is None it applies a high pass
-
-        @param clicked: button to cause the application of the filter
-        @param lower: lower cutoff frequency, i.e. all components with \
-                frequencies below are discarded
-        @param upper: upper cutoff frequency, i.e. all components with higher \
-                frequencies are discarded
-        @param ftype: type of the filter. 0 for butterworth, 1 for chebyshev
-
-        @return A banner indicating that the filter was applied.
-    """
-    if clicked is None or clicked == 0:
-        return None
-
-    frequency_filter(DATA, ftype, float(lower), float(upper))
-
-    return dbc.Alert("Successfully applied bandpass filter", color="success")
+    return None
 
 
-@app.callback(Output("preproc-bndstp-result", "children"),
-              Input("preproc-bndstp-apply", "n_clicks"),
-              State("preproc-bndstp-lower", "value"),
-              State("preproc-bndstp-upper", "value"),
-              State("preproc-bndstp-type", "value"))
-def preproc_bandstop(clicked, lower, upper, ftype):
-    """
-    Used by the preprocessing screen.
-
-    Filters all data rows with a bandpass filter, either butterworth or \
-            chebyshev.
-    If the lower frequency is 0 or None, it applies a low pass. If the upper \
-            frequency is None it applies a high pass
-
-        @param clicked: button to cause the application of the filter
-        @param lower: lower cutoff frequency, i.e. all components with \
-                frequencies below are discarded
-        @param upper: upper cutoff frequency, i.e. all components with higher \
-                frequencies are discarded
-        @param ftype: type of the filter. 0 for butterworth, 1 for chebyshev
-
-        @return A banner indicating that the filter was applied.
-    """
-    if clicked is None or clicked == 0:
-        return None
-
-    frequency_filter(DATA, ftype, float(lower), float(upper), stop=True)
-
-    return dbc.Alert("Successfully applied bandstop filter", color="success")
-
-
-@app.callback(Output("preproc-dwnsmpl-result", "children"),
-              Input("preproc-dwnsmpl-apply", "n_clicks"),
-              State("preproc-dwnsmpl-rate", "value"))
-def preproc_downsample(clicked, sampling_rate):
-    """
-    Used by the preprocessing screen.
-
-    Decimates the signal to contain as many data points as the signal would \
-            have if it was sampled at rate fs.
-    Uses scipy.signal.decimate, which avoids aliasing.
-
-        @param clicked: button to cause the application of the downsampling.
-        @param fs: new sampling rate.
-
-        @return a banner indicating if the downsampling was applied
-    """
-    if clicked is None or clicked == 0:
-        return None
-
-    downsample(DATA, int(sampling_rate))
-
-    return dbc.Alert("Successfully downsampled", color="success")
-
-
-@app.callback(Output("preproc-humming-result", "children"),
-              Input("preproc-humming-apply", "n_clicks"))
-def preproc_humming(clicked):
-    """
-    Used by preprocessing screen.
-
-    Removes noise caused by the electrical system's frequency which is 50 Hz \
-            in Europe. I.e. removes the 50 Hz component from the signal
-
-        @param clicked: button that causes the fitering to be applied.
-
-        @return a banner indicating if the filter was applied
-    """
-    if clicked is None or clicked == 0:
-        return None
-
-    filter_el_humming(DATA)
-
-    return dbc.Alert("Successfully removed electrical humming", \
-            color="success")
-
-
-@app.callback(Output("analyze-animate-play", "n_clicks"),
-              Input("analyze-animate-play", "n_clicks"),
-              State("analyze-animate-fps", "value"),
-              State("analyze-animate-slow-down", "value"),
-              State("analyze-animate-start", "value"),
-              State("analyze-animate-stop", "value"))
-def analyze_amplitude_animation(clicked, fps, slow_down, t_start, t_stop):
-    """
-    Used by analyze screen.
-
-    Draws the electrode grid as on the MEA and color codes the current \
-            absolute amplitude binned to the frame per second rate specified \
-            in fps and creates a video (mp4/h264) from it of the specified \
-            time window.
-
-        @param clicked: Button causing the generation of the video
-        @param fps: How many frames shall be generated per second. the lower, \
-                the wider the bins, i.e. the worse the temporal resolution of \
-                the video but the smaller the video size.
-        @param t_start: Where the video shall begin. if not specified \
-                (i.e. None), 0 is choosen.
-        @param t_stop: Where the video shall end. If not specified, the \
-                duration of the signal is chosen.
-
-        @return sets the button clicks back to 0, done because dash callbacks \
-                have to have an output
-    """
-    if clicked is not None and clicked > 0:
-        if fps is None:
-            fps = 60
-        else:
-            fps = int(fps)
-
-        if slow_down is None:
-            slow_down = 0.1
-        else:
-            slow_down = float(slow_down)
-
-        start_cut, end_cut = convert_time(t_start, t_stop, DATA)
-        animate_amplitude_grid(DATA, fps, slow_down, start_cut, end_cut)
-
-    return 0
-
-
-@app.callback(Output("analyze-psd", "n_clicks"),
-              Input("analyze-psd", "n_clicks"))
-def analyze_psds(clicked):
-    """
-    used by analyze screen.
-
-    Computes the power spectral densities for all selected rows and plots the \
-            results.
-    """
-    if clicked is not None and clicked > 0:
-        show_psds(DATA)
-
-    return 0
-
-
-@app.callback(Output("analyze-aperiodic-periodic", "n_clicks"),
-              Input("analyze-aperiodic-periodic", "n_clicks"))
-def analyze_periodic_aperiodic(clicked):
-    """
-    Used by analyze screen.
-
-    Computes the PSDs for selected electrodes and then separates the periodic \
-            from the aperiodic part and shows the results.
-    """
-    if clicked is not None and clicked > 0:
-        show_periodic_aperiodic_decomp(DATA)
-
-    return 0
-
-
-@app.callback(Output("analyze-spec", "n_clicks"),
-              Input("analyze-spec", "n_clicks"))
-def analyze_spectrograms(clicked):
-    """
-    used by analyze screen.
-
-    Computes the spectrogram for all selected rows and plots the results.
-    """
-    if clicked is not None and clicked > 0:
-        show_spectrograms(DATA)
-
-    return 0
-
-
-@app.callback(Output("analyze-peaks-ampl", "n_clicks"),
-              Input("analyze-peaks-ampl", "n_clicks"),
-              State("analyze-peaks-ampl-loc-thresh", "value"),
-              State("analyze-peaks-ampl-glob-thresh", "value"))
-def analyze_peaks_ampl(clicked, loc_thresh_factor, glob_thresh_factor):
-    """
-    used by analyze screen.
-
-    Detects peaks in the signal by the absolute amplitude with a threshold \
-            depending on the standard deviation of a baseline signal or half \
-            the signal std.
-    """
-    if clicked is not None and clicked > 0:
-        if loc_thresh_factor is not None and glob_thresh_factor is not None:
-            detect_peaks_amplitude(DATA, True, STD_BASE, float(loc_thresh_factor), float(glob_thresh_factor))
-        elif loc_thresh_factor is not None:
-            detect_peaks_amplitude(DATA, True, STD_BASE, float(loc_thresh_factor))
-        elif glob_thresh_factor is not None:
-            detect_peaks_amplitude(DATA, True, STD_BASE, global_std_factor=float(glob_thresh_factor))
-        else:
-            detect_peaks_amplitude(DATA, True, STD_BASE)
-
-    return 0
-
-
-@app.callback(Output("analyze-events-stats", "children"),
-              Output("analyze-events", "n_clicks"),
-              Input("analyze-events", "n_clicks"),
-              State("analyze-events-method", "value"),
-              State("analyze-events-thresh", "value"),
-              State("analyze-events-export", "value"),
-              State("analyze-events-fname", "value"),
-              )
-def analyze_events_moving_dev(clicked, method, thresh_factor, export, fname):
-    """
-    Used by analyze screen.
-
-    Detects events/bursts by computing the moving average with a large window \
-            and a threshold.
-    """
-    export = len(export) > 0
-    res = None
-    if clicked is not None and clicked > 0:
-        std = STD_BASE_MV_STD if method == 1 else STD_BASE_MV_MAD
-
-        if thresh_factor is None:
-            res = detect_events_moving_dev(DATA, method, STD_BASE_MV_STD, export=export, fname=fname)
-        else:
-            res = detect_events_moving_dev(DATA, method, STD_BASE_MV_STD, float(thresh_factor), export=export, fname=fname)
-
-    return res, 0
+#@app.callback(Output("preproc-bndpss-result", "children"),
+#              Input("preproc-bndpss-apply", "n_clicks"),
+#              State("preproc-bndpss-lower", "value"),
+#              State("preproc-bndpss-upper", "value"),
+#              State("preproc-bndpss-type", "value"))
+#def preproc_bandpass(clicked, lower, upper, ftype):
+#    """
+#    Used by the preprocessing screen.
+#
+#    Filters all data rows with a bandpass filter, either butterworth or \
+#            chebyshev.
+#    If the lower frequency is 0 or None, it applies a low pass. If the upper \
+#            frequency is None it applies a high pass
+#
+#        @param clicked: button to cause the application of the filter
+#        @param lower: lower cutoff frequency, i.e. all components with \
+#                frequencies below are discarded
+#        @param upper: upper cutoff frequency, i.e. all components with higher \
+#                frequencies are discarded
+#        @param ftype: type of the filter. 0 for butterworth, 1 for chebyshev
+#
+#        @return A banner indicating that the filter was applied.
+#    """
+#    if clicked is None or clicked == 0:
+#        return None
+#
+#    frequency_filter(DATA, ftype, float(lower), float(upper))
+#
+#    return dbc.Alert("Successfully applied bandpass filter", color="success")
+#
+#
+#@app.callback(Output("preproc-bndstp-result", "children"),
+#              Input("preproc-bndstp-apply", "n_clicks"),
+#              State("preproc-bndstp-lower", "value"),
+#              State("preproc-bndstp-upper", "value"),
+#              State("preproc-bndstp-type", "value"))
+#def preproc_bandstop(clicked, lower, upper, ftype):
+#    """
+#    Used by the preprocessing screen.
+#
+#    Filters all data rows with a bandpass filter, either butterworth or \
+#            chebyshev.
+#    If the lower frequency is 0 or None, it applies a low pass. If the upper \
+#            frequency is None it applies a high pass
+#
+#        @param clicked: button to cause the application of the filter
+#        @param lower: lower cutoff frequency, i.e. all components with \
+#                frequencies below are discarded
+#        @param upper: upper cutoff frequency, i.e. all components with higher \
+#                frequencies are discarded
+#        @param ftype: type of the filter. 0 for butterworth, 1 for chebyshev
+#
+#        @return A banner indicating that the filter was applied.
+#    """
+#    if clicked is None or clicked == 0:
+#        return None
+#
+#    frequency_filter(DATA, ftype, float(lower), float(upper), stop=True)
+#
+#    return dbc.Alert("Successfully applied bandstop filter", color="success")
+#
+#
+#@app.callback(Output("preproc-dwnsmpl-result", "children"),
+#              Input("preproc-dwnsmpl-apply", "n_clicks"),
+#              State("preproc-dwnsmpl-rate", "value"))
+#def preproc_downsample(clicked, sampling_rate):
+#    """
+#    Used by the preprocessing screen.
+#
+#    Decimates the signal to contain as many data points as the signal would \
+#            have if it was sampled at rate fs.
+#    Uses scipy.signal.decimate, which avoids aliasing.
+#
+#        @param clicked: button to cause the application of the downsampling.
+#        @param fs: new sampling rate.
+#
+#        @return a banner indicating if the downsampling was applied
+#    """
+#    if clicked is None or clicked == 0:
+#        return None
+#
+#    downsample(DATA, int(sampling_rate))
+#
+#    return dbc.Alert("Successfully downsampled", color="success")
+#
+#
+#@app.callback(Output("preproc-humming-result", "children"),
+#              Input("preproc-humming-apply", "n_clicks"))
+#def preproc_humming(clicked):
+#    """
+#    Used by preprocessing screen.
+#
+#    Removes noise caused by the electrical system's frequency which is 50 Hz \
+#            in Europe. I.e. removes the 50 Hz component from the signal
+#
+#        @param clicked: button that causes the fitering to be applied.
+#
+#        @return a banner indicating if the filter was applied
+#    """
+#    if clicked is None or clicked == 0:
+#        return None
+#
+#    filter_el_humming(DATA)
+#
+#    return dbc.Alert("Successfully removed electrical humming", \
+#            color="success")
+#
+#
+#@app.callback(Output("analyze-animate-play", "n_clicks"),
+#              Input("analyze-animate-play", "n_clicks"),
+#              State("analyze-animate-fps", "value"),
+#              State("analyze-animate-slow-down", "value"))
+#def analyze_amplitude_animation(clicked, fps, slow_down, t_start, t_stop):
+#    """
+#    Used by analyze screen.
+#
+#    Draws the electrode grid as on the MEA and color codes the current \
+#            absolute amplitude binned to the frame per second rate specified \
+#            in fps and creates a video (mp4/h264) from it of the specified \
+#            time window.
+#
+#        @param clicked: Button causing the generation of the video
+#        @param fps: How many frames shall be generated per second. the lower, \
+#                the wider the bins, i.e. the worse the temporal resolution of \
+#                the video but the smaller the video size.
+#        @param t_start: Where the video shall begin. if not specified \
+#                (i.e. None), 0 is choosen.
+#        @param t_stop: Where the video shall end. If not specified, the \
+#                duration of the signal is chosen.
+#
+#        @return sets the button clicks back to 0, done because dash callbacks \
+#                have to have an output
+#    """
+#    if clicked is not None and clicked > 0:
+#        if fps is None:
+#            fps = 60
+#        else:
+#            fps = int(fps)
+#
+#        if slow_down is None:
+#            slow_down = 0.1
+#        else:
+#            slow_down = float(slow_down)
+#
+#        animate_amplitude_grid(DATA, fps, slow_down)
+#
+#    return 0
+#
+#
+#@app.callback(Output("analyze-psd", "n_clicks"),
+#              Input("analyze-psd", "n_clicks"))
+#def analyze_psds(clicked):
+#    """
+#    used by analyze screen.
+#
+#    Computes the power spectral densities for all selected rows and plots the \
+#            results.
+#    """
+#    if clicked is not None and clicked > 0:
+#        show_psds(DATA)
+#
+#    return 0
+#
+#
+#@app.callback(Output("analyze-aperiodic-periodic", "n_clicks"),
+#              Input("analyze-aperiodic-periodic", "n_clicks"))
+#def analyze_periodic_aperiodic(clicked):
+#    """
+#    Used by analyze screen.
+#
+#    Computes the PSDs for selected electrodes and then separates the periodic \
+#            from the aperiodic part and shows the results.
+#    """
+#    if clicked is not None and clicked > 0:
+#        show_periodic_aperiodic_decomp(DATA)
+#
+#    return 0
+#
+#
+#@app.callback(Output("analyze-spec", "n_clicks"),
+#              Input("analyze-spec", "n_clicks"))
+#def analyze_spectrograms(clicked):
+#    """
+#    used by analyze screen.
+#
+#    Computes the spectrogram for all selected rows and plots the results.
+#    """
+#    if clicked is not None and clicked > 0:
+#        show_spectrograms(DATA)
+#
+#    return 0
+#
+#
+#@app.callback(Output("analyze-peaks-ampl", "n_clicks"),
+#              Input("analyze-peaks-ampl", "n_clicks"),
+#              State("analyze-peaks-ampl-loc-thresh", "value"),
+#              State("analyze-peaks-ampl-glob-thresh", "value"))
+#def analyze_peaks_ampl(clicked, loc_thresh_factor, glob_thresh_factor):
+#    """
+#    used by analyze screen.
+#
+#    Detects peaks in the signal by the absolute amplitude with a threshold \
+#            depending on the standard deviation of a baseline signal or half \
+#            the signal std.
+#    """
+#    if clicked is not None and clicked > 0:
+#        if loc_thresh_factor is not None and glob_thresh_factor is not None:
+#            detect_peaks_amplitude(DATA, True, STD_BASE, float(loc_thresh_factor), float(glob_thresh_factor))
+#        elif loc_thresh_factor is not None:
+#            detect_peaks_amplitude(DATA, True, STD_BASE, float(loc_thresh_factor))
+#        elif glob_thresh_factor is not None:
+#            detect_peaks_amplitude(DATA, True, STD_BASE, global_std_factor=float(glob_thresh_factor))
+#        else:
+#            detect_peaks_amplitude(DATA, True, STD_BASE)
+#
+#    return 0
+#
+#
+#@app.callback(Output("analyze-events-stats", "children"),
+#              Output("analyze-events", "n_clicks"),
+#              Input("analyze-events", "n_clicks"),
+#              State("analyze-events-method", "value"),
+#              State("analyze-events-thresh", "value"),
+#              State("analyze-events-export", "value"),
+#              State("analyze-events-fname", "value"),
+#              )
+#def analyze_events_moving_dev(clicked, method, thresh_factor, export, fname):
+#    """
+#    Used by analyze screen.
+#
+#    Detects events/bursts by computing the moving average with a large window \
+#            and a threshold.
+#    """
+#    export = len(export) > 0
+#    res = None
+#    if clicked is not None and clicked > 0:
+#        std = STD_BASE_MV_STD if method == 1 else STD_BASE_MV_MAD
+#
+#        if thresh_factor is None:
+#            res = detect_events_moving_dev(DATA, method, STD_BASE_MV_STD, export=export, fname=fname)
+#        else:
+#            res = detect_events_moving_dev(DATA, method, STD_BASE_MV_STD, float(thresh_factor), export=export, fname=fname)
+#
+#    return res, 0
 
 
 if __name__ == "__main__":
@@ -549,5 +539,5 @@ if __name__ == "__main__":
     app.run_server(
         host=HOST,
         port=PORT,
-        debug=False
+        debug=True
     )

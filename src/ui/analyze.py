@@ -15,17 +15,10 @@ analyze = dbc.Container(
             justify="center",
             style={"padding": "25px"}),
                 dbc.Row([html.Strong("Electrode Amplitude Animation"),
-            dbc.Col([
-                dbc.Input(placeholder="Start time (s:ms:mus)", id="analyze-animate-start"),
-                ], width="auto"),
-                dbc.Col([
-                dbc.Input(placeholder="Stop time (s:ms:mus)", id="analyze-animate-stop")
-                ], width="auto"),
-                 dbc.Input(placeholder="Playback Speed in FPS",
+                dbc.Input(placeholder="Playback Speed in FPS",
                                 id="analyze-animate-fps"),
                  dbc.Input(placeholder="Slow down from real time",
                                 id="analyze-animate-slow-down"),
-
                  dbc.Button("Generate Video (takes some minutes)", className="fas fa-play",
                             id="analyze-animate-play", n_clicks=0)
                          ],align="center",

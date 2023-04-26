@@ -83,22 +83,15 @@ def extract_baseline_std(baseline, que):
 
 
 def animate_amplitude_grid(data, fps, slow_down, t_start, t_stop):
-    if t_start is None:
-        t_start = 0
-    if t_stop is None:
-        t_stop = data.duration_mus
-
-    t_start_idx = int(np.floor(data.sampling_rate * t_start / 1000000))
-    t_stop_idx = int(np.floor(data.sampling_rate * t_stop / 1000000))
-
     bins = []
-    i = t_start_idx
-    while i < t_stop_idx:
-        binned = np.zeros(data.data[:,i].shape)
+    i = data.start_idx
+    while i < data.stop_idx:
+        binned = np.zeros(data.data[data.selected_electrodes,i].shape)
         t_int = 0
         j = 0
         while t_int < slow_down * 1/fps:
-            binned = binned + np.absolute(data.data[:, i])
+            binned = (binned 
+                      + np.absolute(data.data[data.selected_electrodes, i]))
             t_int += 1 / data.sampling_rate
             i += 1
 

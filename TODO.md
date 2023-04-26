@@ -5,7 +5,7 @@
     - [x] import
     - [x] model
     - [x] Event
-    - [ ] selection & electrode grid
+    - [x] selection & electrode grid
     - [ ] preproc
     - [ ] analyze
     - [ ] views
@@ -13,12 +13,16 @@
 - support CMOS
 
 ### 2. Batch processing & Group analysis
+#### Group
 - co-register micrograph to retrieve electrode position from atlas
 - between group alignment of slices
 - aggregation to group
 - statistical tests & p-values, effect sizes
 - comparative visualizations (per subject plot in axis)
-- Peter/Niko and adjust plotting
+
+#### Server
+- adjust plotting
+- make runtime errors/all errors visible on UI
 - parallelization
 
 ### 3. Extend analysis
@@ -51,8 +55,7 @@
 
 ## Lab, biochem, genetics
 ### Recordings
-- Ask Uli/Daniela for MEA introduction
-- Ask peter to try vibratome
+- Ask Uli/Daniela for MEA, vibratome introduction
 - check TFA regularly - nur für tötung, braucht es __nicht__ für recordings
 - Setup protocol & docs for MEA recordings
 - Mainz nachfragen wie stimuliert

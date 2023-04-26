@@ -12,8 +12,9 @@ import os.path
 import McsPy
 import McsPy.McsData
 import numpy as np
-from tabulate import tabulate
 import scipy.signal as sg
+from tabulate import tabulate
+from pint import UnitRegistry
 
 from model.Data import Data
 from controllers.preproc import downsample
@@ -40,37 +41,43 @@ def mcs_256mea_import(path: str, que: Queue) -> None:
         stream = file_contents.recordings[0].analog_streams[0]
         num_channels = stream.channel_data.shape[0]
         sampling_rate = stream.channel_infos[2].sampling_frequency.magnitude
-        data = np.array(stream.channel_data)
+        data = np.array(stream.channel_data, dtype=np.float64)
 
-        units = np.empty(num_channels)
         channel_row_map = {}
         row_order = None
 
         for i in [c.channel_id for c in stream.channel_infos.values()]:
             row = stream.channel_infos[i].row_index
-            id_row_map[i] = row
+            channel_row_map[i] = row
 
         # correct signal values, see MCS implementation:
         # https://mcspydatatools.readthedocs.io/en/latest/api.html#McsPy.McsData.AnalogStream.get_channel_in_range
         for i in [c.channel_id for c in stream.channel_infos.values()]:
-            adc_step = self.channel_infos[i].adc_step.magnitude
+            adc_step = stream.channel_infos[i].adc_step.magnitude
             ad_zero = stream.channel_infos[i].get_field('ADZero')
-            units[channel_row_map[i]] = stream.channel_infos[i].adc_step.units
             data[channel_row_map[i]] = ((data[channel_row_map[i]] - ad_zero)
                                         * adc_step)
 
+        # TODO handle CMOS case and potentially others
         with open("assets/mcs_256mea_mapping.txt", "r") as ids_file:
-            row_order = np.array([int(v) for v in ids_file.read().split(",") \
+            order = np.array([int(v) for v in ids_file.read().split(",") \
                     if v.strip() != ''])
 
         data = data[order]
-        for i in [0, 15, 240, 255]:
-            np.insert(data, i, np.nan, axis=0)
-            np.insert(units, i, np.nan, axis=0)
 
-
-        info = print_info(path, file_contents)
-        data = Data(date, sampling_rate, units, data)
+        # TODO handle CMOS case and potentially others
+        temp_data = np.concatenate((np.nan * np.ones((1, data.shape[1])), # 0
+                         data[0:14],                        # 1:14
+                         np.nan * np.ones((1, data.shape[1])), # 15
+                         data[14:238],                      # 14+2:238+1
+                         np.nan * np.ones((1, data.shape[1])), # 240
+                         data[238:],                        # 238+3:251+3
+                         np.nan * np.ones((1, data.shape[1])) # 255
+                         ), axis=0)
+        grounds = [0, 15, 240, 255]
+        data = temp_data
+        info = mcs_info(path, file_contents)
+        data = Data(date, sampling_rate, data, grounds)
         del file_contents
 
     except IOError as err:
@@ -82,7 +89,7 @@ def mcs_256mea_import(path: str, que: Queue) -> None:
     que.put((data, info))
 
 
-def mcs_256mea_print_header_info(h5filename: str,
+def mcs_header_info(h5filename: str,
                                  data: McsPy.McsData.RawData
                                  ) -> str:
     """
@@ -111,7 +118,7 @@ def mcs_256mea_print_header_info(h5filename: str,
     return header_info + tabulate(real_row, headers=table_header)
 
 
-def mcs_256mea_print_info(h5filename: str, data: McsPy.McsData.RawData) -> str:
+def mcs_info(h5filename: str, data: McsPy.McsData.RawData) -> str:
     """
     Prints infos about the McS h5 file and the available stream(s)
 
@@ -120,7 +127,7 @@ def mcs_256mea_print_info(h5filename: str, data: McsPy.McsData.RawData) -> str:
 
         @return the information formatted as a table
     """
-    info_string = print_header_info(h5filename, data) + "\n\n"
+    info_string = mcs_header_info(h5filename, data) + "\n\n"
     recording = data.recordings[0]
 
     if recording is None:
@@ -149,31 +156,3 @@ def mcs_256mea_print_info(h5filename: str, data: McsPy.McsData.RawData) -> str:
             all_rows.append(row)
 
     return info_string + tabulate(all_rows, headers=table_header)
-
-
-def mcs_256mea_get_names() -> list[str]:
-    """
-    Constructs the list of channel names for the 256 electrode MEA system as \
-            specified in the manual.
-    """
-    names = []
-
-    for number in range(1, 17):
-        for letter in ["A", "B", "C", "D", "E", "F", "G", "H", "J", "K", "L",
-                       "M", "N", "O", "P", "R"]:
-            if number in [1, 16] and letter in ['A', 'R']:
-                continue
-
-            names.append(letter + str(number))
-
-    return names
-
-
-def mcs_256mea_get_name_row_map() -> dict[str, int]:
-    """
-    Returns a map from channel names to channel ids
-    """
-    names = get_mcs_256mea_names()
-    ids = range(255)
-
-    return dict(zip(names, ids))
