@@ -6,7 +6,7 @@
     - [x] model
     - [x] Event
     - [x] selection & electrode grid
-    - [ ] preproc
+    - [x] preproc
     - [ ] analyze
     - [ ] views
     - [ ] webapp

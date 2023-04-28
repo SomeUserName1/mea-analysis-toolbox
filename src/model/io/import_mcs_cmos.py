@@ -10,17 +10,14 @@ from multiprocessing import Queue
 import os.path
 
 import McsPy
-import McsPy.McsData
+import McsPy.McsCMOSMEA as McsCMOS
 import numpy as np
-import scipy.signal as sg
 from tabulate import tabulate
-from pint import UnitRegistry
 
 from model.Data import Data
-from controllers.preproc import downsample
 
 
-def mcs_256mea_import(path: str, que: Queue) -> None:
+def mcs_cmos_mea_import(path: str, que: Queue) -> None:
     """
     Import data recorded with a MultiChannel Systems MEA into A Data object, \
             see model/Data.py.
@@ -34,14 +31,14 @@ def mcs_256mea_import(path: str, que: Queue) -> None:
     if path is None or not os.path.exists(path):
         return None, "File does not exist or invalid path!"
 
-    McsPy.McsData.VERBOSE = False
+    McsCMOS.VERBOSE = False
     try:
-        file_contents = McsPy.McsData.RawData(path)
-        date = file_contents.date
-        stream = file_contents.recordings[0].analog_streams[0]
+        file_contents = McsCMOS.McsData(path)
+        date = file_contents.attribues['DateTime']
+        stream = file_contents.Acquisition.Sensor_Data
         num_channels = stream.channel_data.shape[0]
         sampling_rate = stream.channel_infos[2].sampling_frequency.magnitude
-        data = np.array(stream.channel_data, dtype=np.float64)
+        data = np.array(stream.SensorData_1_1, dtype=np.float64)
 
         channel_row_map = {}
         row_order = None
@@ -51,7 +48,7 @@ def mcs_256mea_import(path: str, que: Queue) -> None:
             channel_row_map[i] = row
 
         # correct signal values, see MCS implementation:
-        # https://mcspydatatools.readthedocs.io/en/latest/api.html#McsPy.McsData.AnalogStream.get_channel_in_range
+        # https://mcspydatatools.readthedocs.io/en/latest/api.html#McsCMOS.AnalogStream.get_channel_in_range
         for i in [c.channel_id for c in stream.channel_infos.values()]:
             adc_step = stream.channel_infos[i].adc_step.magnitude
             ad_zero = stream.channel_infos[i].get_field('ADZero')
@@ -67,13 +64,13 @@ def mcs_256mea_import(path: str, que: Queue) -> None:
 
         # TODO handle CMOS case and potentially others
         temp_data = np.concatenate((np.nan * np.ones((1, data.shape[1])), # 0
-                         data[0:14],                        # 1:14
-                         np.nan * np.ones((1, data.shape[1])), # 15
-                         data[14:238],                      # 14+2:238+1
-                         np.nan * np.ones((1, data.shape[1])), # 240
-                         data[238:],                        # 238+3:251+3
-                         np.nan * np.ones((1, data.shape[1])) # 255
-                         ), axis=0)
+                                    data[0:14],                        # 1:14
+                                    np.nan * np.ones((1, data.shape[1])), # 15
+                                    data[14:238],                      # 14+2:238+1
+                                    np.nan * np.ones((1, data.shape[1])), # 240
+                                    data[238:],                        # 238+3:251+3
+                                    np.nan * np.ones((1, data.shape[1])) # 255
+                                    ), axis=0)
         grounds = [0, 15, 240, 255]
         data = temp_data
         info = mcs_info(path, file_contents)
@@ -90,8 +87,8 @@ def mcs_256mea_import(path: str, que: Queue) -> None:
 
 
 def mcs_header_info(h5filename: str,
-                                 data: McsPy.McsData.RawData
-                                 ) -> str:
+                    data: McsCMOS.RawData
+                    ) -> str:
     """
     Prints infos that are contained in the header of the McS h5 file, like \
             the MEA name, the version, ...
@@ -118,7 +115,7 @@ def mcs_header_info(h5filename: str,
     return header_info + tabulate(real_row, headers=table_header)
 
 
-def mcs_info(h5filename: str, data: McsPy.McsData.RawData) -> str:
+def mcs_info(h5filename: str, data: McsCMOS.RawData) -> str:
     """
     Prints infos about the McS h5 file and the available stream(s)
 
@@ -139,10 +136,10 @@ def mcs_info(h5filename: str, data: McsPy.McsData.RawData) -> str:
     streams = vars(recording).items()
     for key, value in streams:
         if value is None or key not in ["_Recording__analog_streams",
-                                  "_Recording__frame_streams",
-                                  "_Recording__event_streams",
-                                  "_Recording__segment_streams",
-                                  "_Recording__timestamp_streams"]:
+                                        "_Recording__frame_streams",
+                                        "_Recording__event_streams",
+                                        "_Recording__segment_streams",
+                                        "_Recording__timestamp_streams"]:
             continue
 
         for _, stream in value.items():

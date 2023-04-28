@@ -16,7 +16,7 @@ import dash_bootstrap_components as dbc
 # controllers to select, preprocess and analyze data.
 from controllers.select import (update_electrode_selection, convert_to_jpeg,
                                 max_duration, str_to_mus, update_time_window)
-#from controllers.preproc import frequency_filter, downsample, filter_el_humming
+from controllers.preproc import frequency_filter, downsample, filter_el_humming
 #from controllers.analyze import (animate_amplitude_grid, show_psds,
 #                                 show_moving_averages, detect_peaks_amplitude,
 #                                 show_spectrograms,
@@ -37,7 +37,8 @@ from ui.analyze import analyze
 from views.electrode_grid import draw_electrode_grid
 
 # setup for the server and initialization of the data global
-app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP],
+           suppress_callback_exceptions=True)
 content = html.Div(id="page-content")
 app.layout = html.Div([dcc.Location(id="url"), navbar, content])
 DATA = None
@@ -49,9 +50,9 @@ BL_QUE = None
 
 
 @app.callback(
-    Output("page-content", "children"), Output("nav", "children"),
-    [Input("url", "pathname")]
-)
+        Output("page-content", "children"), Output("nav", "children"),
+        [Input("url", "pathname")]
+        )
 def render_page_content(pathname):
     """
     Function that changes the html contents of the webpage depending on the \
@@ -81,13 +82,13 @@ def render_page_content(pathname):
 
     # If the user tries to reach a different page, return a 404 message
     return html.Div(
-        [
-            html.H1("404: Not found", className="text-danger"),
-            html.Hr(),
-            html.P(f"The pathname {pathname} was not recognised..."),
-        ],
-        className="p-3 bg-dark rounded-3",
-    ), nav_items
+            [
+                html.H1("404: Not found", className="text-danger"),
+                html.Hr(),
+                html.P(f"The pathname {pathname} was not recognised..."),
+                ],
+            className="p-3 bg-dark rounded-3",
+            ), nav_items
 
 
 @app.callback(Output("import-feedback", "children"),
@@ -96,7 +97,7 @@ def render_page_content(pathname):
               State("import-base-input-file-path", "value"),
               State("import-radios", "value"),
               prevent_initial_call=True)
-def import_file(n_clicks, cond_input_file_path, base_input_file_path, file_type):
+def import_file(_, cond_input_file_path, base_input_file_path, file_type):
     """
     Used on home/import screen.
 
@@ -105,7 +106,6 @@ def import_file(n_clicks, cond_input_file_path, base_input_file_path, file_type)
             model/io.
     So far only the 252 channel MEA by MultiChannel Systems is supported.
 
-        @param n_clicks: amount of times the import button has been pressed.
         @param input_file_path: path to the file containing data
         @param file_type: the type of the input file, used to choose the \
                 apropriate importer.
@@ -137,7 +137,7 @@ def import_file(n_clicks, cond_input_file_path, base_input_file_path, file_type)
         return feedback
 
     raise IOError("Only Multi Channel System H5 file format is supported"
-                      "so far.")
+                  "so far.")
 
 
 @app.callback(Output("select-mea-setup-img", "src"),
@@ -214,7 +214,7 @@ def select_update_selection_and_grid(selected_electrodes, clicked_electrode):
         @return the updated electrode grid to be shown
     """
     update_electrode_selection(DATA, selected_electrodes,
-            clicked_electrode)
+                               clicked_electrode)
     grid = draw_electrode_grid(DATA)
 
 
@@ -226,14 +226,12 @@ def select_update_selection_and_grid(selected_electrodes, clicked_electrode):
               State("select-start", "value"),
               State("select-stop", "value"),
               prevent_initial_call=True)
-def select_plot_raw(clicked, t_start, t_end):
+def select_plot_raw(_, t_start, t_end):
     """
     Used on select screen.
 
     Plots the raw signals of the selected electrodes in the given time window.
 
-        @param clicked: used to avoid executing the callback before the \
-                button has been clicked (i.e. on load).
         @param t_start: the start of the selected time windw in s:ms:mus
         @param t_end: the end of the selected time window in s:ms:mus
 
@@ -246,7 +244,7 @@ def select_plot_raw(clicked, t_start, t_end):
     update_time_window(DATA, t_start, t_end)
 
     #proc = Process(target=plot_in_grid, args=('time_series', signals, data.selected_rows, \
-    #        names_selected_sorted, data.sampling_rate, start, end))
+            #        names_selected_sorted, data.sampling_rate, start, end))
     #proc.start()
     #proc.join()
 
@@ -258,16 +256,13 @@ def select_plot_raw(clicked, t_start, t_end):
               State("select-start", "value"),
               State("select-stop", "value"),
               prevent_initial_call=True)
-def select_apply(clicked, t_start, t_stop):
+def select_apply(_, t_start, t_stop):
     """
     Used by select screen.
 
     Discards all but the selected rows, and all columns that are outside of \
             the selected time window.
 
-        @param clicked: amount of times the button has been clicked. Used to \
-                ensure the callback is only executed when the used is done \
-                selecting electrodes and the time window.
         @param t_start: start of the time window in s:ms:mus
         @param t_stop: end of the time window in s:ms:mus
         @param prev_button: used to show the default button when the callback \
@@ -280,114 +275,73 @@ def select_apply(clicked, t_start, t_stop):
     return None
 
 
-#@app.callback(Output("preproc-bndpss-result", "children"),
-#              Input("preproc-bndpss-apply", "n_clicks"),
-#              State("preproc-bndpss-lower", "value"),
-#              State("preproc-bndpss-upper", "value"),
-#              State("preproc-bndpss-type", "value"))
-#def preproc_bandpass(clicked, lower, upper, ftype):
-#    """
-#    Used by the preprocessing screen.
-#
-#    Filters all data rows with a bandpass filter, either butterworth or \
-#            chebyshev.
-#    If the lower frequency is 0 or None, it applies a low pass. If the upper \
-#            frequency is None it applies a high pass
-#
-#        @param clicked: button to cause the application of the filter
-#        @param lower: lower cutoff frequency, i.e. all components with \
-#                frequencies below are discarded
-#        @param upper: upper cutoff frequency, i.e. all components with higher \
-#                frequencies are discarded
-#        @param ftype: type of the filter. 0 for butterworth, 1 for chebyshev
-#
-#        @return A banner indicating that the filter was applied.
-#    """
-#    if clicked is None or clicked == 0:
-#        return None
-#
-#    frequency_filter(DATA, ftype, float(lower), float(upper))
-#
-#    return dbc.Alert("Successfully applied bandpass filter", color="success")
-#
-#
-#@app.callback(Output("preproc-bndstp-result", "children"),
-#              Input("preproc-bndstp-apply", "n_clicks"),
-#              State("preproc-bndstp-lower", "value"),
-#              State("preproc-bndstp-upper", "value"),
-#              State("preproc-bndstp-type", "value"))
-#def preproc_bandstop(clicked, lower, upper, ftype):
-#    """
-#    Used by the preprocessing screen.
-#
-#    Filters all data rows with a bandpass filter, either butterworth or \
-#            chebyshev.
-#    If the lower frequency is 0 or None, it applies a low pass. If the upper \
-#            frequency is None it applies a high pass
-#
-#        @param clicked: button to cause the application of the filter
-#        @param lower: lower cutoff frequency, i.e. all components with \
-#                frequencies below are discarded
-#        @param upper: upper cutoff frequency, i.e. all components with higher \
-#                frequencies are discarded
-#        @param ftype: type of the filter. 0 for butterworth, 1 for chebyshev
-#
-#        @return A banner indicating that the filter was applied.
-#    """
-#    if clicked is None or clicked == 0:
-#        return None
-#
-#    frequency_filter(DATA, ftype, float(lower), float(upper), stop=True)
-#
-#    return dbc.Alert("Successfully applied bandstop filter", color="success")
-#
-#
-#@app.callback(Output("preproc-dwnsmpl-result", "children"),
-#              Input("preproc-dwnsmpl-apply", "n_clicks"),
-#              State("preproc-dwnsmpl-rate", "value"))
-#def preproc_downsample(clicked, sampling_rate):
-#    """
-#    Used by the preprocessing screen.
-#
-#    Decimates the signal to contain as many data points as the signal would \
-#            have if it was sampled at rate fs.
-#    Uses scipy.signal.decimate, which avoids aliasing.
-#
-#        @param clicked: button to cause the application of the downsampling.
-#        @param fs: new sampling rate.
-#
-#        @return a banner indicating if the downsampling was applied
-#    """
-#    if clicked is None or clicked == 0:
-#        return None
-#
-#    downsample(DATA, int(sampling_rate))
-#
-#    return dbc.Alert("Successfully downsampled", color="success")
-#
-#
-#@app.callback(Output("preproc-humming-result", "children"),
-#              Input("preproc-humming-apply", "n_clicks"))
-#def preproc_humming(clicked):
-#    """
-#    Used by preprocessing screen.
-#
-#    Removes noise caused by the electrical system's frequency which is 50 Hz \
-#            in Europe. I.e. removes the 50 Hz component from the signal
-#
-#        @param clicked: button that causes the fitering to be applied.
-#
-#        @return a banner indicating if the filter was applied
-#    """
-#    if clicked is None or clicked == 0:
-#        return None
-#
-#    filter_el_humming(DATA)
-#
-#    return dbc.Alert("Successfully removed electrical humming", \
-#            color="success")
-#
-#
+@app.callback(Output("preproc-fltr-result", "children"),
+              Input("preproc-fltr-apply", "n_clicks"),
+              State("preproc-fltr-lower", "value"),
+              State("preproc-fltr-upper", "value"),
+              State("preproc-fltr-type", "value"),
+              prevent_initial_call=True)
+def preproc_filter(_, lower, upper, ftype):
+    """
+    Used by the preprocessing screen.
+
+    Filters all data rows with a butterworth band pass or top filter.
+    For a bandpass filter the frequencies below lower and above upper are discarded.
+    For a bandstop filter the frequencies between lower and upper are discarded.
+
+    @param lower: lower pass or stop frequency limit
+    @param upper: higher pass or stop frequency limit.
+    @param ftype:  wether to use a bandpass or a band stop filter.
+
+    @return A banner indicating that the filter was applied.
+    """
+    frequency_filter(DATA, ftype, float(lower), float(upper), bool(ftype))
+
+    return dbc.Alert("Successfully applied bandstop filter", color="success")
+
+
+@app.callback(Output("preproc-dwnsmpl-result", "children"),
+              Input("preproc-dwnsmpl-apply", "n_clicks"),
+              State("preproc-dwnsmpl-rate", "value"),
+              prevent_initial_call=True)
+def preproc_downsample(_, sampling_rate):
+    """
+    Used by the preprocessing screen.
+
+    Decimates the signal to contain as many data points as the signal would \
+            have if it was sampled at rate fs.
+    Uses scipy.signal.decimate, which avoids aliasing.
+
+        @param clicked: button to cause the application of the downsampling.
+        @param fs: new sampling rate.
+
+        @return a banner indicating if the downsampling was applied
+    """
+    downsample(DATA, int(sampling_rate))
+
+    return dbc.Alert("Successfully downsampled", color="success")
+
+
+@app.callback(Output("preproc-humming-result", "children"),
+              Input("preproc-humming-apply", "n_clicks"),
+              prevent_initial_call=True)
+def preproc_humming(clicked):
+    """
+    Used by preprocessing screen.
+
+    Removes noise caused by the electrical system's frequency which is 50 Hz \
+            in Europe. I.e. removes the 50 Hz component from the signal
+
+        @param clicked: button that causes the fitering to be applied.
+
+        @return a banner indicating if the filter was applied
+    """
+    filter_el_humming(DATA)
+
+    return dbc.Alert("Successfully removed electrical humming", \
+            color="success")
+
+
 #@app.callback(Output("analyze-animate-play", "n_clicks"),
 #              Input("analyze-animate-play", "n_clicks"),
 #              State("analyze-animate-fps", "value"),
@@ -397,21 +351,21 @@ def select_apply(clicked, t_start, t_stop):
 #    Used by analyze screen.
 #
 #    Draws the electrode grid as on the MEA and color codes the current \
-#            absolute amplitude binned to the frame per second rate specified \
-#            in fps and creates a video (mp4/h264) from it of the specified \
-#            time window.
+        #            absolute amplitude binned to the frame per second rate specified \
+        #            in fps and creates a video (mp4/h264) from it of the specified \
+        #            time window.
 #
 #        @param clicked: Button causing the generation of the video
 #        @param fps: How many frames shall be generated per second. the lower, \
-#                the wider the bins, i.e. the worse the temporal resolution of \
-#                the video but the smaller the video size.
+        #                the wider the bins, i.e. the worse the temporal resolution of \
+        #                the video but the smaller the video size.
 #        @param t_start: Where the video shall begin. if not specified \
-#                (i.e. None), 0 is choosen.
+        #                (i.e. None), 0 is choosen.
 #        @param t_stop: Where the video shall end. If not specified, the \
-#                duration of the signal is chosen.
+        #                duration of the signal is chosen.
 #
 #        @return sets the button clicks back to 0, done because dash callbacks \
-#                have to have an output
+        #                have to have an output
 #    """
 #    if clicked is not None and clicked > 0:
 #        if fps is None:
@@ -436,7 +390,7 @@ def select_apply(clicked, t_start, t_stop):
 #    used by analyze screen.
 #
 #    Computes the power spectral densities for all selected rows and plots the \
-#            results.
+        #            results.
 #    """
 #    if clicked is not None and clicked > 0:
 #        show_psds(DATA)
@@ -451,7 +405,7 @@ def select_apply(clicked, t_start, t_stop):
 #    Used by analyze screen.
 #
 #    Computes the PSDs for selected electrodes and then separates the periodic \
-#            from the aperiodic part and shows the results.
+        #            from the aperiodic part and shows the results.
 #    """
 #    if clicked is not None and clicked > 0:
 #        show_periodic_aperiodic_decomp(DATA)
@@ -482,8 +436,8 @@ def select_apply(clicked, t_start, t_stop):
 #    used by analyze screen.
 #
 #    Detects peaks in the signal by the absolute amplitude with a threshold \
-#            depending on the standard deviation of a baseline signal or half \
-#            the signal std.
+        #            depending on the standard deviation of a baseline signal or half \
+        #            the signal std.
 #    """
 #    if clicked is not None and clicked > 0:
 #        if loc_thresh_factor is not None and glob_thresh_factor is not None:
@@ -511,7 +465,7 @@ def select_apply(clicked, t_start, t_stop):
 #    Used by analyze screen.
 #
 #    Detects events/bursts by computing the moving average with a large window \
-#            and a threshold.
+        #            and a threshold.
 #    """
 #    export = len(export) > 0
 #    res = None
@@ -537,7 +491,7 @@ if __name__ == "__main__":
     PORT = 8080
 
     app.run_server(
-        host=HOST,
-        port=PORT,
-        debug=True
-    )
+            host=HOST,
+            port=PORT,
+            debug=True
+            )
