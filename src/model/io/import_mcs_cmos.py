@@ -17,7 +17,7 @@ from tabulate import tabulate
 from model.Data import Data
 
 
-def mcs_cmos_mea_import(path: str, que: Queue) -> None:
+def mcs_cmos_import(path: str, que: Queue) -> None:
     """
     Import data recorded with a MultiChannel Systems MEA into A Data object, \
             see model/Data.py.
@@ -34,11 +34,20 @@ def mcs_cmos_mea_import(path: str, que: Queue) -> None:
     McsCMOS.VERBOSE = False
     try:
         file_contents = McsCMOS.McsData(path)
-        date = file_contents.attribues['DateTime']
+        date = file_contents.attributes['DateTime']
         stream = file_contents.Acquisition.Sensor_Data
-        num_channels = stream.channel_data.shape[0]
-        sampling_rate = stream.channel_infos[2].sampling_frequency.magnitude
-        data = np.array(stream.SensorData_1_1, dtype=np.float64)
+        num_channels = stream.SensorData_1_1.shape[-1]
+        sampling_rate = int(np.round(stream.SensorMeta.Tick * 1e-6))
+        print(stream.SensorMeta.Tick) # 50
+        print(stream.SensorMeta.Label) # ROI
+        print(stream.SensorMeta.RawDataType) # short
+        print(stream.SensorMeta.Unit) # V
+        print(stream.SensorMeta.Exponent) # -9
+        print(stream.SensorMeta.ADCBits) # 16
+        print(stream.SensorMeta['Conversion Factors'])
+
+        data = np.array(np.moveaxis(stream.SensorData_1_1, 0, -1), dtype=np.float64)
+        exit(0)
 
         channel_row_map = {}
         row_order = None
@@ -73,7 +82,7 @@ def mcs_cmos_mea_import(path: str, que: Queue) -> None:
                                     ), axis=0)
         grounds = [0, 15, 240, 255]
         data = temp_data
-        info = mcs_info(path, file_contents)
+  #      info = mcs_info(path, file_contents)
         data = Data(date, sampling_rate, data, grounds)
         del file_contents
 
@@ -124,6 +133,15 @@ def mcs_info(h5filename: str, data: McsCMOS.RawData) -> str:
 
         @return the information formatted as a table
     """
+    print(file_contents)
+    print(stream)
+     # print(stream.Acquisition_Info)
+     # print(stream.Acquisition_Info.ChannelData_1)
+     # print(stream.Acquisition_Info.ChannelMeta)
+     # What is channel data?!
+    print(stream.Sensor_Data)
+    print(stream.Sensor_Data.SensorData_1_1)
+    print(stream.Sensor_Data.SensorMeta)
     info_string = mcs_header_info(h5filename, data) + "\n\n"
     recording = data.recordings[0]
 

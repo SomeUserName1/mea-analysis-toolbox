@@ -24,7 +24,8 @@ from controllers.preproc import frequency_filter, downsample, filter_el_humming
 #                                 detect_events_moving_dev)
 #
 ## Code used to import data into a Data object, see model/Data.py
-from model.io.import_mcs import mcs_256mea_import #extract_baseline_std
+from model.io.import_mcs_256 import mcs_256_import #extract_baseline_std
+from model.io.import_mcs_cmos import mcs_cmos_import
 
 # Dash-wrapped html code for the UI
 from ui.nav import navbar, nav_items
@@ -116,28 +117,29 @@ def import_file(_, cond_input_file_path, base_input_file_path, file_type):
     if base_input_file_path is None or cond_input_file_path is None or file_type is None:
         return build_import_infos("Please enter a file path!", success=False)
 
-    if file_type == 1:
-        global DATA, BL_PROC, BL_QUE
-        import_que = Queue()
-        BL_QUE = Queue()
+    global DATA
+    import_que = Queue()
 
-#        BL_PROC = Process(target=extract_baseline_std, args=(base_input_file_path, BL_QUE))
+    if file_type == 0:
+        proc_import = Process(target=mcs_256_import, args=(cond_input_file_path, import_que))
+    elif file_type == 1:
+        proc_import = Process(target=mcs_cmos_import, args=(cond_input_file_path, import_que))
+    elif file_type == 3:
+        proc_import = Process(target=mcs_multiwell_import, args=(cond_input_file_path, import_que))
+    else:
+        raise IOError("Only Multi Channel System H5 file format is supported"
+                      "so far.")
 
-#        BL_PROC.start()
-        proc_import = Process(target=mcs_256mea_import, args=(cond_input_file_path, import_que))
-        proc_import.start()
+    proc_import.start()
 
-        DATA, info = import_que.get()
+    DATA, info = import_que.get()
 
-        proc_import.join()
+    proc_import.join()
 
-        success = True if DATA is not None else False
-        feedback = build_import_infos(info, success=success)
+    success = True if DATA is not None else False
+    feedback = build_import_infos(info, success=success)
 
-        return feedback
-
-    raise IOError("Only Multi Channel System H5 file format is supported"
-                  "so far.")
+    return feedback
 
 
 @app.callback(Output("select-mea-setup-img", "src"),

@@ -10,7 +10,7 @@ from multiprocessing import Queue
 import os.path
 
 import McsPy
-import Mcs256 as Mcs256
+import McsPy.McsData as Mcs256
 import numpy as np
 import scipy.signal as sg
 from tabulate import tabulate
@@ -20,7 +20,7 @@ from model.Data import Data
 from controllers.preproc import downsample
 
 
-def mcs_256_mea_import(path: str, que: Queue) -> None:
+def mcs_256_import(path: str, que: Queue) -> None:
     """
     Import data recorded with a MultiChannel Systems MEA into A Data object, \
             see model/Data.py.
