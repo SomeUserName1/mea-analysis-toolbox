@@ -44,9 +44,10 @@ def mcs_cmos_import(path: str, que: Queue) -> None:
         print(stream.SensorMeta.Unit) # V
         print(stream.SensorMeta.Exponent) # -9
         print(stream.SensorMeta.ADCBits) # 16
-        print(stream.SensorMeta['Conversion Factors'])
+        print(stream.SensorMeta['Conversion Factors']) # all arround 45000
 
         data = np.array(np.moveaxis(stream.SensorData_1_1, 0, -1), dtype=np.float64)
+        print(data.shape)
         exit(0)
 
         channel_row_map = {}

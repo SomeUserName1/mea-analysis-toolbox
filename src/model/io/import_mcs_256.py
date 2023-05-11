@@ -76,6 +76,7 @@ def mcs_256_import(path: str, que: Queue) -> None:
                                     ), axis=0)
         grounds = [0, 15, 240, 255]
         data = temp_data
+        data.reshape
         info = mcs_info(path, file_contents)
         data = Data(date, sampling_rate, data, grounds)
         del file_contents

@@ -10,7 +10,8 @@
     - [ ] analyze
     - [ ] views
     - [ ] webapp
-- support CMOS
+- [ ] support CMOS
+- [ ] support Multiwell
 
 ### 2. Batch processing & Group analysis
 #### Group
