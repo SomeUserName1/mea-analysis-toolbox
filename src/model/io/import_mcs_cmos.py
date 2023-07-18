@@ -36,7 +36,7 @@ def mcs_cmos_import(path: str, que: Queue) -> None:
         file_contents = McsCMOS.McsData(path)
         date = file_contents.attributes['DateTime']
         stream = file_contents.Acquisition.Sensor_Data
-        num_channels = stream.SensorData_1_1.shape[-1]
+        num_channels = stream.SensorData_1_1.shape[-1] ** 2
         sampling_rate = int(np.round(stream.SensorMeta.Tick * 1e-6))
         print(stream.SensorMeta.Tick) # 50
         print(stream.SensorMeta.Label) # ROI
@@ -47,6 +47,7 @@ def mcs_cmos_import(path: str, que: Queue) -> None:
         print(stream.SensorMeta['Conversion Factors']) # all arround 45000
 
         data = np.array(np.moveaxis(stream.SensorData_1_1, 0, -1), dtype=np.float64)
+        data = data.reshape(num_channels, -1)
         print(data.shape)
         exit(0)
 

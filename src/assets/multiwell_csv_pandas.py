@@ -57,7 +57,7 @@ if __name__ == "__main__":
                         help="network bursts csv file name")
 
     args = parser.parse_args()
-    base = args.base
+    base = args.base_dir
     conditions_fname = args.conditions_file
     spikes_fname = args.spikes_file
     bursts_fname = args.bursts_file
@@ -121,12 +121,14 @@ if __name__ == "__main__":
     for line, wells in conditions.items():
         for arr in [spikes, bursts, net_bursts]:
             well_label = arr['Well Label']
+            arr["Line"] = line
             arr.loc[well_label.isin(wells), 'Well Label'] = line + '_' + well_label
 
     print("Cell lines/conditions assigned to wells")
 
     ############### Use channel labels as index
     channel_labels = spikes["Channel Label"].unique().tolist()
+    well_labels = spikes["Well Label"].unique().tolist()
 
     ############### Calculate the desired spike counts
     print("Calc spike counts")
@@ -155,6 +157,13 @@ if __name__ == "__main__":
     spon_spike_counts = spike_counts - burst_counts
     spon_spike_ratio = (spon_spike_counts / spike_counts * 100).fillna(0)
 
+    spike_counts.loc['mean'] = spike_counts.mean()
+    burst_counts.loc['mean'] = burst_counts.mean()
+    spike_counts_per_min.loc['mean'] = spike_counts_per_min.mean()
+    burst_counts_per_min.loc['mean'] = burst_counts_per_min.mean()
+    spon_spike_counts.loc['mean'] = spon_spike_counts.mean()
+    spon_spike_ratio.loc['mean'] = spon_spike_ratio.mean()
+
     spike_counts.to_excel(os.path.join(out_base, 'spike_counts.xlsx'))
     spike_counts_per_min.to_excel(
             os.path.join(out_base, 'spike_counts_per_min.xlsx'))
@@ -162,9 +171,9 @@ if __name__ == "__main__":
     burst_counts_per_min.to_excel(
             os.path.join(out_base, "burst_counts_per_min.xlsx"))
     spon_spike_counts.to_excel(
-            os.path.join(out_base, f'spont_spike_counts.xlsx'))
+            os.path.join(out_base, f'spike_spont_counts.xlsx'))
     spon_spike_ratio.to_excel(
-            os.path.join(out_base, f'spont_spike_ratio.xlsx'))
+            os.path.join(out_base, f'spike_spont_ratio.xlsx'))
 
     ############### Bursts
     print("Calculate burst quantities")
@@ -178,22 +187,35 @@ if __name__ == "__main__":
     avg_spike_count = bursts.groupby(agg_cols)['Spike Count'].mean().unstack(fill_value=0)
     avg_inter_burst_interval = bursts.groupby(agg_cols)['inter burst interval'].mean().unstack(fill_value=0)
 
-    avg_burst_duration.to_excel(os.path.join(out_base, "avg_burst_duration.xlsx"))
-    avg_spike_freq.to_excel(os.path.join(out_base, "avgSpikeFreqPerBurst.xlsx"))
-    avg_spike_count.to_excel(os.path.join(out_base, "avgSpikeCountPerBurst.xlsx"))
-    avg_inter_burst_interval.to_excel(os.path.join(out_base, "avgInterBurstInterval.xlsx"))
+    avg_burst_duration.loc['mean'] = avg_burst_duration.mean()
+    avg_spike_freq.loc['mean'] = avg_spike_freq.mean()
+    avg_spike_count.loc['mean'] = avg_spike_count.mean()
+    avg_inter_burst_interval.loc['mean'] = avg_inter_burst_interval.mean()
+
+    avg_burst_duration.to_excel(os.path.join(out_base, "burst_avg_duration.xlsx"))
+    avg_spike_freq.to_excel(os.path.join(out_base, "burst_avg_spike_freq.xlsx"))
+    avg_spike_count.to_excel(os.path.join(out_base, "burst_avg_spike_count.xlsx"))
+    avg_inter_burst_interval.to_excel(os.path.join(out_base, "burst_avg_ibi.xlsx"))
 
 
     ############### Net Bursts
-    nb_numbers = pd.DataFrame(columns=conditions.keys())
-    nb_duration = pd.DataFrame(columns=conditions.keys())
-    nb_sike_count = pd.DataFrame(columns=conditions.keys())
-    nb_spike_freq = pd.DataFrame(columns=conditions.keys())
+    nb_numbers = pd.DataFrame(index=conditions.keys())
+    nb_duration = pd.DataFrame(index=conditions.keys())
+    nb_sike_count = pd.DataFrame(index=conditions.keys())
+    nb_spike_freq = pd.DataFrame(index=conditions.keys())
+    
+    net_bursts["Well Label"]
 
-    nb_numbers = net_bursts.groupby(['Well Label']).size() / mins_recorded
-    nb_duration = net_bursts.groupby(['Well Label'])['Duration [µs]'].mean()
-    nb_spike_count = net_bursts.groupby(['Well Label'])['Spike Count'].mean()
-    nb_spike_freq = net_bursts.groupby(['Well Label'])['Spike Frequency [Hz]'].mean()
+    net_agg = ['Well Label', "Line"]
+    nb_numbers = net_bursts.groupby(net_agg).size() / mins_recorded
+    nb_duration = net_bursts.groupby(net_agg)['Duration [µs]'].mean()
+    nb_spike_count = net_bursts.groupby(net_agg)['Spike Count'].mean()
+    nb_spike_freq = net_bursts.groupby(net_agg)['Spike Frequency [Hz]'].mean()
+
+    nb_numbers.loc['mean'] = nb_numbers.mean()
+    nb_duration.loc['mean'] = nb_duration.mean()
+    nb_spike_count.loc['mean'] = nb_spike_count.mean()
+    nb_spike_freq.loc['mean'] = nb_spike_freq.mean()
 
     nb_numbers.to_excel(os.path.join(out_base, "net_bursts_count_per_min.xlsx"))
     nb_duration.to_excel(os.path.join(out_base, "net_bursts_avg_duration.xlsx"))
