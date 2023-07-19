@@ -1,13 +1,15 @@
 # Work Packages
 ## 1. code simplification
-- rearange matrix on input use neo, validate functionality, also check doc and formatting
-    - [x] import
-    - [x] model
-    - [x] Event
-    - [x] selection & electrode grid
-    - [x] preproc
+- [ ] use neo as data format
+- validate functionality, doc and formatting
+    - [ ] import
+    - [ ] model
+    - [ ] Event
+    - [ ] selection & electrode grid
+    - [ ] preproc
     - [ ] analyze
     - [ ] webapp
+- create tag
 - [ ] adjust plotting with PyQtGraph
 - [ ] make runtime errors/all errors visible on UI
 - parallelization: 
@@ -26,5 +28,5 @@
 
 # Future
 - [ ] support CMOS
-- [ ] fix FOOOF and see if working with it makes sense
+- [ ] fix FOOOF and see if working with it helps
 - [ ] entropies & other complexity measures
