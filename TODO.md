@@ -1,67 +1,30 @@
 # Work Packages
-## Programming
-### 1. CMOS support & code simplification
-- rearange matrix on input and follow-up, also check doc and formatting
+## 1. code simplification
+- rearange matrix on input use neo, validate functionality, also check doc and formatting
     - [x] import
     - [x] model
     - [x] Event
     - [x] selection & electrode grid
     - [x] preproc
     - [ ] analyze
-    - [ ] views
     - [ ] webapp
+- [ ] adjust plotting with PyQtGraph
+- [ ] make runtime errors/all errors visible on UI
+- parallelization: 
+    - [ ] make sure to use numpy vetorization
+    - [ ] Dask or WorkerPools; 
+- [ ] Improve peak & burst detection
+- [ ] Detect bad channels using pyprep, SNR, impedances
+- add elephant functionality
+    - [ ] LFP & Population signals
+    - [ ] Spike trains
+    - [ ] combined
+    - [ ] Waveforms analysis & spike sorting 
+    - [ ] fixup transfer entropy
+- [ ] Avalanche analysis
+
+
+# Future
 - [ ] support CMOS
-- [ ] support Multiwell
-
-### 2. Batch processing & Group analysis
-#### Group
-- co-register micrograph to retrieve electrode position from atlas
-- between group alignment of slices
-- aggregation to group
-- statistical tests & p-values, effect sizes
-- comparative visualizations (per subject plot in axis)
-
-#### Server
-- adjust plotting
-- make runtime errors/all errors visible on UI
-- parallelization
-
-### 3. Extend analysis
-#### 1. Extend preprocessing
-- Detect bad channels using pyprep, SNR, impedances
-- rereferencing
-- artifact removal using ICA
-- eproching
-
-#### 2. Analysis
-- Per electrode
-    - Improve peak detection
-    - improve burst detection
-    - FOOOF
-    - waveform sorting
-    - Waveform & spike analysis
-    - entropies & other complexity measures
-- Between electrodes
-    - CSD
-    - TE/granger causality
-    - coherence/functional connectivity
-    - correlation
-    - PAC
-- spontaneous activity specific
-
-#### 3. Viz
-- per band power animation
-- Use [Fastplotlib](https://github.com/kushalkolar/fastplotlib) for plotting or Qt if to be run locally
-- creative part
-
-## Lab, biochem, genetics
-### Recordings
-- Ask Uli/Daniela for MEA, vibratome introduction
-- check TFA regularly - nur für tötung, braucht es __nicht__ für recordings
-- Setup protocol & docs for MEA recordings
-- Mainz nachfragen wie stimuliert
-- Uli/MCS micromanipulators
-
-### Lectures
-- Get up from next week for biochem II & IV, org Chemistry
-- genetics block course(s)
+- [ ] fix FOOOF and see if working with it makes sense
+- [ ] entropies & other complexity measures
