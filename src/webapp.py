@@ -29,7 +29,7 @@ from model.io.import_mcs_cmos import mcs_cmos_import
 
 # Dash-wrapped html code for the UI
 from ui.nav import navbar, nav_items
-from ui.home_import import home, build_import_infos
+from ui.importer import importer, build_import_infos
 from ui.select import select, no_data
 from ui.preproc import preproc
 from ui.analyze import analyze
@@ -66,7 +66,7 @@ def render_page_content(pathname):
                 is only displayed when not on the home/import screen.
     """
     if pathname == "/" or DATA is None:
-        return home, None
+        return importer, None
 
     if pathname == "/select":
         grid = draw_electrode_grid(DATA)
@@ -95,10 +95,9 @@ def render_page_content(pathname):
 @app.callback(Output("import-feedback", "children"),
               Input("import-submit-input-file-path", "n_clicks"),
               State("import-cond-input-file-path", "value"),
-              State("import-base-input-file-path", "value"),
               State("import-radios", "value"),
               prevent_initial_call=True)
-def import_file(_, cond_input_file_path, base_input_file_path, file_type):
+def import_file(_, cond_input_file_path, file_type):
     """
     Used on home/import screen.
 
@@ -114,7 +113,7 @@ def import_file(_, cond_input_file_path, base_input_file_path, file_type):
         @return feedback if the import was successful. If so metadata shall be \
                 displayed, if not an error message is shown.
     """
-    if base_input_file_path is None or cond_input_file_path is None or file_type is None:
+    if cond_input_file_path is None or file_type is None:
         return build_import_infos("Please enter a file path!", success=False)
 
     global DATA
@@ -124,8 +123,6 @@ def import_file(_, cond_input_file_path, base_input_file_path, file_type):
         proc_import = Process(target=mcs_256_import, args=(cond_input_file_path, import_que))
     elif file_type == 1:
         proc_import = Process(target=mcs_cmos_import, args=(cond_input_file_path, import_que))
-    elif file_type == 3:
-        proc_import = Process(target=mcs_multiwell_import, args=(cond_input_file_path, import_que))
     else:
         raise IOError("Only Multi Channel System H5 file format is supported"
                       "so far.")

@@ -71,7 +71,7 @@ def extract_baseline_std(baseline, que):
 
         mv_std = np.convolve(np.square(abs_dev), np.ones(window), 'same') / window
         mv_std = np.sqrt(mv_std)
-        
+
         mv_std_stds.append(np.std(mv_std))
         mv_mad_stds.append(np.std(mv_mad))
         stds.append(np.std(data[i]))
@@ -90,7 +90,7 @@ def animate_amplitude_grid(data, fps, slow_down, t_start, t_stop):
         t_int = 0
         j = 0
         while t_int < slow_down * 1/fps:
-            binned = (binned 
+            binned = (binned
                       + np.absolute(data.data[data.selected_electrodes, i]))
             t_int += 1 / data.sampling_rate
             i += 1
@@ -452,7 +452,7 @@ def compute_event_tes(data):
     if data.events[0].delay is None:
         compute_event_delays(data)
 
-    fst_event = None 
+    fst_event = None
     for event in data.events:
         if event.delay == 0:
             fst_event = event
@@ -462,7 +462,7 @@ def compute_event_tes(data):
     for event in data.events:
         if event.delay == 0:
             continue
-        
+
         event_signal = data.data[data.selected_rows.index(event.electrode_idx)]
         event.te = compute_transfer_entropy(first_signal, event_signal)
 

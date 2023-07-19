@@ -4,7 +4,7 @@ Dash-based HTML code for the home/import ui to be displayed in the browser via t
 from dash import html
 import dash_bootstrap_components as dbc
 
-importer = dbc.Container(
+importer_input = dbc.Container(
         [
             dbc.Row([dbc.Col([html.H6("Condition Input File Path: ")], width="auto",
                              align="center"),
@@ -17,26 +17,24 @@ importer = dbc.Container(
                     justify="center",
                     style={"padding": "5px"}
                     ),
-            dbc.Row([dbc.Col([html.H6("Baseline Input File Path: ")], width="auto",
-                             align="center"),
-                     dbc.Col(dbc.Input(id="import-base-input-file-path", type="text",
-                                       size="85", required=True,
-                                       placeholder='Please enter the absolute'
-                                       'file path!'),
-                             width="auto")],
-                    align="center",
-                    justify="center",
-                    style={"padding": "5px"}
-                    ),
+#            dbc.Row([dbc.Col([html.H6("Baseline Input File Path: ")], width="auto",
+#                             align="center"),
+#                     dbc.Col(dbc.Input(id="import-base-input-file-path", type="text",
+#                                       size="85", required=True,
+#                                       placeholder='Please enter the absolute'
+#                                       'file path!'),
+#                             width="auto")],
+#                    align="center",
+#                    justify="center",
+#                    style={"padding": "5px"}
+#                    ),
             dbc.Row([dbc.Col(html.H6("File type:"), width="auto"),
                      dbc.Col(dbc.RadioItems(id="import-radios", value=0,
                                             inline=True,
                                             options=[{"label": "MCS 256",
                                                       "value": 0},
                                                      {"label": "MCS CMOS",
-                                                      "value": 1},
-                                                     {"label": "MCS Multi-Well",
-                                                      "value": 2},
+                                                      "value": 1, "disabled": True},
                                                      ],
                                             ), width="auto")],
                     align="center",
@@ -56,7 +54,7 @@ importer = dbc.Container(
         style={"padding": "50px"}
         )
 
-home = html.Div(
+importer = html.Div(
         dbc.Container(
             [
 
@@ -71,7 +69,7 @@ home = html.Div(
                     className="lead",
                     ),
                 html.Hr(className="my-2"),
-                importer],
+                importer_input],
             fluid=True,
             className="py-3",
             ),

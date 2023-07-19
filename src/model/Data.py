@@ -1,9 +1,11 @@
 import numpy as np
+import pint
 
 class Data:
     def __init__(self,
                  date: str,
                  sampling_rate: int,
+                 unit: pint.Unit,
                  data: np.ndarray,
                  ground_els: list[int] = None
                  ) -> None:
@@ -12,7 +14,7 @@ class Data:
 
         @param date: the date when this recording was carried out.
         @param sampling rate: Sampling rate with which data was recorded.
-        @param unit: unit of the data per channel. (1, num_channels)
+        @param unit: unit of the data 
         @param data: the matrix holding the actual data.
             (num_channels, duration * sampling rate)
         """
@@ -23,10 +25,10 @@ class Data:
         self.num_electrodes = data.shape[0]
         self.duration_mus = data.shape[1] / sampling_rate * 1000000
         self.sampling_rate = sampling_rate
+        self.unit = unit
         self.data = data
         self.electrode_names = names
-        self.selected_electrodes = [i for i in range(self.num_electrodes)
-                                    if i not in ground_els]
+        self.selected_electrodes = []
         self.ground_electrodes = ground_els
         self.start_idx = 0
         self.stop_idx = self.duration_mus
@@ -39,6 +41,7 @@ class Data:
         applied.
         """
         return self.data[self.selected_rows, self.start_idx:self.stop_idx]
+
 
     def set_time_window(self, start_mus: int, stop_mus: int) -> None:
         """

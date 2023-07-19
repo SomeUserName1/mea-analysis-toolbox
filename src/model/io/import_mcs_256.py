@@ -41,6 +41,7 @@ def mcs_256_import(path: str, que: Queue) -> None:
         stream = file_contents.recordings[0].analog_streams[0]
         num_channels = stream.channel_data.shape[0]
         sampling_rate = stream.channel_infos[2].sampling_frequency.magnitude
+        unit = None
         data = np.array(stream.channel_data, dtype=np.float64)
 
         channel_row_map = {}
@@ -53,19 +54,19 @@ def mcs_256_import(path: str, que: Queue) -> None:
         # correct signal values, see MCS implementation:
         # https://mcspydatatools.readthedocs.io/en/latest/api.html#Mcs256.AnalogStream.get_channel_in_range
         for i in [c.channel_id for c in stream.channel_infos.values()]:
+            if unit is None:
+                unit = stream.channel_infos[i].adc_step.units
             adc_step = stream.channel_infos[i].adc_step.magnitude
             ad_zero = stream.channel_infos[i].get_field('ADZero')
             data[channel_row_map[i]] = ((data[channel_row_map[i]] - ad_zero)
                                         * adc_step)
 
-        # TODO handle CMOS case and potentially others
         with open("assets/mcs_256mea_mapping.txt", "r") as ids_file:
             order = np.array([int(v) for v in ids_file.read().split(",") \
                     if v.strip() != ''])
 
         data = data[order]
 
-        # TODO handle CMOS case and potentially others
         temp_data = np.concatenate((np.nan * np.ones((1, data.shape[1])), # 0
                                     data[0:14],                        # 1:14
                                     np.nan * np.ones((1, data.shape[1])), # 15
@@ -78,7 +79,7 @@ def mcs_256_import(path: str, que: Queue) -> None:
         data = temp_data
         data.reshape
         info = mcs_info(path, file_contents)
-        data = Data(date, sampling_rate, data, grounds)
+        data = Data(date, sampling_rate, unit, data, grounds)
         del file_contents
 
     except IOError as err:
