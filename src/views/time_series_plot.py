@@ -41,7 +41,7 @@ def get_plot_grid_sz(names, electrode_idxs):
     grid_y = grid_sz - len(empty_rows)
     grid_x = grid_sz - len(empty_cols)
    
-   return grid_x, grid_y 
+    return grid_x, grid_y 
 
 
 def plot_spectrogram():
@@ -66,6 +66,7 @@ def plot_psd():
     pass
 
 def plot_fooof():
+    pass
 
 # FIXME: Data is in row major now. undo all the plot in grid bs and pull out single fns!.
 def plot_in_grid(kind, signals, electrode_idxs, names, fs=None, t_start=None, t_end=None, double=None, scatter=None, burst_idxs_all=None, burst_idxs_longest=None):

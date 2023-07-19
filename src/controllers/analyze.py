@@ -438,13 +438,6 @@ def compute_isis(spike_idxs, fs):
     return np.array(isis)
 
 
-def detect_event_log_isi(data):
-# Martens 2014
-# potentially CMA & poisson surprise from eglen review
-# network wide wagenaar 2005
-    pass
-
-
 def compute_event_delays(data):
     first_idx = None
     for event in data.events:
