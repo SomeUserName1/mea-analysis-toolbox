@@ -35,12 +35,20 @@ class Data:
         self.events = None
 
 
-    def get_selected(self) -> np.ndarray:
+    def get_selected_data(self) -> np.ndarray:
         """
         Returns the data matrix with electrode selection and time window
         applied.
         """
         return self.data[self.selected_rows, self.start_idx:self.stop_idx]
+
+
+    def get_selected_names(self) -> np.ndarray:
+        """
+        Returns the data matrix with electrode selection and time window
+        applied.
+        """
+        return self.names[self.selected_rows]
 
 
     def set_time_window(self, start_mus: int, stop_mus: int) -> None:

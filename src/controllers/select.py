@@ -22,8 +22,6 @@ def update_time_window(data: Data, t_start: str, t_end: str) -> None:
     @return the start and stop points in micro seconds as an integer.
     """
     if t_start is not None and t_start != "":
-
-
         start_cut = str_to_mus(t_start)
 
         if start_cut < 0 or start_cut > data.duration_mus:
@@ -108,7 +106,7 @@ def str_to_mus(smsmus: str) -> int:
     @param ms: seconds specified in input
     @param mus: seconds specified in input
 
-    @return added sseconds, milliseconds and microseconds all in micro seconds
+    @return added seconds, milliseconds and microseconds all in micro seconds
     """
     if len(t_start.split(":")) != 3:
         raise RuntimeError(("The start point of the selected time window"

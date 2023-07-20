@@ -2,7 +2,7 @@
     Class respresenting a burst or seizure or more general a certain interval
     in the signal of an electrode along with some characteristics of it.
 """
-class Event(ABC):
+class Event():
     def __init__(self, 
                  electrode_idx: int,
                  start_idx: int,

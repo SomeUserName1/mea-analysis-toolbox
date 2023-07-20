@@ -6,7 +6,7 @@ import scipy.signal as sg
 from fooof import FOOOF
 from PyIF.te_compute import te_compute
 
-from model.io.import_mcs import get_selected_electrode_names
+from model.Data import Data
 from model.Event import Event
 from views.electrode_grid import create_video, \
        plot_value_grid
@@ -82,11 +82,46 @@ def extract_baseline_std(baseline, que):
 
 
 
-def animate_amplitude_grid(data, fps, slow_down, t_start, t_stop):
+def animate_amplitude_grid(data: Data, fps: int, slow_down: float, \
+        t_start: int, t_stop: int) -> None:
+    """
+    Creates an animation that displays the change in amplitude over the
+            electrode grid over time
+
+        @param data: The Data object holding the recordings
+        @param fps: The frame rate of the animation. A larger frame rate
+            causes better temporal resolution, a small frame rate worse,
+            i.e. more binning.
+
+    """
+    prev_start_idx = data.start_idx
+    prev_stop_idx = data.stop_idx
+    if fps is None:
+        fps = 60
+    else:
+        fps = int(fps)
+
+    if slow_down is None:
+        slow_down = 0.1
+    else:
+        slow_down = float(slow_down)
+
+    if t_start is None:
+        start_idx = data.start_idx
+    else:
+        start_mus = str_to_mus(t_start)
+
+    if t_stop is None:
+        stop_idx = data.stop_idx
+    else:
+        stop_mus = str_to_mus(t_stop)
+
+    data.set_time_window(start_mus, stop_mus)
+
     bins = []
     i = data.start_idx
     while i < data.stop_idx:
-        binned = np.zeros(data.data[data.selected_electrodes,i].shape)
+        binned = np.zeros(data.data[data.selected_electrodes, i].shape)
         t_int = 0
         j = 0
         while t_int < slow_down * 1/fps:
@@ -106,6 +141,8 @@ def animate_amplitude_grid(data, fps, slow_down, t_start, t_stop):
     bins = np.array(bins)
 
     create_video(data, bins, fps)
+
+    data.set_time_window(prev_start_mus, prev_stop_mus)
 
 
 def show_rms(data):
@@ -133,10 +170,7 @@ def show_moving_averages(data, window=None):
 
     avgs = np.array(avgs)
 
-    names = get_selected_electrode_names(data)
-
-    proc = Process(target=plot_in_grid, args=('time_series', signal, data.selected_rows, \
-            names, data.sampling_rate, 0, data.duration_mus, avgs))
+    proc = Process(target=plot_in_grid, args=('time_series', signal, data, avgs))
     proc.start()
     proc.join()
 
@@ -172,9 +206,8 @@ def show_psds(data):
         psds.append(compute_psd(data.data[i], data.sampling_rate))
 
     psds = np.array(psds)
-    names = get_selected_electrode_names(data)
 
-    proc = Process(target=plot_in_grid, args=('psds', psds, data.selected_rows, names))
+    proc = Process(target=plot_in_grid, args=('psds', psds, data))
     proc.start()
     proc.join()
 
@@ -198,9 +231,8 @@ def show_event_psds(data):
             psds.append((np.zeros(psd_shape), np.zeros(psd_shape)))
 
     psds = np.array(psds)
-    names = get_selected_electrode_names(data)
 
-    proc = Process(target=plot_in_grid, args=('psds', psds, data.selected_rows, names))
+    proc = Process(target=plot_in_grid, args=('psds', psds, data))
     proc.start()
     proc.join()
 
@@ -220,9 +252,8 @@ def show_spectrograms(data):
         sxs.append(sx)
 
     fcs = [np.array(fs), np.array(ts), np.array(sxs)]
-    names = get_selected_electrode_names(data)
 
-    proc = Process(target=plot_in_grid, args=('spectrograms', fcs, data.selected_rows, names))
+    proc = Process(target=plot_in_grid, args=('spectrograms', fcs, data))
     proc.start()
     proc.join()
 
@@ -238,9 +269,8 @@ def show_periodic_aperiodic_decomp(data):
         fms.append(compute_periodic_aperiodic_decomp(data.data[idx], data.sampling_rate))
 
     np.array(fms)
-    names = get_selected_electrode_names(data)
 
-    proc = Process(target=plot_in_grid, args=('periodic_aperiodic', fms, data.selected_rows, names))
+    proc = Process(target=plot_in_grid, args=('periodic_aperiodic', fms, data))
     proc.start()
     proc.join()
 
@@ -274,20 +304,15 @@ def detect_peaks_amplitude(data, absolute, std_b=None, local_std_factor=2.5, glo
         height = param['peak_heights']
         peaks.append(np.array([peak, height]))
 
-    names = get_selected_electrode_names(data)
-
-    proc = Process(target=plot_in_grid, args=('time_series', signal, data.selected_rows, \
-             names, data.sampling_rate, 0, data.duration_mus, None, peaks))
+    proc = Process(target=plot_in_grid, args=('time_series', signal, data, None, peaks))
     proc.start()
     proc.join()
 
-    proc = Process(target=plot_raster, args=(peaks, data.selected_rows, \
-            data.sampling_rate, names, 0, data.duration_mus))
+    proc = Process(target=plot_raster, args=(peaks, data))
     proc.start()
     proc.join()
 
-    proc = Process(target=plot_psth, args=(peaks, data.selected_rows, \
-            data.sampling_rate, 0, data.duration_mus))
+    proc = Process(target=plot_psth, args=(peaks, data))
     proc.start()
     proc.join()
 
@@ -411,20 +436,18 @@ def detect_events_moving_dev(data, method, base_std=None, std_factor=1, window=N
         else:
             bursts_longest.append([])
 
-    names = get_selected_electrode_names(data)
     data.events = events
     compute_event_delays(data)
    # compute_event_tes(data)
     show_event_psds(data)
-    proc = Process(target=plot_in_grid, args=('time_series', signal, data.selected_rows, \
-            names, data.sampling_rate, 0, data.duration_mus, aggs, None, bursts_all, bursts_longest))
+    proc = Process(target=plot_in_grid, args=('time_series', signal, data, aggs, None, bursts_all, bursts_longest))
     proc.start()
     proc.join()
 
     if export:
-        export_events(data, names, fname)
+        export_events(data, fname)
 
-    return show_events(data, names)
+    return show_events(data)
 
 
 def compute_isis(spike_idxs, fs):

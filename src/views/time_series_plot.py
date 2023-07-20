@@ -9,9 +9,11 @@ import numpy as np
 from model.io.import_mcs import get_mcs_256mea_row_order
 
 
-def get_plot_grid_sz(names, electrode_idxs):
-    grid_sz = 16
+def get_plot_grid_sz(data): # names, electrode_idxs):
+    grid_sz = np.sqrt(data.num_electrodes)
+    selected = data.selected_rows
     offset = 0
+    crnrs = [0, grid_sz - 1, grid_sz * (grid_sz - 1), grid_size ** 2 - 1]
     plotted = np.zeros((grid_sz, grid_sz))
     for i in range(grid_sz):
         for j in range(grid_sz):
@@ -19,10 +21,10 @@ def get_plot_grid_sz(names, electrode_idxs):
             if idx >= grid_size * grid_size:
                 break
                 
-            if idx == 0 and 'A1' in names and 'B1' in names \
-                or idx == grid_sz - 1 and 'P1' in names and 'R2' in names \
-                or idx == grid_sz * (grid_sz - 1) and 'A15' in names and 'B16' in names \
-                or idx == grid_sz * grid_sz - 1 and 'R15' in names and 'R16' in names:
+            if idx == crnrs[0] and crnrs[0] + 1 in selected and crnrs[0] + grid_sz in selected \
+                or idx == crnrs[1] and crnrs[1] - 1 in selected and crnrs[1] + grid_sz in selected \
+                or idx == crnrs[2] and crnrs[2] + 1 in selected and crnrs[2] - grid_sz in selected \
+                or idx == crnrs[3] and crnrs[3] - 1 in selected and crnrs[3] - grid_sz in selected:
                     plotted[i, j] = 1
                     continue
 
@@ -31,12 +33,24 @@ def get_plot_grid_sz(names, electrode_idxs):
 
     empty_rows = []
     empty_cols = []
+    prev_r_empty = False
+    prev_c_empty = False
     for idx in range(grid_sz):
         if np.sum(plotted[idx, :]) == 0:
-            empty_rows.append(idx)
+            if prev_r_empty: 
+                empty_rows.append(idx)
+
+            prev_r_empty = True
+        else:
+            prev_r_empty = False
 
         if np.sum(plotted[:, idx]) == 0:
-            empty_cols.append(idx)
+            if prev_c_empty:
+                empty_cols.append(idx)
+            
+            prev_c_empty = True
+        else:
+            prev_c_empty = False
 
     grid_y = grid_sz - len(empty_rows)
     grid_x = grid_sz - len(empty_cols)
@@ -50,7 +64,19 @@ def plot_spectrogram():
         if np.amax(spect) > max_pow:
             max_pow = np.amax(spect)
 
-    pass
+        elif kind == 'spectrograms':
+            img = ax_array[ax_i, ax_j].pcolormesh(signals[1][row], signals[0][row], signals[2][row], cmap='hot', vmax=max_pow, rasterized=True)
+            ax_array[ax_i, ax_j].set_title(names[row])
+            ax_array[ax_i, ax_j].set_ylim([0, 500])
+
+            if ax_i == grid_y - 1 and ax_j == 0:
+                ax_array[ax_i, ax_j].set_ylabel('Frequency [Hz]')
+                ax_array[ax_i, ax_j].set_xlabel('Time [sec]')
+
+    if kind == 'spectrograms':
+        cbar = fig.colorbar(img, ax=ax_array.ravel().tolist())
+        cbar.ax.set_ylabel(r'PSD [$V^2$/Hz]', rotation=90, labelpad=50)
+
 
 def plot_time_series():
     time = np.linspace(t_start / 1000000, t_end / 1000000, signals[0].shape[0])
@@ -59,16 +85,72 @@ def plot_time_series():
     if double:
         y_range = [min(y_range[0], np.amin(double)), max(y_range[1], np.amax(double))]
 
-    pass
+     if kind == 'time_series':
+    ax_array[ax_i, ax_j].plot(time, signals[row], label=names[row], zorder=0)
+    ax_array[ax_i, ax_j].set_ylim(bottom=y_range[0], top=y_range[1])
+
+    if len(electrode_idxs) < 252:
+        ax_array[ax_i, ax_j].legend()
+
+    if ax_i == grid_y - 1 and ax_j == 0:
+        ax_array[ax_i, ax_j].set_xlabel('Time [sec]')
+        ax_array[ax_i, ax_j].set_ylabel(r'Amplitude [$\mu$V]')
+
+    if double is not None:
+        ax_array[ax_i, ax_j].plot(time, double[row], zorder=3)
+
+    if scatter is not None:
+        scatter_time = [time[int(i)] for i in scatter[row][0]]
+        ax_array[ax_i, ax_j].scatter(scatter_time, scatter[row][1], c='red', zorder=4)
+
+    if burst_idxs_longest is not None and len(burst_idxs_longest[row]) > 0:
+        start_idx = burst_idxs_longest[row][0]
+        stop_idx = burst_idxs_longest[row][1]
+        ax_array[ax_i, ax_j].plot(time[start_idx : stop_idx], signals[row][start_idx : stop_idx], c='red', zorder=2)
+
+    if burst_idxs_all is not None:
+        for k in range(burst_idxs_all[row][0].shape[0]):
+            start_idx = burst_idxs_all[row][0][k]
+            end_idx = burst_idxs_all[row][1][k]
+            ax_array[ax_i, ax_j].plot(time[start_idx : end_idx], signals[row][start_idx : end_idx], c='green', zorder=1)
+
+
+
 
 
 def plot_psd():
-    pass
+elif kind == 'psds':
+    ax_array[ax_i, ax_j].semilogy(signals[row, 0], signals[row, 1], label=names[row])
+
+    if len(electrode_idxs) < 252:
+        ax_array[ax_i, ax_j].legend(loc="lower left")
+
+    if ax_i == grid_y - 1 and ax_j == 0:
+         ax_array[ax_i, ax_j].set_xlabel('Frequency [Hz]')
+         ax_array[ax_i, ax_j].set_ylabel(r'PSD [$\mu V^2$/Hz]')
+
+    ax_array[ax_i, ax_j].axvline(0.5, color="grey")
+    ax_array[ax_i, ax_j].axvline(4, color="grey")
+    ax_array[ax_i, ax_j].axvline(8, color="grey")
+    ax_array[ax_i, ax_j].axvline(13, color="grey")
+    ax_array[ax_i, ax_j].axvline(30, color="grey")
+    ax_array[ax_i, ax_j].axvline(90, color="grey")
+    ax_array[ax_i, ax_j].text(1, 1, r"$\delta$")
+    ax_array[ax_i, ax_j].text(5, 1, r"$\theta$")
+    ax_array[ax_i, ax_j].text(9, 1, r"$\alpha$")
+    ax_array[ax_i, ax_j].text(14, 1, r"$\beta$")
+    ax_array[ax_i, ax_j].text(36, 1, r"$\gamma$")  
+
 
 def plot_fooof():
-    pass
+                elif kind == 'periodic_aperiodic':
+                signals[row].plot(plot_aperiodic=True, plot_peaks='shade', plt_log=False, ax=ax_array[ax_i, ax_j])
 
-# FIXME: Data is in row major now. undo all the plot in grid bs and pull out single fns!.
+                if len(electrode_idxs) < 252:
+                    ax_array[ax_i, ax_j].legend(bbox_to_anchor=(0, 1, 1, 0), loc="lower left")
+
+
+# TODO make this an iterator
 def plot_in_grid(kind, signals, electrode_idxs, names, fs=None, t_start=None, t_end=None, double=None, scatter=None, burst_idxs_all=None, burst_idxs_longest=None):
     use('TkAgg')
     grid_x, grid_y = get_plot_grid_sz()
@@ -85,80 +167,84 @@ def plot_in_grid(kind, signals, electrode_idxs, names, fs=None, t_start=None, t_
     offset = 0
     cont = False
     for i in range(grid_sz):
+        for j in range(grid_sz):
             idx = i * grid_sz + j
             ax_i = i - row_offset
             ax_j = j - col_offset
 
-            row = electrode_idxs.index(row_order[i * grid_sz + j - offset])
+            row = electrode_idxs.index(ri * grid_sz + j - offset)
             
-            if kind == 'time_series':
-                ax_array[ax_i, ax_j].plot(time, signals[row], label=names[row], zorder=0)
-                ax_array[ax_i, ax_j].set_ylim(bottom=y_range[0], top=y_range[1])
+            plot_time_series()
+          #  if kind == 'time_series':
+          #      ax_array[ax_i, ax_j].plot(time, signals[row], label=names[row], zorder=0)
+          #      ax_array[ax_i, ax_j].set_ylim(bottom=y_range[0], top=y_range[1])
 
-                if len(electrode_idxs) < 252:
-                    ax_array[ax_i, ax_j].legend()
+          #      if len(electrode_idxs) < 252:
+          #          ax_array[ax_i, ax_j].legend()
 
-                if ax_i == grid_y - 1 and ax_j == 0:
-                    ax_array[ax_i, ax_j].set_xlabel('Time [sec]')
-                    ax_array[ax_i, ax_j].set_ylabel(r'Amplitude [$\mu$V]')
+          #      if ax_i == grid_y - 1 and ax_j == 0:
+          #          ax_array[ax_i, ax_j].set_xlabel('Time [sec]')
+          #          ax_array[ax_i, ax_j].set_ylabel(r'Amplitude [$\mu$V]')
 
-                if double is not None:
-                    ax_array[ax_i, ax_j].plot(time, double[row], zorder=3)
+          #      if double is not None:
+          #          ax_array[ax_i, ax_j].plot(time, double[row], zorder=3)
 
-                if scatter is not None:
-                    scatter_time = [time[int(i)] for i in scatter[row][0]]
-                    ax_array[ax_i, ax_j].scatter(scatter_time, scatter[row][1], c='red', zorder=4)
+          #      if scatter is not None:
+          #          scatter_time = [time[int(i)] for i in scatter[row][0]]
+          #          ax_array[ax_i, ax_j].scatter(scatter_time, scatter[row][1], c='red', zorder=4)
 
-                if burst_idxs_longest is not None and len(burst_idxs_longest[row]) > 0:
-                    start_idx = burst_idxs_longest[row][0]
-                    stop_idx = burst_idxs_longest[row][1]
-                    ax_array[ax_i, ax_j].plot(time[start_idx : stop_idx], signals[row][start_idx : stop_idx], c='red', zorder=2)
+          #      if burst_idxs_longest is not None and len(burst_idxs_longest[row]) > 0:
+          #          start_idx = burst_idxs_longest[row][0]
+          #          stop_idx = burst_idxs_longest[row][1]
+          #          ax_array[ax_i, ax_j].plot(time[start_idx : stop_idx], signals[row][start_idx : stop_idx], c='red', zorder=2)
 
-                if burst_idxs_all is not None:
-                    for k in range(burst_idxs_all[row][0].shape[0]):
-                        start_idx = burst_idxs_all[row][0][k]
-                        end_idx = burst_idxs_all[row][1][k]
-                        ax_array[ax_i, ax_j].plot(time[start_idx : end_idx], signals[row][start_idx : end_idx], c='green', zorder=1)
+          #      if burst_idxs_all is not None:
+          #          for k in range(burst_idxs_all[row][0].shape[0]):
+          #              start_idx = burst_idxs_all[row][0][k]
+          #              end_idx = burst_idxs_all[row][1][k]
+          #              ax_array[ax_i, ax_j].plot(time[start_idx : end_idx], signals[row][start_idx : end_idx], c='green', zorder=1)
+    
+            plot_psd()
+           # elif kind == 'psds':
+           #     ax_array[ax_i, ax_j].semilogy(signals[row, 0], signals[row, 1], label=names[row])
 
-            elif kind == 'psds':
-                ax_array[ax_i, ax_j].semilogy(signals[row, 0], signals[row, 1], label=names[row])
+           #     if len(electrode_idxs) < 252:
+           #         ax_array[ax_i, ax_j].legend(loc="lower left")
 
-                if len(electrode_idxs) < 252:
-                    ax_array[ax_i, ax_j].legend(loc="lower left")
+           #     if ax_i == grid_y - 1 and ax_j == 0:
+           #          ax_array[ax_i, ax_j].set_xlabel('Frequency [Hz]')
+           #          ax_array[ax_i, ax_j].set_ylabel(r'PSD [$\mu V^2$/Hz]')
 
-                if ax_i == grid_y - 1 and ax_j == 0:
-                     ax_array[ax_i, ax_j].set_xlabel('Frequency [Hz]')
-                     ax_array[ax_i, ax_j].set_ylabel(r'PSD [$\mu V^2$/Hz]')
+           #     ax_array[ax_i, ax_j].axvline(0.5, color="grey")
+           #     ax_array[ax_i, ax_j].axvline(4, color="grey")
+           #     ax_array[ax_i, ax_j].axvline(8, color="grey")
+           #     ax_array[ax_i, ax_j].axvline(13, color="grey")
+           #     ax_array[ax_i, ax_j].axvline(30, color="grey")
+           #     ax_array[ax_i, ax_j].axvline(90, color="grey")
+           #     ax_array[ax_i, ax_j].text(1, 1, r"$\delta$")
+           #     ax_array[ax_i, ax_j].text(5, 1, r"$\theta$")
+           #     ax_array[ax_i, ax_j].text(9, 1, r"$\alpha$")
+           #     ax_array[ax_i, ax_j].text(14, 1, r"$\beta$")
+           #     ax_array[ax_i, ax_j].text(36, 1, r"$\gamma$")            
 
-                ax_array[ax_i, ax_j].axvline(0.5, color="grey")
-                ax_array[ax_i, ax_j].axvline(4, color="grey")
-                ax_array[ax_i, ax_j].axvline(8, color="grey")
-                ax_array[ax_i, ax_j].axvline(13, color="grey")
-                ax_array[ax_i, ax_j].axvline(30, color="grey")
-                ax_array[ax_i, ax_j].axvline(90, color="grey")
-                ax_array[ax_i, ax_j].text(1, 1, r"$\delta$")
-                ax_array[ax_i, ax_j].text(5, 1, r"$\theta$")
-                ax_array[ax_i, ax_j].text(9, 1, r"$\alpha$")
-                ax_array[ax_i, ax_j].text(14, 1, r"$\beta$")
-                ax_array[ax_i, ax_j].text(36, 1, r"$\gamma$")            
+            plot_spectrogram()
+          #  elif kind == 'spectrograms':
+          #      img = ax_array[ax_i, ax_j].pcolormesh(signals[1][row], signals[0][row], signals[2][row], cmap='hot', vmax=max_pow, rasterized=True)
+          #      ax_array[ax_i, ax_j].set_title(names[row])
+          #      ax_array[ax_i, ax_j].set_ylim([0, 500])
 
-            elif kind == 'spectrograms':
-                img = ax_array[ax_i, ax_j].pcolormesh(signals[1][row], signals[0][row], signals[2][row], cmap='hot', vmax=max_pow, rasterized=True)
-                ax_array[ax_i, ax_j].set_title(names[row])
-                ax_array[ax_i, ax_j].set_ylim([0, 500])
+          #      if ax_i == grid_y - 1 and ax_j == 0:
+          #          ax_array[ax_i, ax_j].set_ylabel('Frequency [Hz]')
+          #          ax_array[ax_i, ax_j].set_xlabel('Time [sec]')
 
-                if ax_i == grid_y - 1 and ax_j == 0:
-                    ax_array[ax_i, ax_j].set_ylabel('Frequency [Hz]')
-                    ax_array[ax_i, ax_j].set_xlabel('Time [sec]')
+          #  elif kind == 'periodic_aperiodic':
+          #      signals[row].plot(plot_aperiodic=True, plot_peaks='shade', plt_log=False, ax=ax_array[ax_i, ax_j])
 
-            elif kind == 'periodic_aperiodic':
-                signals[row].plot(plot_aperiodic=True, plot_peaks='shade', plt_log=False, ax=ax_array[ax_i, ax_j])
+          #      if len(electrode_idxs) < 252:
+          #          ax_array[ax_i, ax_j].legend(bbox_to_anchor=(0, 1, 1, 0), loc="lower left")
 
-                if len(electrode_idxs) < 252:
-                    ax_array[ax_i, ax_j].legend(bbox_to_anchor=(0, 1, 1, 0), loc="lower left")
-
-            else:
-                raise RuntimeError("Invalid plot kind!")
+          #  else:
+          #      raise RuntimeError("Invalid plot kind!")
 
     if kind == 'spectrograms':
         cbar = fig.colorbar(img, ax=ax_array.ravel().tolist())

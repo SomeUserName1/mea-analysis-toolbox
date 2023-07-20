@@ -12,20 +12,21 @@ import multiprocessing as mp
 from dash import dcc, html, Dash
 from dash.dependencies import Input, Output, State
 import dash_bootstrap_components as dbc
+from plotly import graph_objects as go
 
 # controllers to select, preprocess and analyze data.
 from controllers.select import (update_electrode_selection, convert_to_jpeg,
                                 max_duration, str_to_mus, update_time_window)
 from controllers.preproc import frequency_filter, downsample, filter_el_humming
-#from controllers.analyze import (animate_amplitude_grid, show_psds,
-#                                 show_moving_averages, detect_peaks_amplitude,
-#                                 show_spectrograms,
-#                                 show_periodic_aperiodic_decomp,
-#                                 detect_events_moving_dev)
-#
+from controllers.analysis.analyze import (animate_amplitude_grid, show_psds,
+                                 show_moving_averages, detect_peaks_amplitude,
+                                 show_spectrograms,
+                                 show_periodic_aperiodic_decomp,
+                                 detect_events_moving_dev)
+
 ## Code used to import data into a Data object, see model/Data.py
-from model.io.import_mcs_256 import mcs_256_import #extract_baseline_std
-from model.io.import_mcs_cmos import mcs_cmos_import
+from controllers.io.import_mcs_256 import mcs_256_import #extract_baseline_std
+from controllers.io.import_mcs_cmos import mcs_cmos_import
 
 # Dash-wrapped html code for the UI
 from ui.nav import navbar, nav_items
@@ -54,15 +55,15 @@ BL_QUE = None
         Output("page-content", "children"), Output("nav", "children"),
         [Input("url", "pathname")]
         )
-def render_page_content(pathname):
+def render_page_content(pathname: str) -> html.Div:
     """
-    Function that changes the html contents of the webpage depending on the \
+    Function that changes the html contents of the webpage depending on the
             specified URL
 
-        @param pathname: string provided by browsers URL bar on user input; \
+        @param pathname: string provided by browsers URL bar on user input;
                 Contains what comes after localhost:8080
 
-        @return the page contents as implemented in views/ui/. The navbar \
+        @return the page contents as implemented in views/ui/. The navbar
                 is only displayed when not on the home/import screen.
     """
     if pathname == "/" or DATA is None:
@@ -97,20 +98,20 @@ def render_page_content(pathname):
               State("import-cond-input-file-path", "value"),
               State("import-radios", "value"),
               prevent_initial_call=True)
-def import_file(_, cond_input_file_path, file_type):
+def import_file(_: int, cond_input_file_path: str, file_type: int) -> list[html.Div]:
     """
     Used on home/import screen.
 
-    Loads data from file into a Data object, stored in the DATA global \
-            variable, see model/Data.py using the importers provided in \
+    Loads data from file into a Data object, stored in the DATA global
+            variable, see model/Data.py using the importers provided in
             model/io.
     So far only the 252 channel MEA by MultiChannel Systems is supported.
 
         @param input_file_path: path to the file containing data
-        @param file_type: the type of the input file, used to choose the \
-                apropriate importer.
+        @param file_type: the type of the input file, used to choose the
+                apropriate importer e.g. MCS 256.
 
-        @return feedback if the import was successful. If so metadata shall be \
+        @return feedback if the import was successful. If so metadata shall be
                 displayed, if not an error message is shown.
     """
     if cond_input_file_path is None or file_type is None:
@@ -141,24 +142,23 @@ def import_file(_, cond_input_file_path, file_type):
 
 @app.callback(Output("select-mea-setup-img", "src"),
               Input("select-image-file-path", "value"),
-              State("select-mea-setup-img", "src"),
               prevent_initial_call=True)
-def select_set_recording_image(image, prev_src):
+def select_set_recording_image(image: str) -> str:
     """
     Used on select screen.
 
-    Takes a file path and shows that image next to the electrode grid, s.t. \
-            the user can see where the probe is located on the MEA and what \
+    Takes a file path and shows that image next to the electrode grid, s.t.
+            the user can see where the probe is located on the MEA and what
             electrode is where in the probe.
 
-        @param image, the file path to the image to be displayed in the \
+        @param image, the file path to the image to be displayed in the
                 select screen
-        @param previous image. used as the callback is also executed on \
-                loading the site and then it should just display the default \
+        @param previous image. used as the callback is also executed on
+                loading the site and then it should just display the default
                 image.
 
-        @return the image loaded from the file path specified, converted to \
-                jpeg to assure compatibility across browsers (e.g. if the \
+        @return the image loaded from the file path specified, converted to
+                jpeg to assure compatibility across browsers (e.g. if the
                 input is in tiff format.
     """
 
@@ -170,12 +170,12 @@ def select_set_recording_image(image, prev_src):
 @app.callback(Output("select-start", "placeholder"),
               Output("select-stop", "placeholder"),
               Input("select-time", "children"))
-def set_time_span(_):
+def set_time_span(_) -> str:
     """
     Used on select screen.
 
-    sets the placeholder for the select time window input fields, such that \
-            the user can see the min value (always 0) and the max value for \
+    sets the placeholder for the select time window input fields, such that
+            the user can see the min value (always 0) and the max value for
             the time in s:ms:mus (instead of just microseconds)
 
         @param _: used as dash callbacks have to have an input and output.
@@ -185,8 +185,8 @@ def set_time_span(_):
     s_start, ms_start, mus_start = 0, 0, 0
     s_end, ms_end, mus_end = max_duration(DATA)
 
-    return f"{s_start}:{ms_start:03}:{mus_start:03}", \
-            f"{s_end}:{ms_end:03}:{mus_end:03}"
+    return f"{s_start}:{ms_start:03}:{mus_start:03}", (f"{s_end}:{ms_end:03}"
+            ":{mus_end:03}")
 
 
 @app.callback(Output("select-electrode-grid", "figure"),
@@ -195,20 +195,20 @@ def set_time_span(_):
               Input("select-electrode-grid", "selectedData"),
               Input("select-electrode-grid", "clickData"),
               prevent_initial_call=True)
-def select_update_selection_and_grid(selected_electrodes, clicked_electrode):
+def select_update_selection_and_grid(selected_electrodes: str,
+                                     clicked_electrode: str
+                                     ) -> tuple[go.Figure, None, None]:
     """
     Used on select screen.
 
-    If an electrode is clicked or selected by box or lasso on the electrode \
-            grid, the corresponding row in the data matrix is added to the \
-            list of selected electrodes and the electrode is toggled from \
+    If an electrode is clicked or selected by box or lasso on the electrode
+            grid, the corresponding row in the data matrix is added to the
+            list of selected electrodes and the electrode is toggled from
             unselected/red to selected/green or vice versa on the grid.
 
-        @param selected_electrodes: The electrodes that are selected via box \
+        @param selected_electrodes: The electrodes that are selected via box
                 or lasso select.
         @param clicked_electrode: The electrode that was selected by a click.
-        @param prev_grid: the previously shown grid, used to display the \
-                default click on page load.
 
         @return the updated electrode grid to be shown
     """
@@ -225,7 +225,7 @@ def select_update_selection_and_grid(selected_electrodes, clicked_electrode):
               State("select-start", "value"),
               State("select-stop", "value"),
               prevent_initial_call=True)
-def select_plot_raw(_, t_start, t_end):
+def select_plot_raw(_: int, t_start: str, t_end: str) -> None:
     """
     Used on select screen.
 
@@ -234,8 +234,8 @@ def select_plot_raw(_, t_start, t_end):
         @param t_start: the start of the selected time windw in s:ms:mus
         @param t_end: the end of the selected time window in s:ms:mus
 
-        @return A dummy as dash callbacks require an output. The plotting is \
-                done in a separate process by matplotlib (as Dash plots are \
+        @return A dummy as dash callbacks require an output. The plotting is
+                done in a separate process by matplotlib (as Dash plots are
                 only suitable for small amounts of data)
     """
     # FIXME come back here after viz is fixed
@@ -255,16 +255,16 @@ def select_plot_raw(_, t_start, t_end):
               State("select-start", "value"),
               State("select-stop", "value"),
               prevent_initial_call=True)
-def select_apply(_, t_start, t_stop):
+def select_apply(_: int, t_start: str, t_stop: str) -> None:
     """
     Used by select screen.
 
-    Discards all but the selected rows, and all columns that are outside of \
+    Discards all but the selected rows, and all columns that are outside of
             the selected time window.
 
         @param t_start: start of the time window in s:ms:mus
         @param t_stop: end of the time window in s:ms:mus
-        @param prev_button: used to show the default button when the callback \
+        @param prev_button: used to show the default button when the callback
                 is executed on load
 
         @retrun a next button to get to the preprocessing page.
@@ -280,7 +280,7 @@ def select_apply(_, t_start, t_stop):
               State("preproc-fltr-upper", "value"),
               State("preproc-fltr-type", "value"),
               prevent_initial_call=True)
-def preproc_filter(_, lower, upper, ftype):
+def preproc_filter(_: int, lower: str, upper: str, ftype: str) -> html.Div:
     """
     Used by the preprocessing screen.
 
@@ -303,11 +303,11 @@ def preproc_filter(_, lower, upper, ftype):
               Input("preproc-dwnsmpl-apply", "n_clicks"),
               State("preproc-dwnsmpl-rate", "value"),
               prevent_initial_call=True)
-def preproc_downsample(_, sampling_rate):
+def preproc_downsample(_, sampling_rate: str) -> html.Div:
     """
     Used by the preprocessing screen.
 
-    Decimates the signal to contain as many data points as the signal would \
+    Decimates the signal to contain as many data points as the signal would
             have if it was sampled at rate fs.
     Uses scipy.signal.decimate, which avoids aliasing.
 
@@ -324,11 +324,11 @@ def preproc_downsample(_, sampling_rate):
 @app.callback(Output("preproc-humming-result", "children"),
               Input("preproc-humming-apply", "n_clicks"),
               prevent_initial_call=True)
-def preproc_humming(clicked):
+def preproc_humming(_) -> html.Div:
     """
     Used by preprocessing screen.
 
-    Removes noise caused by the electrical system's frequency which is 50 Hz \
+    Removes noise caused by the electrical system's frequency which is 50 Hz
             in Europe. I.e. removes the 50 Hz component from the signal
 
         @param clicked: button that causes the fitering to be applied.
@@ -337,146 +337,136 @@ def preproc_humming(clicked):
     """
     filter_el_humming(DATA)
 
-    return dbc.Alert("Successfully removed electrical humming", \
+    return dbc.Alert("Successfully removed electrical humming",
             color="success")
 
 
-#@app.callback(Output("analyze-animate-play", "n_clicks"),
-#              Input("analyze-animate-play", "n_clicks"),
-#              State("analyze-animate-fps", "value"),
-#              State("analyze-animate-slow-down", "value"))
-#def analyze_amplitude_animation(clicked, fps, slow_down, t_start, t_stop):
-#    """
-#    Used by analyze screen.
-#
-#    Draws the electrode grid as on the MEA and color codes the current \
-        #            absolute amplitude binned to the frame per second rate specified \
-        #            in fps and creates a video (mp4/h264) from it of the specified \
-        #            time window.
-#
-#        @param clicked: Button causing the generation of the video
-#        @param fps: How many frames shall be generated per second. the lower, \
-        #                the wider the bins, i.e. the worse the temporal resolution of \
-        #                the video but the smaller the video size.
-#        @param t_start: Where the video shall begin. if not specified \
-        #                (i.e. None), 0 is choosen.
-#        @param t_stop: Where the video shall end. If not specified, the \
-        #                duration of the signal is chosen.
-#
-#        @return sets the button clicks back to 0, done because dash callbacks \
-        #                have to have an output
-#    """
-#    if clicked is not None and clicked > 0:
-#        if fps is None:
-#            fps = 60
-#        else:
-#            fps = int(fps)
-#
-#        if slow_down is None:
-#            slow_down = 0.1
-#        else:
-#            slow_down = float(slow_down)
-#
-#        animate_amplitude_grid(DATA, fps, slow_down)
-#
-#    return 0
-#
-#
-#@app.callback(Output("analyze-psd", "n_clicks"),
-#              Input("analyze-psd", "n_clicks"))
-#def analyze_psds(clicked):
-#    """
-#    used by analyze screen.
-#
-#    Computes the power spectral densities for all selected rows and plots the \
-        #            results.
-#    """
-#    if clicked is not None and clicked > 0:
-#        show_psds(DATA)
-#
-#    return 0
-#
-#
-#@app.callback(Output("analyze-aperiodic-periodic", "n_clicks"),
-#              Input("analyze-aperiodic-periodic", "n_clicks"))
-#def analyze_periodic_aperiodic(clicked):
-#    """
-#    Used by analyze screen.
-#
-#    Computes the PSDs for selected electrodes and then separates the periodic \
-        #            from the aperiodic part and shows the results.
-#    """
-#    if clicked is not None and clicked > 0:
-#        show_periodic_aperiodic_decomp(DATA)
-#
-#    return 0
-#
-#
-#@app.callback(Output("analyze-spec", "n_clicks"),
-#              Input("analyze-spec", "n_clicks"))
-#def analyze_spectrograms(clicked):
-#    """
-#    used by analyze screen.
-#
-#    Computes the spectrogram for all selected rows and plots the results.
-#    """
-#    if clicked is not None and clicked > 0:
-#        show_spectrograms(DATA)
-#
-#    return 0
-#
-#
-#@app.callback(Output("analyze-peaks-ampl", "n_clicks"),
-#              Input("analyze-peaks-ampl", "n_clicks"),
-#              State("analyze-peaks-ampl-loc-thresh", "value"),
-#              State("analyze-peaks-ampl-glob-thresh", "value"))
-#def analyze_peaks_ampl(clicked, loc_thresh_factor, glob_thresh_factor):
-#    """
-#    used by analyze screen.
-#
-#    Detects peaks in the signal by the absolute amplitude with a threshold \
-        #            depending on the standard deviation of a baseline signal or half \
-        #            the signal std.
-#    """
-#    if clicked is not None and clicked > 0:
-#        if loc_thresh_factor is not None and glob_thresh_factor is not None:
-#            detect_peaks_amplitude(DATA, True, STD_BASE, float(loc_thresh_factor), float(glob_thresh_factor))
-#        elif loc_thresh_factor is not None:
-#            detect_peaks_amplitude(DATA, True, STD_BASE, float(loc_thresh_factor))
-#        elif glob_thresh_factor is not None:
-#            detect_peaks_amplitude(DATA, True, STD_BASE, global_std_factor=float(glob_thresh_factor))
-#        else:
-#            detect_peaks_amplitude(DATA, True, STD_BASE)
-#
-#    return 0
-#
-#
-#@app.callback(Output("analyze-events-stats", "children"),
-#              Output("analyze-events", "n_clicks"),
-#              Input("analyze-events", "n_clicks"),
-#              State("analyze-events-method", "value"),
-#              State("analyze-events-thresh", "value"),
-#              State("analyze-events-export", "value"),
-#              State("analyze-events-fname", "value"),
-#              )
-#def analyze_events_moving_dev(clicked, method, thresh_factor, export, fname):
-#    """
-#    Used by analyze screen.
-#
-#    Detects events/bursts by computing the moving average with a large window \
-        #            and a threshold.
-#    """
-#    export = len(export) > 0
-#    res = None
-#    if clicked is not None and clicked > 0:
-#        std = STD_BASE_MV_STD if method == 1 else STD_BASE_MV_MAD
-#
-#        if thresh_factor is None:
-#            res = detect_events_moving_dev(DATA, method, STD_BASE_MV_STD, export=export, fname=fname)
-#        else:
-#            res = detect_events_moving_dev(DATA, method, STD_BASE_MV_STD, float(thresh_factor), export=export, fname=fname)
-#
-#    return res, 0
+@app.callback(Output("analyze-animate-play", "n_clicks"),
+              Input("analyze-animate-play", "n_clicks"),
+              State("analyze-animate-fps", "value"),
+              State("analyze-animate-slow-down", "value"))
+def analyze_amplitude_animation(clicked: int, fps: str, slow_down, t_start, t_stop):
+    """
+    Used by analyze screen.
+
+    Draws the electrode grid as on the MEA and color codes the current
+    absolute amplitude binned to the frame per second rate specified
+    in fps and creates a video (mp4/h264) from it of the specified
+    time window.
+
+        @param clicked: Button causing the generation of the video
+        @param fps: How many frames shall be generated per second. the lower,
+                    the wider the bins, i.e. the worse the temporal
+                    resolution of the video but the smaller the video size.
+        @param t_start: Where the video shall begin. if not specified
+                        (i.e. None), 0 is choosen.
+        @param t_stop: Where the video shall end. If not specified, the
+                       duration of the signal is chosen.
+
+        @return sets the button clicks back to 0, done because dash callbacks
+                       have to have an output
+    """
+    if clicked is not None and clicked > 0:
+        animate_amplitude_grid(DATA, fps, slow_down, t_start, t_stop)
+
+    return 0
+
+
+@app.callback(Output("analyze-psd", "n_clicks"),
+              Input("analyze-psd", "n_clicks"))
+def analyze_psds(clicked):
+    """
+    used by analyze screen.
+
+    Computes the power spectral densities for all selected rows and plots the \
+       #            results.
+    """
+    if clicked is not None and clicked > 0:
+        show_psds(DATA)
+
+    return 0
+
+
+@app.callback(Output("analyze-aperiodic-periodic", "n_clicks"),
+              Input("analyze-aperiodic-periodic", "n_clicks"))
+def analyze_periodic_aperiodic(clicked):
+    """
+    Used by analyze screen.
+
+    Computes the PSDs for selected electrodes and then separates the periodic 
+                   from the aperiodic part and shows the results.
+    """
+    if clicked is not None and clicked > 0:
+        show_periodic_aperiodic_decomp(DATA)
+
+    return 0
+
+
+@app.callback(Output("analyze-spec", "n_clicks"),
+              Input("analyze-spec", "n_clicks"))
+def analyze_spectrograms(clicked):
+    """
+    used by analyze screen.
+
+    Computes the spectrogram for all selected rows and plots the results.
+    """
+    if clicked is not None and clicked > 0:
+        show_spectrograms(DATA)
+
+    return 0
+
+
+@app.callback(Output("analyze-peaks-ampl", "n_clicks"),
+              Input("analyze-peaks-ampl", "n_clicks"),
+              State("analyze-peaks-ampl-loc-thresh", "value"),
+              State("analyze-peaks-ampl-glob-thresh", "value"))
+def analyze_peaks_ampl(clicked, loc_thresh_factor, glob_thresh_factor):
+    """
+    used by analyze screen.
+
+    Detects peaks in the signal by the absolute amplitude with a threshold \
+       #            depending on the standard deviation of a baseline signal or half \
+       #            the signal std.
+    """
+    if clicked is not None and clicked > 0:
+        if loc_thresh_factor is not None and glob_thresh_factor is not None:
+            detect_peaks_amplitude(DATA, True, STD_BASE, float(loc_thresh_factor), float(glob_thresh_factor))
+        elif loc_thresh_factor is not None:
+            detect_peaks_amplitude(DATA, True, STD_BASE, float(loc_thresh_factor))
+        elif glob_thresh_factor is not None:
+            detect_peaks_amplitude(DATA, True, STD_BASE, global_std_factor=float(glob_thresh_factor))
+        else:
+            detect_peaks_amplitude(DATA, True, STD_BASE)
+
+    return 0
+
+
+@app.callback(Output("analyze-events-stats", "children"),
+              Output("analyze-events", "n_clicks"),
+              Input("analyze-events", "n_clicks"),
+              State("analyze-events-method", "value"),
+              State("analyze-events-thresh", "value"),
+              State("analyze-events-export", "value"),
+              State("analyze-events-fname", "value"),
+              )
+def analyze_events_moving_dev(clicked, method, thresh_factor, export, fname):
+    """
+    Used by analyze screen.
+
+    Detects events/bursts by computing the moving average with a large window \
+       #            and a threshold.
+    """
+    export = len(export) > 0
+    res = None
+    if clicked is not None and clicked > 0:
+        std = STD_BASE_MV_STD if method == 1 else STD_BASE_MV_MAD
+
+        if thresh_factor is None:
+            res = detect_events_moving_dev(DATA, method, STD_BASE_MV_STD, export=export, fname=fname)
+        else:
+            res = detect_events_moving_dev(DATA, method, STD_BASE_MV_STD, float(thresh_factor), export=export, fname=fname)
+
+    return res, 0
 
 
 if __name__ == "__main__":
