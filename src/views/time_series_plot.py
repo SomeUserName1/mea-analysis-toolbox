@@ -6,57 +6,6 @@ from matplotlib import use
 import matplotlib.pyplot as plt
 import numpy as np
 
-from model.io.import_mcs import get_mcs_256mea_row_order
-
-
-def get_plot_grid_sz(data): # names, electrode_idxs):
-    grid_sz = np.sqrt(data.num_electrodes)
-    selected = data.selected_rows
-    offset = 0
-    crnrs = [0, grid_sz - 1, grid_sz * (grid_sz - 1), grid_size ** 2 - 1]
-    plotted = np.zeros((grid_sz, grid_sz))
-    for i in range(grid_sz):
-        for j in range(grid_sz):
-            idx = i * grid_sz + j
-            if idx >= grid_size * grid_size:
-                break
-                
-            if idx == crnrs[0] and crnrs[0] + 1 in selected and crnrs[0] + grid_sz in selected \
-                or idx == crnrs[1] and crnrs[1] - 1 in selected and crnrs[1] + grid_sz in selected \
-                or idx == crnrs[2] and crnrs[2] + 1 in selected and crnrs[2] - grid_sz in selected \
-                or idx == crnrs[3] and crnrs[3] - 1 in selected and crnrs[3] - grid_sz in selected:
-                    plotted[i, j] = 1
-                    continue
-
-            if idx in electrode_idxs:
-                plotted[i, j] = 1
-
-    empty_rows = []
-    empty_cols = []
-    prev_r_empty = False
-    prev_c_empty = False
-    for idx in range(grid_sz):
-        if np.sum(plotted[idx, :]) == 0:
-            if prev_r_empty: 
-                empty_rows.append(idx)
-
-            prev_r_empty = True
-        else:
-            prev_r_empty = False
-
-        if np.sum(plotted[:, idx]) == 0:
-            if prev_c_empty:
-                empty_cols.append(idx)
-            
-            prev_c_empty = True
-        else:
-            prev_c_empty = False
-
-    grid_y = grid_sz - len(empty_rows)
-    grid_x = grid_sz - len(empty_cols)
-   
-    return grid_x, grid_y 
-
 
 def plot_spectrogram():
     max_pow = 0
