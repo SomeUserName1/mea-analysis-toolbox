@@ -1,12 +1,11 @@
 # Work Packages
 ## 1. code simplification
-- [ ] use neo as data format
 - validate functionality, doc and formatting
-    - [ ] import
-    - [ ] model
-    - [ ] Event
-    - [ ] selection & electrode grid
-    - [ ] preproc
+    - [x] import
+    - [x] model
+    - [x] event
+    - [x] selection & electrode grid
+    - [x] preproc
     - [ ] analyze
     - [ ] webapp
 - create tag
