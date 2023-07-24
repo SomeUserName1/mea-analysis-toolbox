@@ -15,11 +15,11 @@ def MEAGridPlotIterator(data: Data):
            The Data object containing channel data, selected channels
            and metadata to be plotted.
         """
-        self.data = data
+        self.data = data.get_selected_data()
         self.axs = None
         self.fig = None
-        self.data_idx 
-        self.row_idx = 0
+        self.data_idx = -1
+        self.row_idx = -1
         self.col_idx = 0
         # See which electrodes are selected and what has to be plotted, such
         # that the grid is as small as possible. Also check if corners are
@@ -133,11 +133,12 @@ def MEAGridPlotIterator(data: Data):
         # get the next channel to be plotted
         self.row_idx += 1
         if self.row_idx >= self.axs.shape[0]:
-            self.row_idx = 0
+            self.row_idx = -1
             self.col_idx += 1
             return self.__next__()
 
+        self.data_idx += 1
         ax = self.axs[self.row_idx, self.col_idx]
-        row = self.d
+        row = self.data[self.row_idx]
 
-        return 
+        return ax, row

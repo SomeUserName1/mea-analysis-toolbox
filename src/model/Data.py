@@ -19,7 +19,8 @@ class Data:
             (num_channels, duration * sampling rate)
         """
         side_len = int(np.sqrt(data.shape[0]))
-        names = [f"R{i}C{j}" for i in range(1, side_len + 1) for j in range(1, side_len + 1)]
+        names = [f"R{i}C{j}" for i in range(1, side_len + 1) \
+                    for j in range(1, side_len + 1)]
 
         self.recording_date = date
         self.num_electrodes = data.shape[0]
@@ -28,19 +29,12 @@ class Data:
         self.unit = unit
         self.data = data
         self.electrode_names = names
-        self.selected_electrodes = []
         self.ground_electrodes = ground_els
+        self.selected_electrodes = []
         self.start_idx = 0
         self.stop_idx = self.duration_mus
+        self.selected_data = None
         self.events = None
-
-
-    def get_selected_data(self) -> np.ndarray:
-        """
-        Returns the data matrix with electrode selection and time window
-        applied.
-        """
-        return self.data[self.selected_rows, self.start_idx:self.stop_idx]
 
 
     def get_selected_names(self) -> np.ndarray:
@@ -51,12 +45,4 @@ class Data:
         return self.names[self.selected_rows]
 
 
-    def set_time_window(self, start_mus: int, stop_mus: int) -> None:
-        """
-        Sets the time window of the data to be evaluated & displayed.
-        """
-        start_idx = int(np.round(self.sampling_rate * start_mus / 1000000))
-        stop_idx = int(np.round(self.sampling_rate * stop_mus / 1000000))
 
-        self.start_idx = start_idx
-        self.stop_idx = stop_idx

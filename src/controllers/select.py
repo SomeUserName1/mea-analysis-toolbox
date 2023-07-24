@@ -9,6 +9,25 @@ from wand.image import Image
 from constants import img_size
 from model.Data import Data
 
+
+def update_selected_data(data: Data) -> None:
+    """
+    Creates a new NumPy array with the rows and their elements corresponding 
+        to the selected electrodes and the selected time window only.
+    """
+    data.selected_data = data.data[data.selected_rows, data.start_idx:data.stop_idx]
+
+
+def set_time_window(data: Data, start_mus: int, stop_mus: int) -> None:
+    """
+    Sets the time window of the data to be evaluated & displayed.
+    """
+    start_idx = int(np.round(data.sampling_rate * start_mus / 1000000))
+    stop_idx = int(np.round(data.sampling_rate * stop_mus / 1000000))
+
+    data.start_idx = start_idx
+    data.stop_idx = stop_idx
+
 def update_time_window(data: Data, t_start: str, t_end: str) -> None:
     """
     Converts the string time gotten from the ui in format s:ms:mus to micro

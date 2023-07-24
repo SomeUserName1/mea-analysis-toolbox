@@ -10,9 +10,9 @@
     - [ ] webapp
 - create tag
 - [ ] adjust plotting with PyQtGraph
-- [ ] make runtime errors/all errors visible on UI
 - parallelization: 
     - [ ] make sure to use numpy vetorization
+    - [ ] numba/hpat/bottleneck
     - [ ] Dask or WorkerPools; 
 - [ ] Improve peak & burst detection
 - [ ] Detect bad channels using pyprep, SNR, impedances
@@ -26,6 +26,7 @@
 
 
 # Future
+- [ ] make runtime errors/all errors visible on UI
 - [ ] support CMOS
 - [ ] fix FOOOF and see if working with it helps
 - [ ] entropies & other complexity measures

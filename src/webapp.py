@@ -270,6 +270,7 @@ def select_apply(_: int, t_start: str, t_stop: str) -> None:
         @retrun a next button to get to the preprocessing page.
     """
     update_time_window(DATA, t_start, t_stop)
+    DATA.update_selected_data()
 
     return None
 
@@ -393,7 +394,7 @@ def analyze_periodic_aperiodic(clicked):
     """
     Used by analyze screen.
 
-    Computes the PSDs for selected electrodes and then separates the periodic 
+    Computes the PSDs for selected electrodes and then separates the periodic
                    from the aperiodic part and shows the results.
     """
     if clicked is not None and clicked > 0:
