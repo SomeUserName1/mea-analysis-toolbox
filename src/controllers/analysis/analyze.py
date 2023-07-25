@@ -17,12 +17,17 @@ from views.event_stats import show_events, export_events
 
 
 @nb.njit(parallel=True)
+def compute_snrs(data: Data):
+    
+
+
+@nb.njit(parallel=True)
 def compute_rms(data: Data) -> np.ndarray:
     return np.sqrt(np.mean(np.power(data.selected_data, 2)))
 
 
 @nb.njit(parallel=True)
-def compute_abs_mv_mean(sig: np.ndarray, w: int=None, fs: int) -> np.ndarray:
+def compute_abs_mv_means(sig: np.ndarray, w: int=None, fs: int) -> np.ndarray:
     if w is None:
         w = int(np.round(0.01 * fs)) # 10 ms
     if w % 2 == 0
@@ -36,26 +41,26 @@ def compute_abs_mv_mean(sig: np.ndarray, w: int=None, fs: int) -> np.ndarray:
 
 
 @nb.njit(parallel=True)
-def compute_mv_std(data: Data, w: int):
+def compute_mv_stds(data: Data, w: int):
     sigs = data.selected_data
     sq_dev = np.square(sigs - np.mean(sigs))
     return np.sqrt(compute_moving_avg(sq_dev, w=w, fs=data.sampling_rate))
 
 
 @nb.njit(parallel=True)
-def compute_mv_mad(data, w):
+def compute_mv_mads(data, w):
     sigs = data.selected_data
     abs_devs = np.abs(sigs - np.mean(sigs))
     return compute_moving_avg(abs_dev, w=w)
 
 
 # No njit as scipy.signal is not supported & scipy already calls C routines
-def compute_envelope(data: Data) -> np.ndarray:
+def compute_envelopes(data: Data) -> np.ndarray:
     return np.absolute(sg.hilbert(data.selected_data))
 
 
 # No njit as numpy.fft is not supported & numpy already calls C routines
-def compute_psd(data: Data) -> tuple[np.ndarray, np.ndarray]:
+def compute_psds(data: Data) -> tuple[np.ndarray, np.ndarray]:
     ys = data.selected_data
     fft = np.fft.rfft(ys)
     power = 2 / np.square(ys.shape[1]) * (fft.real**2 + fft.imag**2)
@@ -64,18 +69,33 @@ def compute_psd(data: Data) -> tuple[np.ndarray, np.ndarray]:
 
 
 # No njit as scipy.signal is not supported & scipy already calls C routines
-def compute_spectrogram(data: Data) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    window = np.kaiser(256, 0)
-    return sg.spectrogram(data_row, fs, window, len(window), len(window) / 4)
+def compute_spectrograms(data: Data) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    return sg.spectrogram(data_row, fs, nfft=1024)
+
+# No njit as fooof is unknown to numba
+def compute_periodic_aperiodic_decomp(data: Data, 
+                                      freq_range: tuple[int, int]=(1, 150)
+                                      ) -> FOOOFGroup:
+    fg = FOOOFGroup(aperiodic_mode='knee')
+    fg.fit(compute_psds(data), freq_range, freq_range, n_jobs=-1)
+
+    return fg
 
 
-def compute_periodic_aperiodic_decomp(data_row, fs):
-    fm = FOOOF(aperiodic_mode='knee', peak_width_limits=(6, 100))
-    psd = compute_psd(data_row, fs)
-    fm.add_data(psd[0], psd[1], [1, 300])
-    fm.fit()
+def detrend_fooof(data: Data):
+    fg = compute_periodic_aperiodic_decomp(data) 
+   
 
-    return fm
+def compute_isis(spike_idxs, fs):
+    isis = []
+    for i, (start_idx, end_idx) in enumerate(zip(spike_idxs[0], spike_idxs[1])):
+        if i != 0:
+            isis.append((start_idx - prev_end_idx) * 1 / fs)
+
+        prev_end_idx = end_idx
+
+    return np.array(isis)
+
 
 def show_spectrograms(data):
     fs = []
@@ -296,15 +316,7 @@ def create_event(data, electrode_idx, event_idxs, threshold):
 
 
 
-def compute_isis(spike_idxs, fs):
-    isis = []
-    for i, (start_idx, end_idx) in enumerate(zip(spike_idxs[0], spike_idxs[1])):
-        if i != 0:
-            isis.append((start_idx - prev_end_idx) * 1 / fs)
 
-        prev_end_idx = end_idx
-
-    return np.array(isis)
 
 
 def compute_event_delays(data):

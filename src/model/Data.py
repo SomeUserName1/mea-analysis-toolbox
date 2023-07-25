@@ -34,7 +34,6 @@ class Data:
         self.start_idx = 0
         self.stop_idx = self.duration_mus
         self.selected_data = None
-        self.events = None
 
 
     def get_selected_names(self) -> np.ndarray:
