@@ -1,11 +1,13 @@
 import time
 from multiprocessing import Process
 
+import antropy as ant
+import elephant.signal_processing as epsp
+from fooof import FOOOF
 import numba as nb
 import numpy as np
-import scipy.signal as sg
-from fooof import FOOOF
 from PyIF.te_compute import te_compute
+import scipy.signal as sg
 
 from model.Data import Data
 from model.Event import Event
@@ -17,17 +19,27 @@ from views.event_stats import show_events, export_events
 
 
 @nb.njit(parallel=True)
-def compute_snrs(data: Data):
-    
+def compute_snrs(data: Data, result: Result):
+    signals = data.selected_data
+    result.snrs = np.mean(signals, axis=-1) ** 2 / np.var(signals, axis=-1)
 
 
 @nb.njit(parallel=True)
-def compute_rms(data: Data) -> np.ndarray:
-    return np.sqrt(np.mean(np.power(data.selected_data, 2)))
+def compute_rms(data: Data, result: Result) -> np.ndarray:
+    result.rms = np.sqrt(np.mean(np.square(data.selected_data), axis=-1))
 
 
 @nb.njit(parallel=True)
-def compute_abs_mv_means(sig: np.ndarray, w: int=None, fs: int) -> np.ndarray:
+def compute_derivative(data: Data, result: Result):
+    result.derivatives = np.diff(data.selected_data) * sampling_rate # x / 1 /sampling period == x * sampling_period
+
+
+def compute_mv_avg(data: Data, result: Result, w: int=None):
+    result.mv_means = moving_avg(data.selected_data, w, fs=data.sampling_rate)
+
+
+@nb.njit(parallel=True)
+def moving_avg(sig: np.ndarray, w: int=None, fs: int) -> np.ndarray:
     if w is None:
         w = int(np.round(0.01 * fs)) # 10 ms
     if w % 2 == 0
@@ -37,26 +49,29 @@ def compute_abs_mv_means(sig: np.ndarray, w: int=None, fs: int) -> np.ndarray:
     abs_pad = np.pad(np.absolute(sig), (pad, pad), "edge")
     ret = np.cumsum(abs_pad, dtype=float, axis=-1)
     ret[:, w:] = ret[:, w:] - ret[:, :-w]
+
     return ret[w - 1:] / w
 
 
 @nb.njit(parallel=True)
-def compute_mv_stds(data: Data, w: int):
+def compute_mv_var(data: Data, result: Result, w: int=None):
     sigs = data.selected_data
-    sq_dev = np.square(sigs - np.mean(sigs))
-    return np.sqrt(compute_moving_avg(sq_dev, w=w, fs=data.sampling_rate))
+    sq_dev = np.square((sigs.T - np.mean(sigs, axis=-1)).T)
+
+    result.mv_vars = moving_avg(sq_dev, w=w, fs=data.sampling_rate)
 
 
 @nb.njit(parallel=True)
-def compute_mv_mads(data, w):
+def compute_mv_mads(data: Data, result: Result, w: int=None):
     sigs = data.selected_data
-    abs_devs = np.abs(sigs - np.mean(sigs))
-    return compute_moving_avg(abs_dev, w=w)
+    abs_devs = np.absolute((sigs.T - np.mean(sigs, axis=-1)).T)
+
+    result.mv_mads = moving_avg(abs_dev, w=w, fs=data.sampling_rate)
 
 
 # No njit as scipy.signal is not supported & scipy already calls C routines
-def compute_envelopes(data: Data) -> np.ndarray:
-    return np.absolute(sg.hilbert(data.selected_data))
+def compute_envelopes(data: Data, result: Result):
+    result.envelopes = np.absolute(sg.hilbert(data.selected_data))
 
 
 # No njit as numpy.fft is not supported & numpy already calls C routines
@@ -65,291 +80,131 @@ def compute_psds(data: Data) -> tuple[np.ndarray, np.ndarray]:
     fft = np.fft.rfft(ys)
     power = 2 / np.square(ys.shape[1]) * (fft.real**2 + fft.imag**2)
     freq = np.fft.rfftfreq(ys.shape[1], 1/data.sampling_rate)
-    return freq, power
+
+    result.psds = freq, power
 
 
 # No njit as scipy.signal is not supported & scipy already calls C routines
-def compute_spectrograms(data: Data) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    return sg.spectrogram(data_row, fs, nfft=1024)
+def compute_spectrograms(data: Data, result: Result):
+    result.spectrograms =  sg.spectrogram(data.selected_data,
+                                          data.sampling_rate, nfft=1024)
+
 
 # No njit as fooof is unknown to numba
-def compute_periodic_aperiodic_decomp(data: Data, 
+def compute_periodic_aperiodic_decomp(data: Data,
+                                      result: Result,
                                       freq_range: tuple[int, int]=(1, 150)
                                       ) -> FOOOFGroup:
-    fg = FOOOFGroup(aperiodic_mode='knee')
-    fg.fit(compute_psds(data), freq_range, freq_range, n_jobs=-1)
+    if result.psds is None:
+        compute_psds(data.selected_data
 
-    return fg
+    fg = FOOOFGroup()
+    fg.fit(result.psds, freq_range, n_jobs=-1)
+    result.fooof_group = fg
 
 
+# will probably not work with numba.
+# alternatively parallelize or extract fooof components into matrix and do 
+# subtraction as vectrorized (in a separate fn with numba)
+# alternatively parallelize and collect.
+# prolly IO bound
+@nb.jit(parallel=True)
 def detrend_fooof(data: Data):
-    fg = compute_periodic_aperiodic_decomp(data) 
-   
+    if result.fooof_group is None:
+        fg = compute_periodic_aperiodic_decomp(data) 
 
-def compute_isis(spike_idxs, fs):
-    isis = []
-    for i, (start_idx, end_idx) in enumerate(zip(spike_idxs[0], spike_idxs[1])):
-        if i != 0:
-            isis.append((start_idx - prev_end_idx) * 1 / fs)
+    norm_psd = np.empty((len(data.selected_electrodes), 
+                         fg.get_fooof(0).power_spectrum))
+    for idx in range(len(data.selected_electrodes):
+        fooof = fg.get_fooof(idx)
 
-        prev_end_idx = end_idx
-
-    return np.array(isis)
-
-
-def show_spectrograms(data):
-    fs = []
-    ts = []
-    sxs = []
-    for idx in range(data.data.shape[0]):
-        f, t, sx = compute_spectrogram(data.data[idx], data.sampling_rate)
-        fs.append(f)
-        ts.append(t)
-        sxs.append(sx)
-
-    fcs = [np.array(fs), np.array(ts), np.array(sxs)]
-
-    proc = Process(target=plot_in_grid, args=('spectrograms', fcs, data))
-    proc.start()
-    proc.join()
-
-
-def show_periodic_aperiodic_decomp(data):
-    fms = []
-    for idx in range(data.data.shape[0]):
-        fms.append(compute_periodic_aperiodic_decomp(data.data[idx], data.sampling_rate))
-
-    np.array(fms)
-
-    proc = Process(target=plot_in_grid, args=('periodic_aperiodic', fms, data))
-    proc.start()
-    proc.join()
-
-
-
-
-
-def detect_events_moving_dev(data, method, base_std=None, std_factor=1, window=None, export=False, fname=None):
-    signal = data.data
-    aggs = []
-    bursts_longest = []
-    bursts_all = []
-    events = []
-    # take 5% of the signal as window
-    window = int(np.round(data.duration_mus / 1000000 / 20 * data.sampling_rate))
-    for i in range(len(data.selected_rows)):
-        if method == 1:
-            aggs.append(compute_mv_std(signal[i], window))
-        elif method == 2:
-            aggs.append(compute_mv_mad(signal[i], window))
+        if fooof.has_model:
+            norm_psd[idx] = fooof.power_spectrum - fooof._ap_fit
         else:
-            raise RuntimeError("Event detection method is not supported")
+            norm_psd[idx] = None
 
-        if base_std is None:
-            std = np.std(signal[i]) * std_factor
-        else:
-            std = base_std[i] * std_factor
-
-        bursts = find_event_boundaries(aggs[i], std)
-        bursts_all.append(bursts)
-        event_idxs = extract_longest_burst(bursts)
-
-        if event_idxs[0] is not None:
-            event = create_event(data, data.selected_rows[i], event_idxs, std)
-            events.append(event)
-            bursts_longest.append(event_idxs)
-        else:
-            bursts_longest.append([])
-
-    data.events = events
-    compute_event_delays(data)
-   # compute_event_tes(data)
-    show_event_psds(data)
-    proc = Process(target=plot_in_grid, args=('time_series', signal, data, aggs, None, bursts_all, bursts_longest))
-    proc.start()
-    proc.join()
-
-    if export:
-        export_events(data, fname)
-
-    return show_events(data)
+    result.detrended_psds = norm_psd
 
 
+# PyIF.compute_te already uses numba/gpu
+# Parallelizing the loop may be an option depending on the load
+# concurrent.futures.ProcessPoolExecutor
+@nb.jit(parallel=True)
+def compute_transfer_entropy(data: Data):
+    n_channels = len(data.selected_electrodes)
+    tes = np.zeros(n_channels, n_channels)
+    
+    for i, sig1 in enumerate(data.selected_data):
+        for j, sig2 in enumerate(data.selected_data):
+            if i == j:
+                tes[i, j] = 0
+            elif i < j:
+                continue
+            else:
+                tes[i, j] = compute_te(sig1, sig2)
+
+    for i in range(n_channels):
+        for j in range(n_channels):
+            if i >= j:
+                continue
+            else:
+                tes[i, j] = tes[j, i]
+
+    result.transfer_entropies = tes
+
+# antropy uses numba
+# Parallelize for loop w. conc.fut.ProcessPoolExec maybe
+@nb.jit(parallel=True)
+def compute_entropies(data: Data, result: Result):
+    entropies = np.zeros(len(data.selected_channels))
+    for i in range(len(data.selected_channels)):
+        entropies[i] = ant.app_entropy(data.selected)
+
+# GENERAL
+# baseline how? 
+# just not use it? in bursting signals the mean will be very high, so will then be the threshold if 3*std is applied
+# just the first n secs? will not work with older recordings maybe
+# use baseline recording? loads the whole file into memory and takes a lot of time 
+# 
+# ---find_peaks---
+# seems to detect some peaks multiple times (check with higher resolution viz)
+# prominences are not always correct?
+# 
+# Maybe parallelize using ProcessPoolExec.
+@nb.jit(parallel=True)
+def detect_peaks(data: Data, result: Result):
+    signals = data.selected_data
+    mads = np.mean(np.absolute((signals.T - np.means(signals, axis=-1)).T))
+    signals = np.absolute(signals)
+    result.peaks = []
+
+    for i in range(len(data.selected_electrodes)):
+        result.peaks.append(sg.find_peaks(signals[i], threshold=3*mads[i]))
 
 
+# TODO continue here
+def bin_amplitude(data: Data, new_sr: int=600) -> np.ndarray:
+    bins = []
+    i = data.start_idx
+    while i < data.stop_idx:
+        binned = np.zeros(data.data[data.selected_electrodes, i].shape)
+        t_int = 0
+        j = 0
+        while t_int < slow_down * 1/fps:
+            binned = (binned
+                      + np.absolute(data.data[data.selected_electrodes, i]))
+            t_int += 1 / data.sampling_rate
+            i += 1
 
-def detect_peaks_amplitude(data, absolute, std_b=None, local_std_factor=2.5, global_std_factor=0.5):
-    if absolute:
-        signal = np.absolute(data.data)
-    else:
-        signal = data.data
-
-    peaks = []
-    astd = np.std(data.data)
-
-    for i in range(signal.shape[0]):
-        if std_b is None:
-            std =  np.std(signal[i]) * local_std_factor
-        else:
-            std = local_std_factor * std_b[i]
-
-        threshold = std + astd * global_std_factor
-        peak, param = sg.find_peaks(signal[i], height=threshold)
-        height = param['peak_heights']
-        peaks.append(np.array([peak, height]))
-
-    proc = Process(target=plot_in_grid, args=('time_series', signal, data, None, peaks))
-    proc.start()
-    proc.join()
-
-    proc = Process(target=plot_raster, args=(peaks, data))
-    proc.start()
-    proc.join()
-
-    proc = Process(target=plot_psth, args=(peaks, data))
-    proc.start()
-    proc.join()
-
-
-def show_event_psds(data):
-    psds = []
-    if len(data.events) == 0:
-        return
-
-    fst = data.events[0]
-    psd_shape = compute_psd(data.data[data.selected_rows.index(fst.electrode_idx), fst.start_idx : fst.end_idx], data.sampling_rate)[0].shape
-    for i in range(data.data.shape[0]):
-        has_event = False
-        for event in data.events:
-            if data.selected_rows.index(event.electrode_idx) == i:
-                event_signal = data.data[data.selected_rows.index(event.electrode_idx), event.start_idx : event.end_idx]
-                psds.append(compute_psd(event_signal, data.sampling_rate))
-                has_event = True
+            if i >= t_stop_idx:
                 break
 
-        if not has_event:
-            psds.append((np.zeros(psd_shape), np.zeros(psd_shape)))
+            j += 1
 
-    psds = np.array(psds)
+        binned = binned / j
+        bins.append(binned)
 
-    proc = Process(target=plot_in_grid, args=('psds', psds, data))
-    proc.start()
-    proc.join()
-
-
-def find_event_boundaries(signal, threshold, merge=True):
-    start_idxs = []
-    stop_idxs = []
-    i = 0
-    burst = False
-    while i < signal.shape[0]:
-        if not burst and signal[i] >= threshold:
-            start_idxs.append(i)
-            burst = True
-        if burst and signal[i] < threshold:
-            stop_idxs.append(i)
-            burst = False
-
-        i += 1
-
-    if burst:
-        stop_idxs.append(i-1)
-
-    if merge:
-        length = len(start_idxs)
-        idx = 0
-        while idx < length - 1:
-            if stop_idxs[idx] + int(signal.shape[0] / 100) >= start_idxs[idx+1]:
-                del stop_idxs[idx]
-                del start_idxs[idx+1]
-                length = len(start_idxs)
-            else:
-                idx += 1
-
-    return np.array(start_idxs), np.array(stop_idxs)
-
-
-def extract_longest_burst(burst_times):
-    start_idxs, stop_idxs = burst_times
-    max_duration = 0
-    longest_burst_idx = None
-
-    for i, start_idx in enumerate(start_idxs):
-        if max_duration < stop_idxs[i] - start_idx:
-            max_duration = stop_idxs[i] - start_idx
-            longest_burst_idx = i
-
-    if longest_burst_idx is None:
-        return None, None
-    else:
-        return start_idxs[longest_burst_idx], stop_idxs[longest_burst_idx]
-
-
-def create_event(data, electrode_idx, event_idxs, threshold):
-    if data.sampling_rate < 200:
-        raise RuntimeError("Sampling rate must not be lower than 200 Hz for the band decomposition to work!")
-
-    event_signal = data.data[data.selected_rows.index(electrode_idx), event_idxs[0]:event_idxs[1]]
-    duration = (event_idxs[1] - event_idxs[0]) * 1 / data.sampling_rate
-    spike_idxs = find_event_boundaries(event_signal, threshold, False)
-    rms = compute_rms(event_signal)
-    max_amplitude = np.amax(np.absolute(event_signal))
-    mean_isi = np.mean(compute_isis(spike_idxs, data.sampling_rate))
-    freqs, powers = compute_psd(event_signal, 200)
-
-    delta_start = (np.abs(freqs - 0.5)).argmin()
-    delta_stop = (np.abs(freqs - 4)).argmin()
-    theta_stop = (np.abs(freqs - 8)).argmin()
-    alpha_stop = (np.abs(freqs - 13)).argmin()
-    beta_stop = (np.abs(freqs - 30)).argmin()
-    gamma_stop = (np.abs(freqs - 90)).argmin()
-
-    band_powers = {}
-    band_powers['delta'] = np.mean(powers[delta_start:delta_stop])
-    band_powers['theta'] = np.mean(powers[delta_stop:theta_stop])
-    band_powers['alpha'] = np.mean(powers[theta_stop:alpha_stop])
-    band_powers['beta'] = np.mean(powers[alpha_stop:beta_stop])
-    band_powers['gamma'] = np.mean(powers[beta_stop:gamma_stop])
-
-    return Event(electrode_idx, event_idxs[0], event_idxs[1], duration, spike_idxs, rms, max_amplitude, mean_isi, band_powers)
-
-
-
-
-
-
-
-def compute_event_delays(data):
-    first_idx = None
-    for event in data.events:
-        if first_idx is None or first_idx > event.start_idx:
-            first_idx = event.start_idx
-
-    for event in data.events:
-        event.delay = event.start_idx - first_idx
-
-
-def compute_event_tes(data):
-    if data.events[0].delay is None:
-        compute_event_delays(data)
-
-    fst_event = None
-    for event in data.events:
-        if event.delay == 0:
-            fst_event = event
-            break
-
-    first_signal = data.data[data.selected_rows.index(fst_event.electrode_idx)]
-    for event in data.events:
-        if event.delay == 0:
-            continue
-
-        event_signal = data.data[data.selected_rows.index(event.electrode_idx)]
-        event.te = compute_transfer_entropy(first_signal, event_signal)
-
-
-def compute_transfer_entropy(x, y):
-    return te_compute(x, y, k=1, embedding=1)
+    bins = np.array(bins)
 
 
 def animate_amplitude_grid(data: Data, fps: int, slow_down: float, \
@@ -364,29 +219,7 @@ def animate_amplitude_grid(data: Data, fps: int, slow_down: float, \
             i.e. more binning.
 
     """
-    prev_start_idx = data.start_idx
-    prev_stop_idx = data.stop_idx
-    if fps is None:
-        fps = 60
-    else:
-        fps = int(fps)
 
-    if slow_down is None:
-        slow_down = 0.1
-    else:
-        slow_down = float(slow_down)
-
-    if t_start is None:
-        start_idx = data.start_idx
-    else:
-        start_mus = str_to_mus(t_start)
-
-    if t_stop is None:
-        stop_idx = data.stop_idx
-    else:
-        stop_mus = str_to_mus(t_stop)
-
-    data.set_time_window(start_mus, stop_mus)
 
     bins = []
     i = data.start_idx
@@ -412,73 +245,4 @@ def animate_amplitude_grid(data: Data, fps: int, slow_down: float, \
 
     create_video(data, bins, fps)
 
-    data.set_time_window(prev_start_mus, prev_stop_mus)
-
-
-
-
-# FIXME sth is off here.
-# FIXME just create a normal data object, and the code from analyze!
-def extract_baseline_std(baseline, que):
-    """
-    Extracts the standard deviation per channel from a file without creating a \
-            Data object.
-
-        @param baseline: path to the McS h5 file with the baseline data.
-        @param selected_rows: the rows of the selected electrodes of the \
-                stimulus data (see detect_peaks/detect_events in controllers/ \
-                analyze.py)
-        @param moving_avg: boolean indicating if the std of the moving \
-                average shall be extracted.
-
-        @return the std of the channel or of the moving average of the channel
-    """
-    file_contents = McsPy.McsData.RawData(baseline)
-    stream = file_contents.recordings[0].analog_streams[0]
-    num_electrodes = stream.channel_data.shape[0]
-    sampling_rate = stream.channel_infos[2].sampling_frequency.magnitude
-    data = stream.channel_data
-    data = np.array(data)
-    # downsample signal to speed things up
-    q = int(np.round(sampling_rate / 1000))
-    q_it = 0
-    for i in range(12):
-        if q % (12 - i) == 0:
-            q_it = 12 - i
-            break
-
-    if q_it == 0:
-        q_it = 10
-
-    i = 0
-    while q > 13:
-        q = int(np.round(q / q_it))
-        data = sg.decimate(data, q_it)
-        i += 1
-
-    sampling_rate = sampling_rate / q_it ** i
-
-    q = int(np.floor(q))
-    if q != 0:
-        data = sg.decimate(data, q)
-        sampling_rate = sampling_rate / q
-    stds = []
-    mv_std_stds = []
-    mv_mad_stds = []
-    window = int(np.round(data.shape[1] / 20))
-
-    for i in range(num_electrodes):
-        abs_dev = np.abs(data[i] - np.mean(data[i]))
-        mv_mad = np.convolve(abs_dev, np.ones(window), 'same') / window
-
-        mv_std = np.convolve(np.square(abs_dev), np.ones(window), 'same') / window
-        mv_std = np.sqrt(mv_std)
-
-        mv_std_stds.append(np.std(mv_std))
-        mv_mad_stds.append(np.std(mv_mad))
-        stds.append(np.std(data[i]))
-
-    del file_contents
-
-    que.put((stds, mv_std_stds, mv_mad_stds))
 

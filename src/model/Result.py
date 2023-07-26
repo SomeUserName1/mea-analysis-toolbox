@@ -28,19 +28,19 @@ class Result:
         self.names = selected_names
         self.t_start = 0
         self.t_start = self.duration_mus
-        self.snrs = None # TODO self
-        self.rms = None # impl
-        self.derivative = None # TODO elephant
-        self.mv_means = None # impl
-        self.mv_stds = None # impl
-        self.envelopes = None # impl
-        self.psds = None # impl
-        self.detrended_psds = None # TODO self
-        self.fooof_group = None # impl
-        self.spectrograms = None # impl
-        self.entropies = None # TODO antropy
-        self.peaks = None # TODO check and adapt
-        self.events = None # TODO check and adapt
+        self.snrs = None # ndarray (data.shape[0], 1)
+        self.rms = None # ndarray (data.shape[0], 1)
+        self.derivatives = None # ndarray (data.shape) 
+        self.mv_means = None # ndarray (data.shape)
+        self.mv_vars = None # ndarray (data.shape)
+        self.mv_mads = None # ndarray (data.shape)
+        self.envelopes = None # ndarray (data.shape)
+        self.psds = None # tuple[ndarray (1,#freqs), ndarray(data.shape[0], #freqs) ]
+        self.detrended_psds = None # ndarray(data.shape[0], #freqs)
+        self.fooof_group = None # FOOOFGroup object
+        self.spectrograms = None # ndarray (data.shape[0], time_res?)
+        self.entropies = None # ndarray (data.shape[0], 1)
+        self.peaks = None # list[ndarray (1, #peaks), dict (len=#peaks)] (len = data.shape[0])
         self.isis = None # TODO check and adapt
         self.transfer_entopies = None # TODO check and adapt
         self.mutual_information = None # TODO minfo 
@@ -51,6 +51,7 @@ class Result:
         self.csds = None # TODO elephant
         self.psis = None # TODO finnpy
         self.pacs = None # TODO tensorpac
+        self.events = None # TODO check and adapt
         # synchrony
         # phase synchrony
         # self.latencies c.f. intraop dataset repo
