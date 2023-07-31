@@ -41,10 +41,10 @@ class Result:
         self.spectrograms = None # ndarray (data.shape[0], time_res?)
         self.entropies = None # ndarray (data.shape[0], 1)
         self.peaks = None # list[ndarray (1, #peaks), dict (len=#peaks)] (len = data.shape[0])
-        self.isis = None # TODO check and adapt
-        self.transfer_entopies = None # TODO check and adapt
-        self.mutual_information = None # TODO minfo 
-        self.xcorrs = None # TODO elephant, ca img script
+        self.ipis = None # list[ndarray (1, #peaks -1)] 
+        self.xcorrs = None # tuple[ ndarray (1, data.shape[1]), ndarray (data.shape[0], data.shape[0], data.shape[1])] 
+        self.mutual_information = None # ndarray (data.shape[0], data.shape[0])  
+        self.transfer_entopies = None # ndarray (data.shape[0], data.shape[0])
         self.coherence = None # TODO elephant, scipy
         self.granger_caus = None # TODO elephant
         self.spectral_granger = None # TODO Elephant

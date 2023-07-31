@@ -4,6 +4,7 @@ from multiprocessing import Process
 import antropy as ant
 import elephant.signal_processing as epsp
 from fooof import FOOOF
+import minfo
 import numba as nb
 import numpy as np
 from PyIF.te_compute import te_compute
@@ -19,23 +20,23 @@ from views.event_stats import show_events, export_events
 
 
 @nb.njit(parallel=True)
-def compute_snrs(data: Data, result: Result):
-    signals = data.selected_data
-    result.snrs = np.mean(signals, axis=-1) ** 2 / np.var(signals, axis=-1)
+def compute_snrs(result: Result):
+    signals = result.data
+    result.snrs = np.square(np.mean(signals, axis=-1)) / np.var(signals, axis=-1)
 
 
 @nb.njit(parallel=True)
-def compute_rms(data: Data, result: Result) -> np.ndarray:
-    result.rms = np.sqrt(np.mean(np.square(data.selected_data), axis=-1))
+def compute_rms(result: Result) -> np.ndarray:
+    result.rms = np.sqrt(np.mean(np.square(result.data), axis=-1))
 
 
 @nb.njit(parallel=True)
-def compute_derivative(data: Data, result: Result):
-    result.derivatives = np.diff(data.selected_data) * sampling_rate # x / 1 /sampling period == x * sampling_period
+def compute_derivative(result: Result):
+    result.derivatives = np.diff(result.data) * result.sampling_rate # x / 1 /sampling period == x * sampling_period
 
 
-def compute_mv_avg(data: Data, result: Result, w: int=None):
-    result.mv_means = moving_avg(data.selected_data, w, fs=data.sampling_rate)
+def compute_mv_avg(result: Result, w: int=None):
+    result.mv_means = moving_avg(result.data, w, fs=result.sampling_rate)
 
 
 @nb.njit(parallel=True)
@@ -54,49 +55,40 @@ def moving_avg(sig: np.ndarray, w: int=None, fs: int) -> np.ndarray:
 
 
 @nb.njit(parallel=True)
-def compute_mv_var(data: Data, result: Result, w: int=None):
-    sigs = data.selected_data
+def compute_mv_var(result: Result, w: int=None):
+    sigs = result.data
     sq_dev = np.square((sigs.T - np.mean(sigs, axis=-1)).T)
-
-    result.mv_vars = moving_avg(sq_dev, w=w, fs=data.sampling_rate)
+    result.mv_vars = moving_avg(sq_dev, w=w, fs=result.sampling_rate)
 
 
 @nb.njit(parallel=True)
-def compute_mv_mads(data: Data, result: Result, w: int=None):
-    sigs = data.selected_data
+def compute_mv_mads(result: Result, w: int=None):
+    sigs = result.data
     abs_devs = np.absolute((sigs.T - np.mean(sigs, axis=-1)).T)
-
-    result.mv_mads = moving_avg(abs_dev, w=w, fs=data.sampling_rate)
+    result.mv_mads = moving_avg(abs_dev, w=w, fs=result.sampling_rate)
 
 
 # No njit as scipy.signal is not supported & scipy already calls C routines
-def compute_envelopes(data: Data, result: Result):
-    result.envelopes = np.absolute(sg.hilbert(data.selected_data))
+def compute_envelopes(result: Result):
+    result.envelopes = np.absolute(sg.hilbert(result.data))
 
 
 # No njit as numpy.fft is not supported & numpy already calls C routines
-def compute_psds(data: Data) -> tuple[np.ndarray, np.ndarray]:
-    ys = data.selected_data
+def compute_psds(result: Result) -> tuple[np.ndarray, np.ndarray]:
+    ys = result.data
     fft = np.fft.rfft(ys)
     power = 2 / np.square(ys.shape[1]) * (fft.real**2 + fft.imag**2)
-    freq = np.fft.rfftfreq(ys.shape[1], 1/data.sampling_rate)
+    freq = np.fft.rfftfreq(ys.shape[1], 1/result.sampling_rate)
 
     result.psds = freq, power
 
 
-# No njit as scipy.signal is not supported & scipy already calls C routines
-def compute_spectrograms(data: Data, result: Result):
-    result.spectrograms =  sg.spectrogram(data.selected_data,
-                                          data.sampling_rate, nfft=1024)
-
-
 # No njit as fooof is unknown to numba
-def compute_periodic_aperiodic_decomp(data: Data,
-                                      result: Result,
+def compute_periodic_aperiodic_decomp(result: Result,
                                       freq_range: tuple[int, int]=(1, 150)
                                       ) -> FOOOFGroup:
     if result.psds is None:
-        compute_psds(data.selected_data
+        compute_psds(result.data)
 
     fg = FOOOFGroup()
     fg.fit(result.psds, freq_range, n_jobs=-1)
@@ -104,18 +96,19 @@ def compute_periodic_aperiodic_decomp(data: Data,
 
 
 # will probably not work with numba.
-# alternatively parallelize or extract fooof components into matrix and do 
+# alternatively parallelize or extract fooof components into matrix and do
 # subtraction as vectrorized (in a separate fn with numba)
 # alternatively parallelize and collect.
 # prolly IO bound
 @nb.jit(parallel=True)
-def detrend_fooof(data: Data):
+def detrend_fooof(result: Result):
     if result.fooof_group is None:
-        fg = compute_periodic_aperiodic_decomp(data) 
+        fg = compute_periodic_aperiodic_decomp(result)
 
-    norm_psd = np.empty((len(data.selected_electrodes), 
+    n_els = result.data.shape[0]
+    norm_psd = np.empty((n_els,
                          fg.get_fooof(0).power_spectrum))
-    for idx in range(len(data.selected_electrodes):
+    for idx in range(n_els):
         fooof = fg.get_fooof(idx)
 
         if fooof.has_model:
@@ -126,22 +119,90 @@ def detrend_fooof(data: Data):
     result.detrended_psds = norm_psd
 
 
-# PyIF.compute_te already uses numba/gpu
-# Parallelizing the loop may be an option depending on the load
-# concurrent.futures.ProcessPoolExecutor
+# No njit as scipy.signal is not supported & scipy already calls C routines
+def compute_spectrograms(result: Result):
+    result.spectrograms =  sg.spectrogram(result.data, result.sampling_rate,
+                                          nfft=1024)
+
+
+# antropy uses numba
+# Parallelize for loop w. conc.fut.ProcessPoolExec maybe
 @nb.jit(parallel=True)
-def compute_transfer_entropy(data: Data):
-    n_channels = len(data.selected_electrodes)
-    tes = np.zeros(n_channels, n_channels)
-    
-    for i, sig1 in enumerate(data.selected_data):
-        for j, sig2 in enumerate(data.selected_data):
-            if i == j:
-                tes[i, j] = 0
+def compute_entropies(result: Result):
+    n_els = result.data.shape[0]
+    entropies = np.zeros(n_els)
+    for i in range(n_els):
+        entropies[i] = ant.app_entropy(result.data[i])
+
+# GENERAL
+# baseline how?
+# just not use it? in bursting signals the mean will be very high, so will then be the threshold if 3*std is applied
+# just the first n secs? will not work with older recordings maybe
+# use baseline recording? loads the whole file into memory and takes a lot of time
+#
+# RN used is the signal + 3 *the MAD of the signal. Alternative: use roling mad instead of signal
+#
+# ---find_peaks---
+# seems to detect some peaks multiple times (check with higher resolution viz)
+# prominences are not always correct?
+#
+# Maybe parallelize using ProcessPoolExec.
+@nb.jit(parallel=True)
+def detect_peaks(result: Result):
+    signals = result.data
+    mads = np.mean(np.absolute((signals.T - np.means(signals, axis=-1)).T), axis=-1)
+    signals = np.absolute(signals)
+    result.peaks = []
+
+    for i in range(result.data.shape[0]):
+        result.peaks.append(sg.find_peaks(signals[i], threshold=3*mads[i]))
+
+
+@nb.njit(parallel=True)
+def compute_inter_peak_intervals(result:Result):
+    if result.peaks is None:
+        compute_peaks(results)
+
+    result.ipis = []
+    for peaks, _ in result.peaks:
+        ipi = np.diff(peaks)
+        result.ipis.append(ipi)
+
+# parallelize, maybe pull out z-scoring for numba
+def compute_xcorrs(result: Result):
+    sig = result.data
+    means = np.mean(sig, axis=-1)
+    stds = np.std(sig, axis=-1)
+    sig = ((sig.T - means) / stds).T
+
+    lags = sg.correlation_lags(sig.shape[1], sig.shape[1], "same")
+    result.xcorrs = lags, np.zeros(sig.shape[0], sig.shape[0], sig.shape[1])
+
+    for i, sig1 in enumerate(sig):
+        for j, sig2 in enumerate(sig):
             elif i < j:
                 continue
             else:
-                tes[i, j] = compute_te(sig1, sig2)
+                result.xcorrs[1][i, j] = (sg.correlate(sig1, sig2, 'same')
+                                        * (1 / (sig.shape[1] - np.abs(lags))))
+
+    for i in range(sig.shape[0]):
+        for j in range(sig.shape[0]):
+            if i >= j:
+                continue
+            else:
+                result.xcorrs[1][i, j] = result.xcorrs[1][j, i]
+
+
+# parallelizing with con.fut.ProcessPoolExecutor
+def compute_mutual_info(result: Result):
+    for i, sig1 in enumerate(result.data):
+        for j, sig2 in enumerate(result.data):
+            if i < j:
+                continue
+            else:
+                result.transfer_entropies[i, j] = minfo.mi_float.mutual_info(sig1, sig2,
+                                                       algorithm='adaptive')
 
     for i in range(n_channels):
         for j in range(n_channels):
@@ -150,99 +211,80 @@ def compute_transfer_entropy(data: Data):
             else:
                 tes[i, j] = tes[j, i]
 
+
+# PyIF.compute_te already uses numba/gpu
+# Parallelizing the loop may be an option depending on the load
+# concurrent.futures.ProcessPoolExecutor
+@nb.jit(parallel=True)
+def compute_transfer_entropy(result: Result, lag_ms: int = 10):
+    n_els = result.data.shape[0]
+    tes = np.zeros((n_els, n_els))
+
+    lags = int(lag_ms * 0.001 * sampling_rate)
+    if lags < 1:
+        lags = 1
+
+    for i, sig1 in enumerate(result.data):
+        for j, sig2 in enumerate(result.data):
+            if i == j:
+               continue
+            else:
+                tes[i, j] = compute_te(sig1, sig2, embedding=lags)
+
     result.transfer_entropies = tes
 
-# antropy uses numba
-# Parallelize for loop w. conc.fut.ProcessPoolExec maybe
-@nb.jit(parallel=True)
-def compute_entropies(data: Data, result: Result):
-    entropies = np.zeros(len(data.selected_channels))
-    for i in range(len(data.selected_channels)):
-        entropies[i] = ant.app_entropy(data.selected)
 
-# GENERAL
-# baseline how? 
-# just not use it? in bursting signals the mean will be very high, so will then be the threshold if 3*std is applied
-# just the first n secs? will not work with older recordings maybe
-# use baseline recording? loads the whole file into memory and takes a lot of time 
-# 
-# ---find_peaks---
-# seems to detect some peaks multiple times (check with higher resolution viz)
-# prominences are not always correct?
-# 
-# Maybe parallelize using ProcessPoolExec.
-@nb.jit(parallel=True)
-def detect_peaks(data: Data, result: Result):
-    signals = data.selected_data
-    mads = np.mean(np.absolute((signals.T - np.means(signals, axis=-1)).T))
-    signals = np.absolute(signals)
-    result.peaks = []
-
-    for i in range(len(data.selected_electrodes)):
-        result.peaks.append(sg.find_peaks(signals[i], threshold=3*mads[i]))
+def compute_coherence(result: Result):
+    # TODO impl
+    pass
 
 
-# TODO continue here
-def bin_amplitude(data: Data, new_sr: int=600) -> np.ndarray:
-    bins = []
-    i = data.start_idx
-    while i < data.stop_idx:
-        binned = np.zeros(data.data[data.selected_electrodes, i].shape)
+def compute_granger_causality(result: Result):
+    # TODO impl
+    pass
+
+
+def compute_spectral_granger(result: Result):
+    # TODO impl
+    pass
+
+
+def compute_current_source_density(result: Result):
+    # TODO impl
+    pass
+
+
+def compute_phase_slope_index(result: Result):
+    # TODO impl
+    pass
+
+
+def compute_phase_amplitude_coupling(result: Result):
+    # TODO impl
+    pass
+
+
+@nb.njit
+def bin_amplitude(new_sr: int=500, absolute: bool=False) -> np.ndarray:
+    signals = result.data
+    n_bins = new_sr / result.sampling_rate * signals.shape[1]
+    bins = np.zeros((signals.shape[0], n_bins))
+
+    signal_idx = 0
+    bin_idx = 0
+    while signal_idx < result.data.shape[1]:
         t_int = 0
-        j = 0
-        while t_int < slow_down * 1/fps:
-            binned = (binned
-                      + np.absolute(data.data[data.selected_electrodes, i]))
-            t_int += 1 / data.sampling_rate
-            i += 1
+        n_frames_in_bin = 0
 
-            if i >= t_stop_idx:
-                break
+        while t_int < 1 / new_sr and signal_idx < result.data.shape[1]:
+            bins[:, bin_idx] = bins[:, bin_idx] + result.data[:, signal_idx]
 
-            j += 1
+            t_int = t_int + 1 / result.sampling_rate
+            signal_idx = signal_idx + 1
+            n_frames_in_bin = n_frames_in_bin + 1
 
-        binned = binned / j
-        bins.append(binned)
+        bins[:, bin_idx] = bins[:, bin_idx] / n_frames_in_bin
+        bin_idx = bin_idx + 1
 
     bins = np.array(bins)
-
-
-def animate_amplitude_grid(data: Data, fps: int, slow_down: float, \
-        t_start: int, t_stop: int) -> None:
-    """
-    Creates an animation that displays the change in amplitude over the
-            electrode grid over time
-
-        @param data: The Data object holding the recordings
-        @param fps: The frame rate of the animation. A larger frame rate
-            causes better temporal resolution, a small frame rate worse,
-            i.e. more binning.
-
-    """
-
-
-    bins = []
-    i = data.start_idx
-    while i < data.stop_idx:
-        binned = np.zeros(data.data[data.selected_electrodes, i].shape)
-        t_int = 0
-        j = 0
-        while t_int < slow_down * 1/fps:
-            binned = (binned
-                      + np.absolute(data.data[data.selected_electrodes, i]))
-            t_int += 1 / data.sampling_rate
-            i += 1
-
-            if i >= t_stop_idx:
-                break
-
-            j += 1
-
-        binned = binned / j
-        bins.append(binned)
-
-    bins = np.array(bins)
-
-    create_video(data, bins, fps)
-
 
