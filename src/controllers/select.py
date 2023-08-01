@@ -8,14 +8,20 @@ from wand.image import Image
 
 from constants import img_size
 from model.Data import Data
+from model.Result import Result
 
 
-def update_selected_data(data: Data) -> None:
+def create_result(data: Data) -> Result:
     """
     Creates a new NumPy array with the rows and their elements corresponding 
         to the selected electrodes and the selected time window only.
     """
-    data.selected_data = data.data[data.selected_rows, data.start_idx:data.stop_idx]
+    result = Result(data.date, data.sampling_rate, data.unit, data.start_idx,
+            data.stop_idx,
+            data.data[data.selected_rows, data.start_idx:data.stop_idx],
+            data.names[self.selected_rows])
+
+    return result
 
 
 def set_time_window(data: Data, start_mus: int, stop_mus: int) -> None:
@@ -27,6 +33,7 @@ def set_time_window(data: Data, start_mus: int, stop_mus: int) -> None:
 
     data.start_idx = start_idx
     data.stop_idx = stop_idx
+
 
 def update_time_window(data: Data, t_start: str, t_end: str) -> None:
     """

@@ -2,7 +2,7 @@ import time
 from multiprocessing import Process
 
 import antropy as ant
-import elephant.signal_processing as epsp
+import elephant as ep
 from fooof import FOOOF
 import minfo
 import numba as nb
@@ -10,13 +10,7 @@ import numpy as np
 from PyIF.te_compute import te_compute
 import scipy.signal as sg
 
-from model.Data import Data
 from model.Event import Event
-from views.electrode_grid import create_video, \
-       plot_value_grid
-from views.time_series_plot import plot_in_grid
-from views.raster_plot import plot_raster, plot_psth
-from views.event_stats import show_events, export_events
 
 
 @nb.njit(parallel=True)
@@ -79,8 +73,9 @@ def compute_psds(result: Result) -> tuple[np.ndarray, np.ndarray]:
     fft = np.fft.rfft(ys)
     power = 2 / np.square(ys.shape[1]) * (fft.real**2 + fft.imag**2)
     freq = np.fft.rfftfreq(ys.shape[1], 1/result.sampling_rate)
+    phase = np.angle(fft)
 
-    result.psds = freq, power
+    result.psds = freq, power, phase
 
 
 # No njit as fooof is unknown to numba
@@ -168,6 +163,7 @@ def compute_inter_peak_intervals(result:Result):
         ipi = np.diff(peaks)
         result.ipis.append(ipi)
 
+
 # parallelize, maybe pull out z-scoring for numba
 def compute_xcorrs(result: Result):
     sig = result.data
@@ -193,6 +189,7 @@ def compute_xcorrs(result: Result):
             else:
                 result.xcorrs[1][i, j] = result.xcorrs[1][j, i]
 
+##### for the even more expensive stuff involving time lags, consider epoching
 
 # parallelizing with con.fut.ProcessPoolExecutor
 def compute_mutual_info(result: Result):
@@ -201,24 +198,24 @@ def compute_mutual_info(result: Result):
             if i < j:
                 continue
             else:
-                result.transfer_entropies[i, j] = minfo.mi_float.mutual_info(sig1, sig2,
-                                                       algorithm='adaptive')
+                result.mutual_informations[i, j] = minfo.mi_float.mutual_info(
+                        sig1, sig2, algorithm='adaptive')
 
     for i in range(n_channels):
         for j in range(n_channels):
             if i >= j:
                 continue
             else:
-                tes[i, j] = tes[j, i]
+                result.mutual_infos[i, j] = result.mutual_infos[j, i]
 
 
 # PyIF.compute_te already uses numba/gpu
 # Parallelizing the loop may be an option depending on the load
 # concurrent.futures.ProcessPoolExecutor
 @nb.jit(parallel=True)
-def compute_transfer_entropy(result: Result, lag_ms: int = 10):
+def compute_transfer_entropy(result: Result, lag_ms: int = 1000):
     n_els = result.data.shape[0]
-    tes = np.zeros((n_els, n_els))
+    result.transfer_entropies = np.zeros((n_els, n_els))
 
     lags = int(lag_ms * 0.001 * sampling_rate)
     if lags < 1:
@@ -229,29 +226,89 @@ def compute_transfer_entropy(result: Result, lag_ms: int = 10):
             if i == j:
                continue
             else:
-                tes[i, j] = compute_te(sig1, sig2, embedding=lags)
-
-    result.transfer_entropies = tes
+                result.transfer_entropies[i, j] = compute_te(sig1, 
+                                                             sig2,
+                                                             embedding=lags)
 
 
 def compute_coherence(result: Result):
-    # TODO impl
-    pass
+    freqs = None
+    coherences = []
+    for i, sig1 in enumerate(result.data):
+        coherences.append([])
+        for j, sig2 in enumerate(result.data):
+            if i < j:
+                continue
+            else:
+                if freqs is None:
+                    freqs, coh, lag = ep.spectral.multitaper_coherence(
+                        sig1,
+                        sig2,
+                        fs=sampling_rate)
+                else:
+                    _, coh, lag = ep.spectral.multitaper_coherence(
+                        sig1,
+                        sig2,
+                        fs=sampling_rate)
+                coherences[i].append((coh, lags))
+
+    result.coherences = freqs, coherences
 
 
-def compute_granger_causality(result: Result):
-    # TODO impl
-    pass
+def compute_granger_causality(result: Result, lag_ms=1000):
+    lags = int(lag_ms * 0.001 * sampling_rate)
+    cgs = []
+    for i, sig1 in enumerate(result.data):
+        cgs.append([])
+        for j, sig2 in enumerate(result.data):
+            if i < j:
+                continue
+            else:
+                caus = ep.causality.granger.pairwise_granger(
+                    np.vstack((sig1, sig2)),
+                    max_order=lags)
+            cgs[i].append(caus)
+
+    result.granger_causalities = cgs
 
 
 def compute_spectral_granger(result: Result):
-    # TODO impl
-    pass
+    freqs = None
+    coherences = []
+    for i, sig1 in enumerate(result.data):
+        spectrag_cgs.append([])
+        for j, sig2 in enumerate(result.data):
+            if i < j:
+                continue
+            else:
+                if freqs is None:
+                    freqs, scg = ep.causality.granger.pairwise_spectral_granger(
+                        sig1,
+                        sig2,
+                        fs=sampling_rate)
+                else:
+                    _, scg = ep.causality.granger.pairwise_spectral_granger(
+                        sig1,
+                        sig2,
+                        fs=sampling_rate)
+                spectral_cgs[i].append(scg)
+
+    result.coherences = freqs, spectral_cgs
 
 
 def compute_current_source_density(result: Result):
     # TODO impl
-    pass
+    # use kCSD as only partial data is there and we often have broken
+    #  electrodes which have to be cleaned/excluded beforehand. 
+    coords = [[int(s)-1*200*pq.um * for s in name.split() if s.isdigit()] \
+                      for name in result.names()]
+
+    signal = neo.AnalogSignal(result.data, units='uV',
+                              sampling_rate=result.sampling_rate*pq.Hz)
+
+    result.csd = ep.current_source_density.estimate_csd(signal,
+                                                        coords,
+                                                        'KCSD2D')
 
 
 def compute_phase_slope_index(result: Result):
@@ -265,7 +322,7 @@ def compute_phase_amplitude_coupling(result: Result):
 
 
 @nb.njit
-def bin_amplitude(new_sr: int=500, absolute: bool=False) -> np.ndarray:
+def bin_amplitude(result: Result, new_sr: int=500, absolute: bool=False) -> np.ndarray:
     signals = result.data
     n_bins = new_sr / result.sampling_rate * signals.shape[1]
     bins = np.zeros((signals.shape[0], n_bins))

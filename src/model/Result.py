@@ -24,10 +24,10 @@ class Result:
         self.duration_mus = data.shape[1] / sampling_rate * 1000000
         self.sampling_rate = sampling_rate
         self.unit = unit
+        self.t_start = start_idx / sampling_rate * 1000000
+        self.t_stop = stop_idx / sampling_rate * 1000000
         self.data = selected_data
         self.names = selected_names
-        self.t_start = 0
-        self.t_start = self.duration_mus
         self.snrs = None # ndarray (data.shape[0], 1)
         self.rms = None # ndarray (data.shape[0], 1)
         self.derivatives = None # ndarray (data.shape) 
@@ -43,10 +43,10 @@ class Result:
         self.peaks = None # list[ndarray (1, #peaks), dict (len=#peaks)] (len = data.shape[0])
         self.ipis = None # list[ndarray (1, #peaks -1)] 
         self.xcorrs = None # tuple[ ndarray (1, data.shape[1]), ndarray (data.shape[0], data.shape[0], data.shape[1])] 
-        self.mutual_information = None # ndarray (data.shape[0], data.shape[0])  
+        self.mutual_informations = None # ndarray (data.shape[0], data.shape[0])  
         self.transfer_entopies = None # ndarray (data.shape[0], data.shape[0])
-        self.coherence = None # TODO elephant, scipy
-        self.granger_caus = None # TODO elephant
+        self.coherences = None # tuple[ndarray (#freqs), tuple[ndarray (1, #coherences), ndarray (1, #lags)]]
+        self.granger_causalities = None # TODO elephant
         self.spectral_granger = None # TODO Elephant
         self.csds = None # TODO elephant
         self.psis = None # TODO finnpy

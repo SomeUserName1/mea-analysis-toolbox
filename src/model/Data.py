@@ -19,7 +19,7 @@ class Data:
             (num_channels, duration * sampling rate)
         """
         side_len = int(np.sqrt(data.shape[0]))
-        names = [f"R{i}C{j}" for i in range(1, side_len + 1) \
+        names = [f"R {i} C {j}" for i in range(1, side_len + 1) \
                     for j in range(1, side_len + 1)]
 
         self.recording_date = date
@@ -34,14 +34,4 @@ class Data:
         self.start_idx = 0
         self.stop_idx = self.duration_mus
         self.selected_data = None
-
-
-    def get_selected_names(self) -> np.ndarray:
-        """
-        Returns the data matrix with electrode selection and time window
-        applied.
-        """
-        return self.names[self.selected_rows]
-
-
 

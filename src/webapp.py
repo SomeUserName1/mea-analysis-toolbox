@@ -43,10 +43,9 @@ app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP],
            suppress_callback_exceptions=True)
 content = html.Div(id="page-content")
 app.layout = html.Div([dcc.Location(id="url"), navbar, content])
+DATA_PATH = None
 DATA = None
-STD_BASE = None
-STD_BASE_MV_STD = None
-STD_BASE_MV_MAD = None
+RESULT = None
 BL_PROC = None
 BL_QUE = None
 
@@ -69,7 +68,7 @@ def render_page_content(pathname: str) -> html.Div:
     if pathname == "/" or DATA is None:
         return importer, None
 
-    if pathname == "/select":
+    if pathname == "/select" or RESULT is None:
         grid = draw_electrode_grid(DATA)
         return select(grid), nav_items
 
@@ -77,9 +76,6 @@ def render_page_content(pathname: str) -> html.Div:
         return preproc, nav_items
 
     if pathname == "/analyze":
-        global STD_BASE, STD_BASE_MV_MAD
-#        STD_BASE, STD_BASE_MV_STD, STD_BASE_MV_MAD = BL_QUE.get()
-#        BL_PROC.join()
         return analyze, nav_items
 
     # If the user tries to reach a different page, return a 404 message
@@ -95,10 +91,10 @@ def render_page_content(pathname: str) -> html.Div:
 
 @app.callback(Output("import-feedback", "children"),
               Input("import-submit-input-file-path", "n_clicks"),
-              State("import-cond-input-file-path", "value"),
+              State("import-input-file-path", "value"),
               State("import-radios", "value"),
               prevent_initial_call=True)
-def import_file(_: int, cond_input_file_path: str, file_type: int) -> list[html.Div]:
+def import_file(_: int, input_file_path: str, file_type: int) -> list[html.Div]:
     """
     Used on home/import screen.
 
@@ -117,7 +113,7 @@ def import_file(_: int, cond_input_file_path: str, file_type: int) -> list[html.
     if cond_input_file_path is None or file_type is None:
         return build_import_infos("Please enter a file path!", success=False)
 
-    global DATA
+    global DATA, DATA_PATH
     import_que = Queue()
 
     if file_type == 0:
@@ -135,6 +131,7 @@ def import_file(_: int, cond_input_file_path: str, file_type: int) -> list[html.
     proc_import.join()
 
     success = True if DATA is not None else False
+    DATA_PATH = input_file_path
     feedback = build_import_infos(info, success=success)
 
     return feedback
@@ -269,8 +266,9 @@ def select_apply(_: int, t_start: str, t_stop: str) -> None:
 
         @retrun a next button to get to the preprocessing page.
     """
+    global RESULT
     update_time_window(DATA, t_start, t_stop)
-    DATA.update_selected_data()
+    RESULT = create_result(DATA)
 
     return None
 
@@ -295,7 +293,7 @@ def preproc_filter(_: int, lower: str, upper: str, ftype: str) -> html.Div:
 
     @return A banner indicating that the filter was applied.
     """
-    frequency_filter(DATA, ftype, float(lower), float(upper), bool(ftype))
+    frequency_filter(RESULT, ftype, float(lower), float(upper), bool(ftype))
 
     return dbc.Alert("Successfully applied bandstop filter", color="success")
 
@@ -317,7 +315,7 @@ def preproc_downsample(_, sampling_rate: str) -> html.Div:
 
         @return a banner indicating if the downsampling was applied
     """
-    downsample(DATA, int(sampling_rate))
+    downsample(RESULT, int(sampling_rate))
 
     return dbc.Alert("Successfully downsampled", color="success")
 
@@ -336,7 +334,7 @@ def preproc_humming(_) -> html.Div:
 
         @return a banner indicating if the filter was applied
     """
-    filter_el_humming(DATA)
+    filter_el_humming(RESULT)
 
     return dbc.Alert("Successfully removed electrical humming",
             color="success")
@@ -368,7 +366,8 @@ def analyze_amplitude_animation(clicked: int, fps: str, slow_down, t_start, t_st
                        have to have an output
     """
     if clicked is not None and clicked > 0:
-        animate_amplitude_grid(DATA, fps, slow_down, t_start, t_stop)
+        new_sr = fps / slow_down
+        bins = bin_amplitude(RESULT, fps, slow_down)
 
     return 0
 

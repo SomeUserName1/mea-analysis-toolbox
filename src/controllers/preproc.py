@@ -3,10 +3,10 @@ from typing import Optional
 import numpy as np
 import scipy.signal as sg
 
-from model import Data
+from model import Result 
 
 
-def frequency_filter(data: Data,
+def frequency_filter(result: Result,
                      filter_type: int,
                      low_cut: Optional[float],
                      high_cut: Optional[float],
@@ -36,7 +36,7 @@ def frequency_filter(data: Data,
         y (numpy array (float32)): Return the filtered signal with the same
             shape as the input signal
     """
-    fs = data.sampling_rate
+    fs = result.sampling_rate
     if low_cut == 0:
         low_cut = None
 
@@ -69,10 +69,10 @@ def frequency_filter(data: Data,
         sos = sg.butter(N=order, Wn=high_cut, btype='lowpass', fs=fs,
                         output='sos')
 
-    data.data = sg.sosfiltfilt(sos, data.data)
+    result.data = sg.sosfiltfilt(sos, result.data)
 
 
-def downsample(data: Data, new_fs: int) -> None:
+def downsample(result: Result, new_fs: int) -> None:
     """
     Downsample the data to a new sampling rate. The new sampling rate must be
     smaller than the current sampling rate.
@@ -81,7 +81,7 @@ def downsample(data: Data, new_fs: int) -> None:
         data (Data): The data to downsample.
         new_fs (int): The new sampling rate.
     """
-    q = int(np.round(data.sampling_rate / new_fs))
+    q = int(np.round(result.sampling_rate / new_fs))
     q_it = 0
 
     # determine if we can find a factor that is divisible by 12
@@ -101,21 +101,21 @@ def downsample(data: Data, new_fs: int) -> None:
     while q > 13:
         # On each iteration we downsample by a factor of q_it
         # and count how often we do that.
-        data.data = sg.decimate(data.data, q_it)
+        result.data = sg.decimate(result.data, q_it)
         q = int(np.round(q / q_it))
         i += 1
 
     # Adjust the sampling rate with what was downsampled already
-    data.sampling_rate = data.sampling_rate / q_it**i
+    result.sampling_rate = result.sampling_rate / q_it**i
 
     q = int(np.floor(q))
     # if the residual factor is at least 2, downsample by what's left
     if q > 1:
-        data.data = sg.decimate(data.data, q)
-        data.sampling_rate = int(np.round(data.sampling_rate / q))
+        result.data = sg.decimate(result.data, q)
+        result.sampling_rate = int(np.round(result.sampling_rate / q))
 
 
-def filter_el_humming(data: Data, order: Optional[int] = 16) -> None:
+def filter_el_humming(result: Result, order: Optional[int] = 16) -> None:
     """
     Filter out the 50 Hz humming noise (and multiples of it) from the data.
 
@@ -126,8 +126,8 @@ def filter_el_humming(data: Data, order: Optional[int] = 16) -> None:
     freqs = [i * 50 for i in range(1, 10)]
 
     for freq in freqs:
-        sos = sg.butter(N=order, Wn=[freq-0.5, freq+0.5], btype='bandstop',
+        sos = sg.butter(N=order, Wn=[freq-1.5, freq+1.5], btype='bandstop',
                         output='sos', fs=data.sampling_rate)
 
-        data.data = sg.sosfilt(sos, data.data)
+        result.data = sg.sosfilt(sos, result.data)
 

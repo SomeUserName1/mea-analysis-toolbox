@@ -8,7 +8,7 @@ importer_input = dbc.Container(
         [
             dbc.Row([dbc.Col([html.H6("Condition Input File Path: ")], width="auto",
                              align="center"),
-                     dbc.Col(dbc.Input(id="import-cond-input-file-path", type="text",
+                     dbc.Col(dbc.Input(id="import-input-file-path", type="text",
                                        size="85", required=True,
                                        placeholder='Please enter the absolute'
                                        'file path!'),
