@@ -7,19 +7,16 @@ import numpy as np
 from wand.image import Image
 
 from constants import img_size
-from model.Data import Data
-from model.Result import Result
+from model.data import Data
 
 
-def create_result(data: Data) -> Result:
+def create_result(data: Data):
     """
     Creates a new NumPy array with the rows and their elements corresponding 
         to the selected electrodes and the selected time window only.
     """
-    result = Result(data.date, data.sampling_rate, data.unit, data.start_idx,
-            data.stop_idx,
-            data.data[data.selected_rows, data.start_idx:data.stop_idx],
-            data.names[self.selected_rows])
+    data.data = data.data[data.selected_rows, data.start_idx:data.stop_idx]
+    data.names = data.names[self.selected_rows]
 
     return result
 
@@ -28,11 +25,7 @@ def set_time_window(data: Data, start_mus: int, stop_mus: int) -> None:
     """
     Sets the time window of the data to be evaluated & displayed.
     """
-    start_idx = int(np.round(data.sampling_rate * start_mus / 1000000))
-    stop_idx = int(np.round(data.sampling_rate * stop_mus / 1000000))
 
-    data.start_idx = start_idx
-    data.stop_idx = stop_idx
 
 
 def update_time_window(data: Data, t_start: str, t_end: str) -> None:
@@ -48,25 +41,29 @@ def update_time_window(data: Data, t_start: str, t_end: str) -> None:
     @return the start and stop points in micro seconds as an integer.
     """
     if t_start is not None and t_start != "":
-        start_cut = str_to_mus(t_start)
+        start_mus = str_to_mus(t_start)
 
-        if start_cut < 0 or start_cut > data.duration_mus:
+        if start_mus < 0 or start_mus > data.duration_mus:
             raise RuntimeError(("The start point of the selected time window"
                                 "needs to be larger than 0 and be within the "
                                 "recording duration"))
     else:
-        start_cut = 0
+        start_mus = 0
 
     if t_end is not None and t_end != "":
-        end_cut = str_to_mus(t_end)
+        stop_mus = str_to_mus(t_end)
 
-        if t_start is not None and start_cut > end_cut:
+        if t_start is not None and start_mus > stop_mus:
             raise RuntimeError(("The end point of the selected time window "
                                 "must be smaller than the start point!"))
     else:
-        end_cut = data.duration_mus
+        stop_mus = data.duration_mus
 
-    data.set_time_window(start_cut, end_cut)
+    start_idx = int(np.round(data.sampling_rate * start_mus / 1000000))
+    stop_idx = int(np.round(data.sampling_rate * stop_mus / 1000000))
+
+    data.start_idx = start_idx
+    data.stop_idx = stop_idx
 
 
 def update_electrode_selection(data: Data,
@@ -91,10 +88,10 @@ def update_electrode_selection(data: Data,
     if selected_electrodes is not None:
         electrodes.extend(selected_electrodes['points'])
     for point in electrodes:
-        match = re.match(r"R(?P<row>\d+)C(?P<col>\d+)", point['text'])
         # As we label the electrodes for non computer scientists (aka starting
         # from 1), we need to subtract one to get the correct index.
-        idx = (int(match['row']) - 1) * grid_size + int(match['col']) - 1
+        coords = [int(s)-1 for s in point['text'] if s.isdigit()]
+        idx = coords[0] * grid_size + coords[1]
 
         # Check if electrode is in selected list.
         # If it is already remove it.

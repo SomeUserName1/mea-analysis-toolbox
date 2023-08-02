@@ -18,15 +18,10 @@ from plotly import graph_objects as go
 from controllers.select import (update_electrode_selection, convert_to_jpeg,
                                 max_duration, str_to_mus, update_time_window)
 from controllers.preproc import frequency_filter, downsample, filter_el_humming
-from controllers.analysis.analyze import (animate_amplitude_grid, show_psds,
-                                 show_moving_averages, detect_peaks_amplitude,
-                                 show_spectrograms,
-                                 show_periodic_aperiodic_decomp,
-                                 detect_events_moving_dev)
+# from controllers.analysis
 
 ## Code used to import data into a Data object, see model/Data.py
 from controllers.io.import_mcs_256 import mcs_256_import #extract_baseline_std
-from controllers.io.import_mcs_cmos import mcs_cmos_import
 
 # Dash-wrapped html code for the UI
 from ui.nav import navbar, nav_items
@@ -43,7 +38,6 @@ app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP],
            suppress_callback_exceptions=True)
 content = html.Div(id="page-content")
 app.layout = html.Div([dcc.Location(id="url"), navbar, content])
-DATA_PATH = None
 DATA = None
 RESULT = None
 BL_PROC = None
@@ -110,16 +104,16 @@ def import_file(_: int, input_file_path: str, file_type: int) -> list[html.Div]:
         @return feedback if the import was successful. If so metadata shall be
                 displayed, if not an error message is shown.
     """
-    if cond_input_file_path is None or file_type is None:
+    if input_file_path is None or file_type is None:
         return build_import_infos("Please enter a file path!", success=False)
 
-    global DATA, DATA_PATH
+    global DATA
     import_que = Queue()
 
     if file_type == 0:
-        proc_import = Process(target=mcs_256_import, args=(cond_input_file_path, import_que))
+        proc_import = Process(target=mcs_256_import, args=(input_file_path, import_que))
     elif file_type == 1:
-        proc_import = Process(target=mcs_cmos_import, args=(cond_input_file_path, import_que))
+        proc_import = Process(target=mcs_cmos_import, args=(input_file_path, import_que))
     else:
         raise IOError("Only Multi Channel System H5 file format is supported"
                       "so far.")
@@ -131,7 +125,6 @@ def import_file(_: int, input_file_path: str, file_type: int) -> list[html.Div]:
     proc_import.join()
 
     success = True if DATA is not None else False
-    DATA_PATH = input_file_path
     feedback = build_import_infos(info, success=success)
 
     return feedback
@@ -183,7 +176,7 @@ def set_time_span(_) -> str:
     s_end, ms_end, mus_end = max_duration(DATA)
 
     return f"{s_start}:{ms_start:03}:{mus_start:03}", (f"{s_end}:{ms_end:03}"
-            ":{mus_end:03}")
+            f":{mus_end:03}")
 
 
 @app.callback(Output("select-electrode-grid", "figure"),

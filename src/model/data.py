@@ -1,14 +1,25 @@
+import numpy as np
 import pint
 
-class Result:
+class Data:
+    recording_date: str
+    n_mea_electrodes: int
+    duration_mus: int
+    sampling_rate: int
+    unit: pint.Unit
+    data: numpy.ndarray 
+    start_idx: int
+    stop_idx: int
+    electrode_names: list[str]
+
     def __init__(self,
                  date: str,
                  sampling_rate: int,
                  unit: pint.Unit,
-                 selected_data: np.ndarray,
-                 selected_names: list[str],
-                 t_start: int,
-                 t_stop: int,
+                 data: np.ndarray,
+                 start_idx: int,
+                 stop_idx: int,
+                 names: list[str]
                  ) -> None:
         """
         Data object used to hold the data matrix and metadata.
@@ -19,15 +30,16 @@ class Result:
         @param data: the matrix holding the actual data.
             (num_channels, duration * sampling rate)
         """
-
-        self.recording_date = date
-        self.duration_mus = data.shape[1] / sampling_rate * 1000000
-        self.sampling_rate = sampling_rate
-        self.unit = unit
-        self.t_start = start_idx / sampling_rate * 1000000
-        self.t_stop = stop_idx / sampling_rate * 1000000
-        self.data = selected_data
-        self.names = selected_names
+       self.recording_date = date
+       self.n_mea_electrodes = n_electrodes
+       self.duration_mus = data.shape[1] / sampling_rate * 1000000
+       self.sampling_rate = sampling_rate
+       self.unit = unit
+       self. data = data
+       self.start_idx = start_idx
+       self.stop_idx = stop_idx
+       self.electrode_names = electrode_names
+       self.selected_electrodes = []
         self.snrs = None # ndarray (data.shape[0], 1)
         self.rms = None # ndarray (data.shape[0], 1)
         self.derivatives = None # ndarray (data.shape) 
@@ -46,12 +58,12 @@ class Result:
         self.mutual_informations = None # ndarray (data.shape[0], data.shape[0])  
         self.transfer_entopies = None # ndarray (data.shape[0], data.shape[0])
         self.coherences = None # tuple[ndarray (#freqs), tuple[ndarray (1, #coherences), ndarray (1, #lags)]]
-        self.granger_causalities = None # TODO elephant
-        self.spectral_granger = None # TODO Elephant
-        self.csds = None # TODO elephant
-        self.psis = None # TODO finnpy
-        self.pacs = None # TODO tensorpac
+        self.granger_causalities = None # TODO list[list[dict]] (len(n_chanels), len(n_channels/2-1), caus_x_y, caus_y_x, instant_caus, total_dep)
+        self.spectral_granger = None # freqs, as above
+        self.csds = None # neo.AnalogSignal with estimated CSD
         self.events = None # TODO check and adapt
-        # synchrony
-        # phase synchrony
-        # self.latencies c.f. intraop dataset repo
+# self.psis = None # finnpy
+# self.pacs = None # tensorpac
+# synchrony
+# phase synchrony
+# self.latencies c.f. intraop dataset repo

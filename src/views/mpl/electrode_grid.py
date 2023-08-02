@@ -11,7 +11,7 @@ from matplotlib import use, animation
 import matplotlib.pyplot as plt
 
 from constants import grid_size
-from model.Data import Data
+from model.data import Data
 
 def align_image(x: int, y: int, sizex: int, sizey: int, sizing: str) -> None:
     """

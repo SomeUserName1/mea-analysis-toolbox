@@ -1,3 +1,44 @@
+import numba as nb
+import numpy as np
+import scipy.signal as sg
+
+from model.data import Data
+
+# GENERAL
+# baseline how?
+# just not use it? in bursting signals the mean will be very high, so will then be the threshold if 3*std is applied
+# just the first n secs? will not work with older recordings maybe
+# use baseline recording? loads the whole file into memory and takes a lot of time
+#
+# RN used is the signal + 3 *the MAD of the signal. Alternative: use roling mad instead of signal
+#
+# ---find_peaks---
+# seems to detect some peaks multiple times (check with higher resolution viz)
+# prominences are not always correct?
+#
+# Maybe parallelize using ProcessPoolExec.
+@nb.jit(parallel=True)
+def detect_peaks(data: Data):
+    signals = data.data
+    mads = np.mean(np.absolute((signals.T - np.means(signals, axis=-1)).T), axis=-1)
+    signals = np.absolute(signals)
+    data.peaks = []
+
+    for i in range(data.data.shape[0]):
+        data.peaks.append(sg.find_peaks(signals[i], threshold=3*mads[i]))
+
+
+@nb.njit(parallel=True)
+def compute_inter_peak_intervals(data: Data):
+    if data.peaks is None:
+        compute_peaks(datas)
+
+    data.ipis = []
+    for peaks, _ in data.peaks:
+        ipi = np.diff(peaks)
+        data.ipis.append(ipi)
+
+
 def detect_events_moving_dev(data, method, base_std=None, std_factor=1, window=None, export=False, fname=None):
     signal = data.data
     aggs = []

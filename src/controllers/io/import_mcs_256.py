@@ -16,8 +16,7 @@ import scipy.signal as sg
 from tabulate import tabulate
 from pint import UnitRegistry
 
-from model.Data import Data
-from controllers.preproc import downsample
+from model.data import Data
 
 
 def mcs_256_import(path: str, que: Queue) -> None:
@@ -67,19 +66,12 @@ def mcs_256_import(path: str, que: Queue) -> None:
 
         data = data[order]
 
-        temp_data = np.concatenate((np.nan * np.ones((1, data.shape[1])), # 0
-                                    data[0:14],                        # 1:14
-                                    np.nan * np.ones((1, data.shape[1])), # 15
-                                    data[14:238],                      # 14+2:238+1
-                                    np.nan * np.ones((1, data.shape[1])), # 240
-                                    data[238:],                        # 238+3:251+3
-                                    np.nan * np.ones((1, data.shape[1])) # 255
-                                    ), axis=0)
-        grounds = [0, 15, 240, 255]
-        data = temp_data
-        data.reshape
+        side_len = int(np.sqrt(data.shape[0]))
+        names = [f"R {i} C {j}" for i in range(1, side_len + 1) \
+                    for j in range(1, side_len + 1)]
+
         info = mcs_info(path, file_contents)
-        data = Data(date, sampling_rate, unit, data, grounds)
+        data = Data(date, 256, sampling_rate, unit, data, 0, data.shape[1] - 1, names)
         del file_contents
 
     except IOError as err:
