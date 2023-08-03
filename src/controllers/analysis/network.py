@@ -144,7 +144,7 @@ def compute_spectral_granger(data: Data):
 
 
 def compute_current_source_density(data: Data):
-    coords = [[int(s)-1*200*pq.um for s in name.split() if s.isdigit()] \
+    coords = [[(int(s)-1) * 200 * pq.um for s in name.split() if s.isdigit()] \
                       for name in data.names()]
 
     signal = neo.AnalogSignal(data.data, units='uV',

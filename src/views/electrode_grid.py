@@ -25,8 +25,7 @@ def align_image(x: int, y: int, sizex: int, sizey: int, sizing: str) -> None:
     pass
 
 
-def get_marked_coords(data: Data
-                       ) -> tuple[np.ndarray, # x values for selected electr.
+def get_marked_coords(data: Data) -> tuple[np.ndarray, # x values for selected electr.
                                   np.ndarray, # y values for selected electr.
                                   np.ndarray, # x values for unsel electr.
                                   np.ndarray, # y values for unsel electr.
@@ -42,14 +41,23 @@ def get_marked_coords(data: Data
     unselected electrodes each, along with the names each.
     """
     # generate the grid
-    side_len = int(math.sqrt(data.num_electrodes))
+    side_len = int(math.sqrt(data.n_mea_electrodes))
     x_label = np.linspace(1, side_len, side_len)
     xx_all, yy_all = np.meshgrid(x_label, x_label, sparse=False, indexing='xy')
     xx_all = xx_all.flatten()
     yy_all = yy_all.flatten()
 
-    sel = data.selected_electrodes
-    unsel = [x for x in range(data.num_electrodes) if x not in sel]
+    sel = data.selected_electrodes.copy()
+    # Convert the selected electrode indexes from conforming to the data matrix
+    # to a row-major enumeration __including__ the ground electrodes
+    for i, idx in enumerate(sel):
+        if idx >= data.ground_els[0]:
+            sel[i] += 1
+        elif idx >= data.ground_els[1]:
+            sel[i] += 2
+        elif idx >= data.ground_els[2]:
+            sel[i] += 3
+    unsel = [x for x in range(data.n_mea_electrodes) if x not in sel]
 
     xx = xx_all[sel]
     yy = yy_all[sel]
@@ -90,12 +98,12 @@ def draw_electrode_grid(data: Data) -> go.Figure:
                    showlegend=False))
 
     grid.update_xaxes(showline=True, linewidth=1, linecolor='black',
-                      range=[0, np.sqrt(data.num_electrodes) + 1],
+                      range=[0, np.sqrt(data.n_mea_electrodes) + 1],
                       mirror=True)
 
     grid.update_yaxes(showline=True, linewidth=1, linecolor='black',
                       mirror=True,
-                      range=[0, np.sqrt(data.num_electrodes) + 1],
+                      range=[0, np.sqrt(data.n_mea_electrodes) + 1],
                       autorange="reversed")
 
     grid.update_layout(template="plotly_white", width=grid_size,

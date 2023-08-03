@@ -10,16 +10,14 @@ from constants import img_size
 from model.data import Data
 
 
-def create_result(data: Data):
+def apply_selection(data: Data):
     """
-    Creates a new NumPy array with the rows and their elements corresponding 
+    Creates a new NumPy array with the rows and their elements corresponding
         to the selected electrodes and the selected time window only.
     """
+    temp = data.data
     data.data = data.data[data.selected_rows, data.start_idx:data.stop_idx]
-    data.names = data.names[self.selected_rows]
-
-    return result
-
+    del temp
 
 def set_time_window(data: Data, start_mus: int, stop_mus: int) -> None:
     """
@@ -80,9 +78,8 @@ def update_electrode_selection(data: Data,
     @param clicked_electrodes: Electrodes selected by clicking a single one
         in the selection view.
     """
-    grid_size = int(np.sqrt(data.num_electrodes))
+    grid_size = int(np.sqrt(data.n_mea_electrodes))
     electrodes = []
-
     if clicked_electrode is not None:
         electrodes.append(clicked_electrode['points'][0])
     if selected_electrodes is not None:
@@ -90,16 +87,26 @@ def update_electrode_selection(data: Data,
     for point in electrodes:
         # As we label the electrodes for non computer scientists (aka starting
         # from 1), we need to subtract one to get the correct index.
-        coords = [int(s)-1 for s in point['text'] if s.isdigit()]
+        coords = [int(s)-1 for s in point['text'].split() if s.isdigit()]
         idx = coords[0] * grid_size + coords[1]
-
+        if idx in data.ground_els:
+            continue
+        else:
+            # The grid also shows the ground electrodes.
+            # the indexes must be subtracted accordingly to 
+            # be fitting to the data matrix
+            if idx >= data.ground_els[0]:
+                idx -= 1
+            elif idx >= data.ground_els[1]:
+                idx -= 2
+            elif idx >= data.ground_els[2]:
+                idx -= 3
         # Check if electrode is in selected list.
         # If it is already remove it.
         if idx in data.selected_electrodes:
             data.selected_electrodes.remove(idx)
-        # If the newly selected electrode is not a ground electrode add it.
-        elif idx not in data.ground_electrodes:
-            # if it's not qa ground electrode add it
+        # Else add it.
+        else:
             data.selected_electrodes.append(idx)
 
     data.selected_electrodes.sort()

@@ -32,6 +32,8 @@ def mcs_256_import(path: str, que: Queue) -> None:
     """
     if path is None or not os.path.exists(path):
         return None, "File does not exist or invalid path!"
+    fname = path.split('/')[-1].split('.')[0]
+
 
     Mcs256.VERBOSE = False
     try:
@@ -66,19 +68,21 @@ def mcs_256_import(path: str, que: Queue) -> None:
 
         data = data[order]
 
-        side_len = int(np.sqrt(data.shape[0]))
+        n_mea_electrodes = 256
+        side_len = int(np.sqrt(n_mea_electrodes))
+        ground_els = [0, side_len - 1, side_len * (side_len - 1), side_len**2 - 1]
         names = [f"R {i} C {j}" for i in range(1, side_len + 1) \
                     for j in range(1, side_len + 1)]
 
         info = mcs_info(path, file_contents)
-        data = Data(date, 256, sampling_rate, unit, data, 0, data.shape[1] - 1, names)
+        data = Data(fname, date, n_mea_electrodes, sampling_rate, unit, data, 0, data.shape[1] - 1,
+                names, ground_els)
         del file_contents
 
     except IOError as err:
         info = "Failed to import specified file! Please specify a valid" \
                 + " multi channel systems H5 formatted file.\n" \
                 + "Error: " + str(err)
-        data = None
 
     que.put((data, info))
 

@@ -14,14 +14,15 @@ from dash.dependencies import Input, Output, State
 import dash_bootstrap_components as dbc
 from plotly import graph_objects as go
 
+## Code used to import data into a Data object, see model/Data.py
+from controllers.io.import_mcs_256 import mcs_256_import 
 # controllers to select, preprocess and analyze data.
-from controllers.select import (update_electrode_selection, convert_to_jpeg,
+from controllers.select import (apply_selection, convert_to_jpeg, update_electrode_selection,
                                 max_duration, str_to_mus, update_time_window)
 from controllers.preproc import frequency_filter, downsample, filter_el_humming
 # from controllers.analysis
 
-## Code used to import data into a Data object, see model/Data.py
-from controllers.io.import_mcs_256 import mcs_256_import #extract_baseline_std
+
 
 # Dash-wrapped html code for the UI
 from ui.nav import navbar, nav_items
@@ -32,14 +33,15 @@ from ui.analyze import analyze
 
 # Plots using Plotly for selection and matplotlib for everything else
 from views.electrode_grid import draw_electrode_grid
+from views.time_series import plot_time_series_grid
 
 # setup for the server and initialization of the data global
 app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP],
            suppress_callback_exceptions=True)
 content = html.Div(id="page-content")
 app.layout = html.Div([dcc.Location(id="url"), navbar, content])
+# use DATA as shared memory (on Linux as multiprocessing uses fork. Handle windows by instructing users to use Linux for scientific computing with TiB of data)
 DATA = None
-RESULT = None
 BL_PROC = None
 BL_QUE = None
 
@@ -62,7 +64,7 @@ def render_page_content(pathname: str) -> html.Div:
     if pathname == "/" or DATA is None:
         return importer, None
 
-    if pathname == "/select" or RESULT is None:
+    if pathname == "/select":
         grid = draw_electrode_grid(DATA)
         return select(grid), nav_items
 
@@ -123,7 +125,6 @@ def import_file(_: int, input_file_path: str, file_type: int) -> list[html.Div]:
     DATA, info = import_que.get()
 
     proc_import.join()
-
     success = True if DATA is not None else False
     feedback = build_import_infos(info, success=success)
 
@@ -228,15 +229,9 @@ def select_plot_raw(_: int, t_start: str, t_end: str) -> None:
                 done in a separate process by matplotlib (as Dash plots are
                 only suitable for small amounts of data)
     """
-    # FIXME come back here after viz is fixed
     # converts the start and end time from s:ms:mus to mus
-    update_time_window(DATA, t_start, t_end)
-
-    #proc = Process(target=plot_in_grid, args=('time_series', signals, data.selected_rows, \
-            #        names_selected_sorted, data.sampling_rate, start, end))
-    #proc.start()
-    #proc.join()
-
+    update_time_window(DATA, t_start, t_end) 
+    plot_time_series_grid(DATA)
     return None
 
 
@@ -259,9 +254,8 @@ def select_apply(_: int, t_start: str, t_stop: str) -> None:
 
         @retrun a next button to get to the preprocessing page.
     """
-    global RESULT
-    update_time_window(DATA, t_start, t_stop)
-    RESULT = create_result(DATA)
+    update_time_window(DATA, t_start, t_stop) # DATA, 
+    apply_selection(DATA)
 
     return None
 
@@ -286,7 +280,7 @@ def preproc_filter(_: int, lower: str, upper: str, ftype: str) -> html.Div:
 
     @return A banner indicating that the filter was applied.
     """
-    frequency_filter(RESULT, ftype, float(lower), float(upper), bool(ftype))
+    frequency_filter(DATA, ftype, float(lower), float(upper), bool(ftype))
 
     return dbc.Alert("Successfully applied bandstop filter", color="success")
 
@@ -308,7 +302,7 @@ def preproc_downsample(_, sampling_rate: str) -> html.Div:
 
         @return a banner indicating if the downsampling was applied
     """
-    downsample(RESULT, int(sampling_rate))
+    downsample(DATA, int(sampling_rate))
 
     return dbc.Alert("Successfully downsampled", color="success")
 
@@ -327,7 +321,7 @@ def preproc_humming(_) -> html.Div:
 
         @return a banner indicating if the filter was applied
     """
-    filter_el_humming(RESULT)
+    filter_el_humming(DATA)
 
     return dbc.Alert("Successfully removed electrical humming",
             color="success")
@@ -360,7 +354,7 @@ def analyze_amplitude_animation(clicked: int, fps: str, slow_down, t_start, t_st
     """
     if clicked is not None and clicked > 0:
         new_sr = fps / slow_down
-        bins = bin_amplitude(RESULT, fps, slow_down)
+        bins = bin_amplitude(DATA, fps, slow_down)
 
     return 0
 
