@@ -70,13 +70,15 @@ def mcs_256_import(path: str, que: Queue) -> None:
 
         n_mea_electrodes = 256
         side_len = int(np.sqrt(n_mea_electrodes))
-        ground_els = [0, side_len - 1, side_len * (side_len - 1), side_len**2 - 1]
-        names = [f"R {i} C {j}" for i in range(1, side_len + 1) \
-                    for j in range(1, side_len + 1)]
+        ground_els = np.array([0, side_len - 1, side_len * (side_len - 1), side_len**2 - 1])
+        names = np.array([f"R {i} C {j}" for i in range(1, side_len + 1) \
+                    for j in range(1, side_len + 1)])
+        ground_el_names = names[ground_els]
+        names = np.array([x for x in names if x not in ground_el_names])
 
         info = mcs_info(path, file_contents)
         data = Data(fname, date, n_mea_electrodes, sampling_rate, unit, data, 0, data.shape[1] - 1,
-                names, ground_els)
+                names, ground_els, ground_el_names)
         del file_contents
 
     except IOError as err:

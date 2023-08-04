@@ -95,12 +95,13 @@ def update_electrode_selection(data: Data,
             # The grid also shows the ground electrodes.
             # the indexes must be subtracted accordingly to 
             # be fitting to the data matrix
-            if idx >= data.ground_els[0]:
-                idx -= 1
-            elif idx >= data.ground_els[1]:
-                idx -= 2
-            elif idx >= data.ground_els[2]:
+            if idx >= data.ground_els[2] - 2:
                 idx -= 3
+            elif idx >= data.ground_els[1] - 1:
+                idx -= 2
+            elif idx >= data.ground_els[0]:
+                idx -= 1
+
         # Check if electrode is in selected list.
         # If it is already remove it.
         if idx in data.selected_electrodes:

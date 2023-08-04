@@ -21,8 +21,9 @@ class Data:
                  data: np.ndarray,
                  start_idx: int,
                  stop_idx: int,
-                 names: list[str],
-                 ground_els: list[int]
+                 names: np.ndarray,
+                 ground_els: np.ndarray,
+                 ground_el_names: np.ndarray
                  ) -> None:
         """
         Data object used to hold the data matrix and metadata.
@@ -42,8 +43,9 @@ class Data:
         self. data = data
         self.start_idx = start_idx
         self.stop_idx = stop_idx
-        self.electrode_names = np.array(names)
-        self.ground_els = np.array(ground_els)
+        self.electrode_names = names
+        self.ground_els = ground_els
+        self.ground_el_names = ground_el_names
         self.selected_electrodes = []
         self.snrs = None # ndarray (data.shape[0], 1)
         self.rms = None # ndarray (data.shape[0], 1)

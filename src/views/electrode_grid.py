@@ -48,23 +48,30 @@ def get_marked_coords(data: Data) -> tuple[np.ndarray, # x values for selected e
     yy_all = yy_all.flatten()
 
     sel = data.selected_electrodes.copy()
+    names_all = data.electrode_names.tolist()
+    for i in range(data.ground_els.shape[0]):
+        names_all.insert(data.ground_els[i], data.ground_el_names[i])
+
     # Convert the selected electrode indexes from conforming to the data matrix
-    # to a row-major enumeration __including__ the ground electrodes
+    # to a row-major enumeration __including__ the ground electrodes for plotting
     for i, idx in enumerate(sel):
-        if idx >= data.ground_els[0]:
-            sel[i] += 1
+        if idx >= data.ground_els[2]:
+            sel[i] += 3
         elif idx >= data.ground_els[1]:
             sel[i] += 2
-        elif idx >= data.ground_els[2]:
-            sel[i] += 3
+        elif idx >= data.ground_els[0]:
+            sel[i] += 1
+    # FIXME: adjacent to ground el selection off by one, plots only one electrode at a time, when mutliple are selected
     unsel = [x for x in range(data.n_mea_electrodes) if x not in sel]
 
+    names_sel = [names_all[i] for i in sel]
     xx = xx_all[sel]
     yy = yy_all[sel]
-    names_sel = [data.electrode_names[i] for i in sel]
+    names_un = [names_all[i] for i in unsel]
     xx_un = xx_all[unsel]
     yy_un = yy_all[unsel]
-    names_un = [data.electrode_names[i] for i in unsel]
+
+
 
     return xx, yy, xx_un, yy_un, names_sel, names_un
 
