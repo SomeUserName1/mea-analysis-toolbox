@@ -8,6 +8,7 @@ from wand.image import Image
 
 from constants import img_size
 from model.data import Data
+from views.grid_plot_utils import el_idx_plot_to_data
 
 
 def apply_selection(data: Data):
@@ -16,14 +17,8 @@ def apply_selection(data: Data):
         to the selected electrodes and the selected time window only.
     """
     temp = data.data
-    data.data = data.data[data.selected_rows, data.start_idx:data.stop_idx]
+    data.data = data.data[data.selected_electrodes, data.start_idx:data.stop_idx]
     del temp
-
-def set_time_window(data: Data, start_mus: int, stop_mus: int) -> None:
-    """
-    Sets the time window of the data to be evaluated & displayed.
-    """
-
 
 
 def update_time_window(data: Data, t_start: str, t_end: str) -> None:
@@ -89,23 +84,14 @@ def update_electrode_selection(data: Data,
         # from 1), we need to subtract one to get the correct index.
         coords = [int(s)-1 for s in point['text'].split() if s.isdigit()]
         idx = coords[0] * grid_size + coords[1]
-        if idx in data.ground_els:
-            continue
-        else:
-            # The grid also shows the ground electrodes.
-            # the indexes must be subtracted accordingly to 
-            # be fitting to the data matrix
-            if idx >= data.ground_els[2] - 2:
-                idx -= 3
-            elif idx >= data.ground_els[1] - 1:
-                idx -= 2
-            elif idx >= data.ground_els[0]:
-                idx -= 1
+        idx = el_idx_plot_to_data(data, idx)
 
         # Check if electrode is in selected list.
         # If it is already remove it.
         if idx in data.selected_electrodes:
             data.selected_electrodes.remove(idx)
+        elif idx == -1: # is a ground electrode
+            continue
         # Else add it.
         else:
             data.selected_electrodes.append(idx)

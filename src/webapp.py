@@ -27,7 +27,7 @@ from controllers.preproc import frequency_filter, downsample, filter_el_humming
 # Dash-wrapped html code for the UI
 from ui.nav import navbar, nav_items
 from ui.importer import importer, build_import_infos
-from ui.select import select, no_data
+from ui.select import select, no_data, next_button
 from ui.preproc import preproc
 from ui.analyze import analyze
 
@@ -254,10 +254,12 @@ def select_apply(_: int, t_start: str, t_stop: str) -> None:
 
         @retrun a next button to get to the preprocessing page.
     """
-    update_time_window(DATA, t_start, t_stop) # DATA, 
+    if len(DATA.selected_electrodes) == 0:
+        return no_data
+    update_time_window(DATA, t_start, t_stop) 
     apply_selection(DATA)
 
-    return None
+    return next_button
 
 
 @app.callback(Output("preproc-fltr-result", "children"),

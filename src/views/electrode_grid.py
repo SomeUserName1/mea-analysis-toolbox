@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 
 from constants import grid_size
 from model.data import Data
+from views.grid_plot_utils import el_idx_data_to_plot, el_names_insert_grounds
 
 def align_image(x: int, y: int, sizex: int, sizey: int, sizing: str) -> None:
     """
@@ -47,21 +48,8 @@ def get_marked_coords(data: Data) -> tuple[np.ndarray, # x values for selected e
     xx_all = xx_all.flatten()
     yy_all = yy_all.flatten()
 
-    sel = data.selected_electrodes.copy()
-    names_all = data.electrode_names.tolist()
-    for i in range(data.ground_els.shape[0]):
-        names_all.insert(data.ground_els[i], data.ground_el_names[i])
-
-    # Convert the selected electrode indexes from conforming to the data matrix
-    # to a row-major enumeration __including__ the ground electrodes for plotting
-    for i, idx in enumerate(sel):
-        if idx >= data.ground_els[2]:
-            sel[i] += 3
-        elif idx >= data.ground_els[1]:
-            sel[i] += 2
-        elif idx >= data.ground_els[0]:
-            sel[i] += 1
-    # FIXME: adjacent to ground el selection off by one, plots only one electrode at a time, when mutliple are selected
+    sel = el_idx_data_to_plot(data)
+    names_all = el_names_insert_grounds(data)
     unsel = [x for x in range(data.n_mea_electrodes) if x not in sel]
 
     names_sel = [names_all[i] for i in sel]

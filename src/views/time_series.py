@@ -20,8 +20,9 @@ def do_plot(data):
     pg.setConfigOptions(antialias=True)
 
     for i, (row, col) in enumerate(MEAGridPlotIterator(data)):
-        print(f" idx {i}, row {row}, col {col}")
         p = win.addPlot(title=sel_names[i], x=ts, y=data.data[i], row=row, col=col)
+        p.setLabel('left', units='V')
+        p.setLabel('bottom', units='s')
 
     pg.exec()
     print("done")
@@ -29,6 +30,4 @@ def do_plot(data):
 def plot_time_series_grid(data: Data):
     proc = Process(target=do_plot, args=(data,))
     proc.start()
-    proc.join()
-
 
