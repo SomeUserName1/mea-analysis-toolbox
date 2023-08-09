@@ -7,7 +7,7 @@ import dash_bootstrap_components as dbc
 
 next_button = html.A(dbc.Row([dbc.Col([dbc.Button("Next", n_clicks=0)],
         width="auto")], align="center", justify="center",
-        style={"padding": "20px"}), href="/preproc")
+        style={"padding": "20px"}), href="/analyze")
 
 
 no_data = dbc.Col([dbc.Alert("Please select at least one electrode!",

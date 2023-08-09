@@ -182,10 +182,6 @@ def compute_isis(spike_idxs, fs):
     return np.array(isis)
 
 
-
-
-
-
 def extract_longest_burst(burst_times):
     start_idxs, stop_idxs = burst_times
     max_duration = 0

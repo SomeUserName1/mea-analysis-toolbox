@@ -68,3 +68,28 @@ def compute_entropies(data: Data):
     entropies = np.zeros(n_els)
     for i in range(n_els):
         entropies[i] = ant.app_entropy(data.data[i])
+
+
+@nb.njit
+def bin_amplitude(data: Data, new_sr: int=500, absolute: bool=False) -> np.ndarray:
+    signals = data.data
+    n_bins = new_sr / data.sampling_rate * signals.shape[1]
+    bins = np.zeros((signals.shape[0], n_bins))
+
+    signal_idx = 0
+    bin_idx = 0
+    while signal_idx < data.data.shape[1]:
+        t_int = 0
+        n_frames_in_bin = 0
+
+        while t_int < 1 / new_sr and signal_idx < data.data.shape[1]:
+            bins[:, bin_idx] = bins[:, bin_idx] + data.data[:, signal_idx]
+
+            t_int = t_int + 1 / data.sampling_rate
+            signal_idx = signal_idx + 1
+            n_frames_in_bin = n_frames_in_bin + 1
+
+        bins[:, bin_idx] = bins[:, bin_idx] / n_frames_in_bin
+        bin_idx = bin_idx + 1
+
+    bins = np.array(bins)

@@ -1,23 +1,24 @@
-# Work Packages
-## 1. code simplification
-- [ ] adjust plotting with PyQtGraph
-- parallelization: 
-    - [ ] make sure to use numpy vetorization
-    - [ ] numba
-    - [ ] Dask or WorkerPools; 
-- [ ] Improve peak & burst detection
+# TODOs
+1.
+- [ ] rewrite analysis GUI & hook up functions
+- [ ] refactor burst detections
+- [ ] refactorrefactor seizure detection
+- [-] adjust plotting with PyQtGraph
+- [ ] extract FOOOF params
+
+2. 
+- [-] Improve peak, burst & seizure detection
+- [-] fix FOOOF and see if working with it helps
+- [ ] fixup transfer entropy
+- [ ] referencing
 - [ ] Detect bad channels using pyprep, SNR, impedances
-- [ ] rereferencing
-- add elephant functionality
-    - [ ] LFP & Population signals
-    - [ ] Waveforms analysis & spike sorting 
-    - [ ] fixup transfer entropy
+- [ ] WorkerPools 
+
+3.
+- [ ] PSI
+- [ ] PAC
 - [ ] Avalanche analysis
-- [ ] fix FOOOF and see if working with it helps
-- [ ] entropies & other complexity measures
-
-
-# Future
+- [ ] Waveforms analysis
 - [ ] make runtime errors/all errors visible on UI
 - [ ] support CMOS
 

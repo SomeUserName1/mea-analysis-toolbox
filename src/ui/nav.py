@@ -7,23 +7,8 @@ import dash_bootstrap_components as dbc
 
 nav_items = [
         dbc.NavItem(dbc.NavLink("Select", href="/select", active="exact")),
-        dbc.NavItem(dbc.NavLink("Preprocess", href="/preproc", active="exact")),
-        dbc.NavItem(dbc.DropdownMenu(
-            [
-                dbc.DropdownMenuItem(dbc.NavLink("RMS per Electrode Animation",
-                        href="/rms-animate", active="exact")),
-                dbc.DropdownMenuItem(dbc.NavLink("FFT", href="/fft",
-                                                 active="exact")),
-                dbc.DropdownMenuItem(
-                 dbc.NavLink("Granger Causality", href="/granger",
-                             active="exact"))
-            ],
-            label="Explore & Analyze",
-            nav=True,
-            in_navbar=True,
-            menu_variant="dark"),
-        ),
-    ]
+        dbc.NavItem(dbc.NavLink("Analyze", href="/analyze", active="exact")),
+]
 
 
 navbar = dbc.Navbar(

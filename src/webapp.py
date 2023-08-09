@@ -19,7 +19,7 @@ from controllers.io.import_mcs_256 import mcs_256_import
 # controllers to select, preprocess and analyze data.
 from controllers.select import (apply_selection, convert_to_jpeg, update_electrode_selection,
                                 max_duration, str_to_mus, update_time_window)
-from controllers.preproc import frequency_filter, downsample, filter_el_humming
+from controllers.analysis.filter import frequency_filter, downsample, filter_el_humming
 # from controllers.analysis
 
 
@@ -28,7 +28,6 @@ from controllers.preproc import frequency_filter, downsample, filter_el_humming
 from ui.nav import navbar, nav_items
 from ui.importer import importer, build_import_infos
 from ui.select import select, no_data, next_button
-from ui.preproc import preproc
 from ui.analyze import analyze
 
 # Plots using Plotly for selection and matplotlib for everything else
@@ -40,12 +39,13 @@ app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP],
            suppress_callback_exceptions=True)
 content = html.Div(id="page-content")
 app.layout = html.Div([dcc.Location(id="url"), navbar, content])
-# use DATA as shared memory (on Linux as multiprocessing uses fork. Handle windows by instructing users to use Linux for scientific computing with TiB of data)
+# DATA shared memory 
 DATA = None
 BL_PROC = None
 BL_QUE = None
 
 
+################## Routing
 @app.callback(
         Output("page-content", "children"), Output("nav", "children"),
         [Input("url", "pathname")]
@@ -61,15 +61,12 @@ def render_page_content(pathname: str) -> html.Div:
         @return the page contents as implemented in views/ui/. The navbar
                 is only displayed when not on the home/import screen.
     """
-    if pathname == "/" or DATA is None:
+    if pathname == "/":#  or DATA is None:
         return importer, None
 
     if pathname == "/select":
         grid = draw_electrode_grid(DATA)
         return select(grid), nav_items
-
-    if pathname == "/preproc":
-        return preproc, nav_items
 
     if pathname == "/analyze":
         return analyze, nav_items
@@ -85,6 +82,7 @@ def render_page_content(pathname: str) -> html.Div:
             ), nav_items
 
 
+############## Import
 @app.callback(Output("import-feedback", "children"),
               Input("import-submit-input-file-path", "n_clicks"),
               State("import-input-file-path", "value"),
@@ -131,6 +129,7 @@ def import_file(_: int, input_file_path: str, file_type: int) -> list[html.Div]:
     return feedback
 
 
+#################### Select
 @app.callback(Output("select-mea-setup-img", "src"),
               Input("select-image-file-path", "value"),
               prevent_initial_call=True)
@@ -262,13 +261,15 @@ def select_apply(_: int, t_start: str, t_stop: str) -> None:
     return next_button
 
 
-@app.callback(Output("preproc-fltr-result", "children"),
-              Input("preproc-fltr-apply", "n_clicks"),
-              State("preproc-fltr-lower", "value"),
-              State("preproc-fltr-upper", "value"),
-              State("preproc-fltr-type", "value"),
+####################### ANALYZE
+######### Filter
+@app.callback(Output("analyze-fltr-result", "children"),
+              Input("analyze-fltr-apply", "n_clicks"),
+              State("analyze-fltr-lower", "value"),
+              State("analyze-fltr-upper", "value"),
+              State("analyze-fltr-type", "value"),
               prevent_initial_call=True)
-def preproc_filter(_: int, lower: str, upper: str, ftype: str) -> html.Div:
+def analyze_filter(_: int, lower: str, upper: str, ftype: str) -> html.Div:
     """
     Used by the preprocessing screen.
 
@@ -287,11 +288,11 @@ def preproc_filter(_: int, lower: str, upper: str, ftype: str) -> html.Div:
     return dbc.Alert("Successfully applied bandstop filter", color="success")
 
 
-@app.callback(Output("preproc-dwnsmpl-result", "children"),
-              Input("preproc-dwnsmpl-apply", "n_clicks"),
-              State("preproc-dwnsmpl-rate", "value"),
+@app.callback(Output("analyze-dwnsmpl-result", "children"),
+              Input("analyze-dwnsmpl-apply", "n_clicks"),
+              State("analyze-dwnsmpl-rate", "value"),
               prevent_initial_call=True)
-def preproc_downsample(_, sampling_rate: str) -> html.Div:
+def analyze_downsample(_, sampling_rate: str) -> html.Div:
     """
     Used by the preprocessing screen.
 
@@ -309,10 +310,10 @@ def preproc_downsample(_, sampling_rate: str) -> html.Div:
     return dbc.Alert("Successfully downsampled", color="success")
 
 
-@app.callback(Output("preproc-humming-result", "children"),
-              Input("preproc-humming-apply", "n_clicks"),
+@app.callback(Output("analyze-linenoise-result", "children"),
+              Input("analyse-linenoise-apply", "n_clicks"),
               prevent_initial_call=True)
-def preproc_humming(_) -> html.Div:
+def analyze_humming(_) -> html.Div:
     """
     Used by preprocessing screen.
 
@@ -329,82 +330,204 @@ def preproc_humming(_) -> html.Div:
             color="success")
 
 
-@app.callback(Output("analyze-animate-play", "n_clicks"),
-              Input("analyze-animate-play", "n_clicks"),
-              State("analyze-animate-fps", "value"),
-              State("analyze-animate-slow-down", "value"))
-def analyze_amplitude_animation(clicked: int, fps: str, slow_down, t_start, t_stop):
+######### Basics
+@app.callback(Output("result-table", "children", allow_duplicate=True),
+              Input("analyze-snr", "n_clicks"),
+              prevent_initial_call=True)
+def analyze_snr(clicked):
+    """
+    used by analyze screen.
+
+    Computes the signal to noise ratio per channel and adds it to the result 
+        dataframe 
+    """
+    compute_snrs(DATA)
+    DATA.df['snr'] = DATA.snrs
+
+    return generate_table(DATA.df)
+
+
+@app.callback(Output("result-table", "children", allow_duplicate=True),
+              Input("analyze-snr", "n_clicks"),
+              prevent_initial_call=True)
+def analyze_rms(clicked):
+    """
+    used by analyze screen.
+
+    Computes the root mean square/power per channel and adds it to the result 
+        dataframe 
+    """
+    compute_rms(DATA)
+    DATA.df['rms'] = DATA.rms
+
+    return generate_table(DATA.df)
+
+
+@app.callback(Output("result-table", "children", allow_duplicate=True),
+              Input("analyze-ent", "n_clicks"),
+              prevent_initial_call=True)
+def analyze_entropy(clicked):
+    """
+    used by analyze screen.
+
+    Computes the ientropy per channel and adds it to the result 
+        dataframe 
+    """
+    compute_entropies(DATA)
+    DATA.df['apprx_entropy'] = DATA.entropies
+
+    return generate_table(DATA.df)
+
+
+@app.callback(Output("result-table", "children", allow_duplicate=True),
+              Input("analyze-env", "n_clicks"),
+              prevent_initial_call=True)
+def analyze_envelope(clicked):
+    """
+    used by analyze screen.
+
+    Computes the envelope per channel and adds it to the result 
+        dataframe 
+    """
+    compute_envelopes(DATA)
+    DATA.df['envelope'] = DATA.envelopes
+
+    return generate_table(DATA.df)
+
+
+@app.callback(Output("result-table", "children", allow_duplicate=True),
+              Input("analyze-derv", "n_clicks"),
+              prevent_initial_call=True)
+def analyze_derivative(clicked):
+    """
+    used by analyze screen.
+
+    Computes the derivative per channel and adds it to the result 
+        dataframe 
+    """
+    compute_derivatives(DATA)
+    DATA.df['derivative'] = DATA.derivatives
+
+    return generate_table(DATA.df)
+
+
+@app.callback(Output("result-table", "children", allow_duplicate=True),
+              Input("analyze-mean", "n_clicks"),
+              prevent_initial_call=True)
+def analyze_mv_average(clicked):
+    """
+    used by analyze screen.
+
+    Computes the moving average per channel and adds it to the result 
+        dataframe 
+    """
+    compute_mv_avg(DATA)
+    DATA.df['mv_average'] = DATA.mv_means
+
+    return generate_table(DATA.df)
+
+
+@app.callback(Output("result-table", "children", allow_duplicate=True),
+              Input("analyze-mad", "n_clicks"),
+              prevent_initial_call=True)
+def analyze_mv_mad(clicked):
+    """
+    used by analyze screen.
+
+    Computes the moving mean absolute deviation per channel and adds it to the result 
+        dataframe 
+    """
+    compute_mv_mads(DATA)
+    DATA.df['mv_mad'] = DATA.mv_mads
+
+    return generate_table(DATA.df)
+
+
+@app.callback(Output("result-table", "children", allow_duplicate=True),
+              Input("analyze-var", "n_clicks"),
+              prevent_initial_call=True)
+def analyze_mv_var(clicked):
+    """
+    used by analyze screen.
+
+    Computes the moving variance per channel and adds it to the result 
+        dataframe 
+    """
+    compute_mv_vars(DATA)
+    DATA.df['mv_var'] = DATA.mv_vars
+
+    return generate_table(DATA.df)
+
+
+########### Spectral
+@app.callback(Output("result-table", "children", allow_duplicate=True),
+              Input("analyze-psd", "n_clicks"),
+              prevent_initial_call=True)
+def analyze_psds(clicked):
+    """
+    used by analyze screen.
+
+    Computes the power spectral densities for all selected rows and stores the result.
+    """
+    compute_psds(DATA)
+    DATA.df['psd'] = DATA.psds[1]
+    DATA.df['psd_freq'] = DATA.psds[1]
+
+    return generate_table(DATA.df)
+
+
+@app.callback(Output("result-table", "children", allow_duplicate=True),
+              Input("analyze-aperiodic-periodic", "n_clicks"),
+              prevent_initial_call=True)
+def analyze_periodic_aperiodic(clicked):
     """
     Used by analyze screen.
 
-    Draws the electrode grid as on the MEA and color codes the current
-    absolute amplitude binned to the frame per second rate specified
-    in fps and creates a video (mp4/h264) from it of the specified
-    time window.
-
-        @param clicked: Button causing the generation of the video
-        @param fps: How many frames shall be generated per second. the lower,
-                    the wider the bins, i.e. the worse the temporal
-                    resolution of the video but the smaller the video size.
-        @param t_start: Where the video shall begin. if not specified
-                        (i.e. None), 0 is choosen.
-        @param t_stop: Where the video shall end. If not specified, the
-                       duration of the signal is chosen.
-
-        @return sets the button clicks back to 0, done because dash callbacks
-                       have to have an output
+    Computes the PSDs for selected electrodes and then separates the periodic
+                   from the aperiodic components. Stores the parameter of the
+                   aperiodic component to the result dataframe
     """
-    if clicked is not None and clicked > 0:
-        new_sr = fps / slow_down
-        bins = bin_amplitude(DATA, fps, slow_down)
+    compute_periodic_aperiodic_decomp(DATA)
+    DATA.df['aperiodic_offset'] = DATA.fooof_group.get_params('aperiodic_params', 'offset')
+    DATA.df['aperiodic_exponent'] = DATA.fooof_group.get_params('aperiodic_params', 'exponent')
 
-    return 0
+    return generate_table(DATA.df)
 
 
-@app.callback(Output("analyze-psd", "n_clicks"),
-              Input("analyze-psd", "n_clicks"))
-def analyze_psds(clicked):
+@app.callback(Output("result-table", "children", allow_duplicate=True),
+              Input("analyze-dpsd", "n_clicks"),
+              prevent_initial_call=True)
+def analyze_detrend_psds(clicked):
     """
     used by analyze screen.
 
     Computes the power spectral densities for all selected rows and plots the \
        #            results.
     """
-    if clicked is not None and clicked > 0:
-        show_psds(DATA)
+    detrend_fooof(DATA)
+    DATA.df['detrended_psd'] = DATA.detrended_psds
 
-    return 0
-
-
-@app.callback(Output("analyze-aperiodic-periodic", "n_clicks"),
-              Input("analyze-aperiodic-periodic", "n_clicks"))
-def analyze_periodic_aperiodic(clicked):
-    """
-    Used by analyze screen.
-
-    Computes the PSDs for selected electrodes and then separates the periodic
-                   from the aperiodic part and shows the results.
-    """
-    if clicked is not None and clicked > 0:
-        show_periodic_aperiodic_decomp(DATA)
-
-    return 0
+    return generate_table(DATA.df)
 
 
-@app.callback(Output("analyze-spec", "n_clicks"),
-              Input("analyze-spec", "n_clicks"))
+@app.callback(Output("result-table", "children", allow_duplicate=True),
+              Input("analyze-spec", "n_clicks"),
+              prevent_initial_callback=True)
 def analyze_spectrograms(clicked):
     """
     used by analyze screen.
 
     Computes the spectrogram for all selected rows and plots the results.
     """
-    if clicked is not None and clicked > 0:
-        show_spectrograms(DATA)
+    compute_spectrograms(DATA)
+    DATA.df['spectrogram_freqs'] = DATA.spectrograms[0]
+    DATA.df['spectrogram_time'] = DATA.spectrograms[1]
+    DATA.df['spectrogram'] = DATA.spectrograms[2]
 
-    return 0
+    return generate_table(DATA.df)
 
 
+################## TODO Activity
 @app.callback(Output("analyze-peaks-ampl", "n_clicks"),
               Input("analyze-peaks-ampl", "n_clicks"),
               State("analyze-peaks-ampl-loc-thresh", "value"),
@@ -456,6 +579,110 @@ def analyze_events_moving_dev(clicked, method, thresh_factor, export, fname):
             res = detect_events_moving_dev(DATA, method, STD_BASE_MV_STD, float(thresh_factor), export=export, fname=fname)
 
     return res, 0
+###################
+
+######### Network
+@app.callback(Output("result-table", "children", allow_duplicate=True),
+              Input("analyze-xcorr", "n_clicks"),
+              prevent_initial_callback=True)
+def analyze_cross_correlation(clicked):
+    """
+    used by analyze screen.
+
+    Computes the cross correlation between all selected channels and adds it to the results.
+    """
+    compute_xcorrs(DATA)
+    DATA.df['cross-correlation'] = DATA.xcorrs
+
+    return generate_table(DATA.df)
+
+
+@app.callback(Output("result-table", "children", allow_duplicate=True),
+              Input("analyze-mi", "n_clicks"),
+              prevent_initial_callback=True)
+def analyze_mutual_information(clicked):
+    """
+    used by analyze screen.
+
+    Computes mutual information between all selected channels and adds them to the results.
+    """
+    compute_mutual_info(DATA)
+    DATA.df['mutual_information'] = DATA.mutual_informations
+
+    return generate_table(DATA.df)
+
+
+@app.callback(Output("result-table", "children", allow_duplicate=True),
+              Input("analyze-te", "n_clicks"),
+              prevent_initial_callback=True)
+def analyze_transfer_entropy(clicked):
+    """
+    used by analyze screen.
+
+    Computes transfer entropy between all selected channels and adds it to the results.
+    """
+    compute_transfer_entropy(DATA)
+    DATA.df['transfer_entropy'] = DATA.transfer_entropy
+
+    return generate_table(DATA.df)
+
+
+@app.callback(Output("result-table", "children", allow_duplicate=True),
+              Input("analyze-coh", "n_clicks"),
+              prevent_initial_callback=True)
+def analyze_coherence(clicked):
+    """
+    used by analyze screen.
+
+    Computes transfer entropy between all selected channels and adds it to the results.
+    """
+    compute_coherence(DATA)
+    # TODO correct the addition to df
+    DATA.df['coherence'] = DATA.coherences
+
+    return generate_table(DATA.df)
+
+######## Visualize
+
+
+
+######### Export
+@app.callback(Output("analyze-animate-play", "n_clicks"),
+              Input("analyze-animate-play", "n_clicks"),
+              State("analyze-animate-fps", "value"),
+              State("analyze-animate-slow-down", "value"))
+def analyze_amplitude_animation(clicked: int, fps: str, slow_down, t_start, t_stop):
+    """
+    Used by analyze screen.
+
+    Draws the electrode grid as on the MEA and color codes the current
+    absolute amplitude binned to the frame per second rate specified
+    in fps and creates a video (mp4/h264) from it of the specified
+    time window.
+
+        @param clicked: Button causing the generation of the video
+        @param fps: How many frames shall be generated per second. the lower,
+                    the wider the bins, i.e. the worse the temporal
+                    resolution of the video but the smaller the video size.
+        @param t_start: Where the video shall begin. if not specified
+                        (i.e. None), 0 is choosen.
+        @param t_stop: Where the video shall end. If not specified, the
+                       duration of the signal is chosen.
+
+        @return sets the button clicks back to 0, done because dash callbacks
+                       have to have an output
+    """
+    if clicked is not None and clicked > 0:
+        new_sr = fps / slow_down
+        bins = bin_amplitude(DATA, fps, slow_down)
+
+    return 0
+
+
+
+
+
+
 
 
 if __name__ == "__main__":
