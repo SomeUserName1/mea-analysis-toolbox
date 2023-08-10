@@ -1,5 +1,6 @@
 import elephant as ep
-import minfo
+from elephant.causality.granger import pairwise_granger, pairwise_spectral_granger
+from mutual_info.mutual_info import mutual_information
 import numba as nb
 import numpy as np
 from PyIF.te_compute import te_compute
@@ -17,11 +18,11 @@ def compute_xcorrs(data: Data):
     sig = ((sig.T - means) / stds).T
 
     lags = sg.correlation_lags(sig.shape[1], sig.shape[1], "same")
-    data.xcorrs = lags, np.zeros(sig.shape[0], sig.shape[0], sig.shape[1])
+    data.xcorrs = lags, np.zeros((sig.shape[0], sig.shape[0], sig.shape[1]))
 
     for i, sig1 in enumerate(sig):
         for j, sig2 in enumerate(sig):
-            elif i < j:
+            if i < j:
                 continue
             else:
                 data.xcorrs[1][i, j] = (sg.correlate(sig1, sig2, 'same')
@@ -43,8 +44,7 @@ def compute_mutual_info(data: Data):
             if i < j:
                 continue
             else:
-                data.mutual_informations[i, j] = minfo.mi_float.mutual_info(
-                        sig1, sig2, algorithm='adaptive')
+                data.mutual_informations[i, j] = mutual_information((sig1, sig2))
 
     for i in range(n_channels):
         for j in range(n_channels):
@@ -57,12 +57,10 @@ def compute_mutual_info(data: Data):
 # PyIF.compute_te already uses numba/gpu
 # Parallelizing the loop may be an option depending on the load
 # concurrent.futures.ProcessPoolExecutor
-@nb.jit(parallel=True)
 def compute_transfer_entropy(data: Data, lag_ms: int = 1000):
     n_els = data.data.shape[0]
     data.transfer_entropies = np.zeros((n_els, n_els))
-
-    lags = int(lag_ms * 0.001 * sampling_rate)
+    lags = int(lag_ms * 0.001 * data.sampling_rate)
     if lags < 1:
         lags = 1
 
@@ -71,9 +69,9 @@ def compute_transfer_entropy(data: Data, lag_ms: int = 1000):
             if i == j:
                continue
             else:
-                data.transfer_entropies[i, j] = compute_te(sig1, 
-                                                             sig2,
-                                                             embedding=lags)
+                data.transfer_entropies[i, j] = te_compute(sig1, 
+                                                           sig2,
+                                                           embedding=lags)
 
 # parallelize
 def compute_coherence(data: Data):
@@ -85,24 +83,17 @@ def compute_coherence(data: Data):
             if i < j:
                 continue
             else:
-                if freqs is None:
-                    freqs, coh, lag = ep.spectral.multitaper_coherence(
-                        sig1,
-                        sig2,
-                        fs=sampling_rate)
-                else:
-                    _, coh, lag = ep.spectral.multitaper_coherence(
-                        sig1,
-                        sig2,
-                        fs=sampling_rate)
-                coherences[i].append((coh, lags))
+                coherences[i].append(ep.spectral.multitaper_coherence(
+                    sig1.T,
+                    sig2.T,
+                    fs=data.sampling_rate))
 
-    data.coherences = freqs, coherences
+    data.coherences = np.array(coherences)
 
 
 # parallelize
 def compute_granger_causality(data: Data, lag_ms=1000):
-    lags = int(lag_ms * 0.001 * sampling_rate)
+    lags = int(lag_ms * 0.001 * data.sampling_rate)
     cgs = []
     for i, sig1 in enumerate(data.data):
         cgs.append([])
@@ -110,8 +101,8 @@ def compute_granger_causality(data: Data, lag_ms=1000):
             if i < j:
                 continue
             else:
-                caus = ep.causality.granger.pairwise_granger(
-                    np.vstack((sig1, sig2)),
+                caus = pairwise_granger(
+                    np.hstack((sig1.T, sig2.T)),
                     max_order=lags)
             cgs[i].append(caus)
 
@@ -121,26 +112,19 @@ def compute_granger_causality(data: Data, lag_ms=1000):
 # parallelize
 def compute_spectral_granger(data: Data):
     freqs = None
-    coherences = []
+    spectral_cgs = []
     for i, sig1 in enumerate(data.data):
-        spectrag_cgs.append([])
+        spectral_cgs.append([])
         for j, sig2 in enumerate(data.data):
             if i < j:
                 continue
             else:
-                if freqs is None:
-                    freqs, scg = ep.causality.granger.pairwise_spectral_granger(
-                        sig1,
-                        sig2,
-                        fs=sampling_rate)
-                else:
-                    _, scg = ep.causality.granger.pairwise_spectral_granger(
-                        sig1,
-                        sig2,
-                        fs=sampling_rate)
-                spectral_cgs[i].append(scg)
+                spectral_cgs[i].append(pairwise_spectral_granger(
+                    sig1.T,
+                    sig2.T,
+                    fs=data.sampling_rate))
 
-    data.coherences = freqs, spectral_cgs
+    data.spectal_granger = spectral_cgs
 
 
 def compute_current_source_density(data: Data):

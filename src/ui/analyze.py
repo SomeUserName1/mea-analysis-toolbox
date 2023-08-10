@@ -13,18 +13,8 @@ import dash_bootstrap_components as dbc
 
 result_table = dbc.Col([], id="result-table", width='auto')
 
-def generate_table(dataframe):
-    return html.Table([
-        html.Thead(
-            html.Tr([html.Th(col) for col in dataframe.columns])
-        ),
-        html.Tbody([
-            html.Tr([
-                html.Td(dataframe.iloc[i][col]) for col in dataframe.columns
-            ]) for i in range(min(len(dataframe), max_rows))
-        ])
-    ])
-
+def generate_table(df):
+    return dbc.Table.from_dataframe(df, striped=True, bordered=True, hover=True, index=True)
 
 
 filters = dbc.AccordionItem([

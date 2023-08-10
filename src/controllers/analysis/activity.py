@@ -17,7 +17,7 @@ from model.data import Data
 # prominences are not always correct?
 #
 # Maybe parallelize using ProcessPoolExec.
-@nb.jit(parallel=True)
+# @nb.jit(parallel=True)
 def detect_peaks(data: Data):
     signals = data.data
     mads = np.mean(np.absolute((signals.T - np.means(signals, axis=-1)).T), axis=-1)
@@ -28,7 +28,7 @@ def detect_peaks(data: Data):
         data.peaks.append(sg.find_peaks(signals[i], threshold=3*mads[i]))
 
 
-@nb.njit(parallel=True)
+# @nb.njit(parallel=True)
 def compute_inter_peak_intervals(data: Data):
     if data.peaks is None:
         compute_peaks(datas)

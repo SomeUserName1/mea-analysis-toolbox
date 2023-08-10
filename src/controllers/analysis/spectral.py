@@ -1,4 +1,4 @@
-from fooof import FOOOF
+from fooof import FOOOF, FOOOFGroup
 import numba as nb
 import numpy as np
 import scipy.signal as sg
@@ -34,7 +34,7 @@ def compute_periodic_aperiodic_decomp(data: Data,
 # subtraction as vectrorized (in a separate fn with numba)
 # alternatively parallelize and collect.
 # prolly IO bound
-@nb.jit(parallel=True)
+# @nb.njit(parallel=True)
 def detrend_fooof(data: Data):
     if data.fooof_group is None:
         fg = compute_periodic_aperiodic_decomp(data)

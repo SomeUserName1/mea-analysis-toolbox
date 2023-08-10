@@ -20,7 +20,19 @@ from controllers.io.import_mcs_256 import mcs_256_import
 from controllers.select import (apply_selection, convert_to_jpeg, update_electrode_selection,
                                 max_duration, str_to_mus, update_time_window)
 from controllers.analysis.filter import frequency_filter, downsample, filter_el_humming
-# from controllers.analysis
+from controllers.analysis.analyze import (compute_snrs, compute_rms,
+                                          compute_derivative, compute_mv_avg,
+                                          compute_mv_vars, compute_mv_mads,
+                                          compute_envelopes, compute_entropies)
+from controllers.analysis.spectral import (compute_psds, 
+                                           compute_periodic_aperiodic_decomp,
+                                           detrend_fooof, compute_spectrograms)
+from controllers.analysis.network import (compute_xcorrs, compute_mutual_info,
+                                          compute_transfer_entropy,
+                                          compute_coherence, 
+                                          compute_granger_causality,
+                                          compute_spectral_granger,
+                                          compute_current_source_density)
 
 
 
@@ -28,15 +40,15 @@ from controllers.analysis.filter import frequency_filter, downsample, filter_el_
 from ui.nav import navbar, nav_items
 from ui.importer import importer, build_import_infos
 from ui.select import select, no_data, next_button
-from ui.analyze import analyze
+from ui.analyze import analyze, generate_table
 
-# Plots using Plotly for selection and matplotlib for everything else
+# Plots using Plotly for selection and pyqtgraph everything else
 from views.electrode_grid import draw_electrode_grid
 from views.time_series import plot_time_series_grid
 
 # setup for the server and initialization of the data global
 app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP],
-           suppress_callback_exceptions=True)
+           suppress_callback_exceptions=True, prevent_initial_callbacks="initial_duplicate")
 content = html.Div(id="page-content")
 app.layout = html.Div([dcc.Location(id="url"), navbar, content])
 # DATA shared memory 
@@ -61,7 +73,7 @@ def render_page_content(pathname: str) -> html.Div:
         @return the page contents as implemented in views/ui/. The navbar
                 is only displayed when not on the home/import screen.
     """
-    if pathname == "/":#  or DATA is None:
+    if pathname == "/" or DATA is None:
         return importer, None
 
     if pathname == "/select":
@@ -348,7 +360,7 @@ def analyze_snr(clicked):
 
 
 @app.callback(Output("result-table", "children", allow_duplicate=True),
-              Input("analyze-snr", "n_clicks"),
+              Input("analyze-rms", "n_clicks"),
               prevent_initial_call=True)
 def analyze_rms(clicked):
     """
@@ -390,7 +402,8 @@ def analyze_envelope(clicked):
         dataframe 
     """
     compute_envelopes(DATA)
-    DATA.df['envelope'] = DATA.envelopes
+    DATA.df.loc[:, 'envelope'] = DATA.envelopes
+    # FIXME Continue here
 
     return generate_table(DATA.df)
 
@@ -405,6 +418,7 @@ def analyze_derivative(clicked):
     Computes the derivative per channel and adds it to the result 
         dataframe 
     """
+    print("div")
     compute_derivatives(DATA)
     DATA.df['derivative'] = DATA.derivatives
 
@@ -421,6 +435,7 @@ def analyze_mv_average(clicked):
     Computes the moving average per channel and adds it to the result 
         dataframe 
     """
+    print("mv avg")
     compute_mv_avg(DATA)
     DATA.df['mv_average'] = DATA.mv_means
 
@@ -437,6 +452,7 @@ def analyze_mv_mad(clicked):
     Computes the moving mean absolute deviation per channel and adds it to the result 
         dataframe 
     """
+    print("mv_mad")
     compute_mv_mads(DATA)
     DATA.df['mv_mad'] = DATA.mv_mads
 
@@ -453,6 +469,7 @@ def analyze_mv_var(clicked):
     Computes the moving variance per channel and adds it to the result 
         dataframe 
     """
+    print("mv var")
     compute_mv_vars(DATA)
     DATA.df['mv_var'] = DATA.mv_vars
 
@@ -469,6 +486,7 @@ def analyze_psds(clicked):
 
     Computes the power spectral densities for all selected rows and stores the result.
     """
+    print("psd")
     compute_psds(DATA)
     DATA.df['psd'] = DATA.psds[1]
     DATA.df['psd_freq'] = DATA.psds[1]
@@ -487,6 +505,7 @@ def analyze_periodic_aperiodic(clicked):
                    from the aperiodic components. Stores the parameter of the
                    aperiodic component to the result dataframe
     """
+    print("fooof")
     compute_periodic_aperiodic_decomp(DATA)
     DATA.df['aperiodic_offset'] = DATA.fooof_group.get_params('aperiodic_params', 'offset')
     DATA.df['aperiodic_exponent'] = DATA.fooof_group.get_params('aperiodic_params', 'exponent')
@@ -504,6 +523,7 @@ def analyze_detrend_psds(clicked):
     Computes the power spectral densities for all selected rows and plots the \
        #            results.
     """
+    print("detrend")
     detrend_fooof(DATA)
     DATA.df['detrended_psd'] = DATA.detrended_psds
 
@@ -512,16 +532,17 @@ def analyze_detrend_psds(clicked):
 
 @app.callback(Output("result-table", "children", allow_duplicate=True),
               Input("analyze-spec", "n_clicks"),
-              prevent_initial_callback=True)
+              prevent_initial_call=True)
 def analyze_spectrograms(clicked):
     """
     used by analyze screen.
 
     Computes the spectrogram for all selected rows and plots the results.
     """
+    print("spects")
     compute_spectrograms(DATA)
-    DATA.df['spectrogram_freqs'] = DATA.spectrograms[0]
-    DATA.df['spectrogram_time'] = DATA.spectrograms[1]
+    DATA.df[:, 'spectrogram_freqs'] = DATA.spectrograms[0]
+    DATA.df[:, 'spectrogram_time'] = DATA.spectrograms[1]
     DATA.df['spectrogram'] = DATA.spectrograms[2]
 
     return generate_table(DATA.df)
@@ -530,9 +551,9 @@ def analyze_spectrograms(clicked):
 ################## TODO Activity
 @app.callback(Output("analyze-peaks-ampl", "n_clicks"),
               Input("analyze-peaks-ampl", "n_clicks"),
-              State("analyze-peaks-ampl-loc-thresh", "value"),
-              State("analyze-peaks-ampl-glob-thresh", "value"))
-def analyze_peaks_ampl(clicked, loc_thresh_factor, glob_thresh_factor):
+              State("analyze-peaks-ampl-thresh", "value"),
+              prevent_initial_call=True)
+def analyze_peaks_ampl(clicked, thresh_factor):
     """
     used by analyze screen.
 
@@ -540,6 +561,7 @@ def analyze_peaks_ampl(clicked, loc_thresh_factor, glob_thresh_factor):
        #            depending on the standard deviation of a baseline signal or half \
        #            the signal std.
     """
+    print("peaks")
     if clicked is not None and clicked > 0:
         if loc_thresh_factor is not None and glob_thresh_factor is not None:
             detect_peaks_amplitude(DATA, True, STD_BASE, float(loc_thresh_factor), float(glob_thresh_factor))
@@ -560,7 +582,7 @@ def analyze_peaks_ampl(clicked, loc_thresh_factor, glob_thresh_factor):
               State("analyze-events-thresh", "value"),
               State("analyze-events-export", "value"),
               State("analyze-events-fname", "value"),
-              )
+              prevent_initial_call=True)
 def analyze_events_moving_dev(clicked, method, thresh_factor, export, fname):
     """
     Used by analyze screen.
@@ -568,6 +590,7 @@ def analyze_events_moving_dev(clicked, method, thresh_factor, export, fname):
     Detects events/bursts by computing the moving average with a large window \
        #            and a threshold.
     """
+    print("events")
     export = len(export) > 0
     res = None
     if clicked is not None and clicked > 0:
@@ -584,7 +607,7 @@ def analyze_events_moving_dev(clicked, method, thresh_factor, export, fname):
 ######### Network
 @app.callback(Output("result-table", "children", allow_duplicate=True),
               Input("analyze-xcorr", "n_clicks"),
-              prevent_initial_callback=True)
+              prevent_initial_call=True)
 def analyze_cross_correlation(clicked):
     """
     used by analyze screen.
@@ -592,14 +615,16 @@ def analyze_cross_correlation(clicked):
     Computes the cross correlation between all selected channels and adds it to the results.
     """
     compute_xcorrs(DATA)
-    DATA.df['cross-correlation'] = DATA.xcorrs
+    print(df.columns)
+    DATA.df.loc[:, 'cross-correlation_lags'] = DATA.xcorrs[0]
+    DATA.df['cross-correlation'] = DATA.xcorrs[1]
 
     return generate_table(DATA.df)
 
 
 @app.callback(Output("result-table", "children", allow_duplicate=True),
               Input("analyze-mi", "n_clicks"),
-              prevent_initial_callback=True)
+              prevent_initial_call=True)
 def analyze_mutual_information(clicked):
     """
     used by analyze screen.
@@ -614,7 +639,7 @@ def analyze_mutual_information(clicked):
 
 @app.callback(Output("result-table", "children", allow_duplicate=True),
               Input("analyze-te", "n_clicks"),
-              prevent_initial_callback=True)
+              prevent_initial_call=True)
 def analyze_transfer_entropy(clicked):
     """
     used by analyze screen.
@@ -629,7 +654,7 @@ def analyze_transfer_entropy(clicked):
 
 @app.callback(Output("result-table", "children", allow_duplicate=True),
               Input("analyze-coh", "n_clicks"),
-              prevent_initial_callback=True)
+              prevent_initial_call=True)
 def analyze_coherence(clicked):
     """
     used by analyze screen.
@@ -638,7 +663,56 @@ def analyze_coherence(clicked):
     """
     compute_coherence(DATA)
     # TODO correct the addition to df
-    DATA.df['coherence'] = DATA.coherences
+    DATA.df['coherence_freqs'] = DATA.coherences[:][0]
+    DATA.df['coherence_lags'] = DATA.coherence[:][2]
+    DATA.df['coherence'] = DATA.coherences[:][1]
+
+    return generate_table(DATA.df)
+
+
+@app.callback(Output("result-table", "children", allow_duplicate=True),
+              Input("analyze-gc", "n_clicks"),
+              prevent_initial_call=True)
+def analyze_granger_causality(clicked):
+    """
+    used by analyze screen.
+
+    Computes transfer entropy between all selected channels and adds it to the results.
+    """
+    compute_granger_causality(DATA)
+    DATA.df['granger_causality'] = DATA.granger_causalities
+
+    return generate_table(DATA.df)
+
+
+@app.callback(Output("result-table", "children", allow_duplicate=True),
+              Input("analyze-sgc", "n_clicks"),
+              prevent_initial_call=True)
+def analyze_spectral_granger_causality(clicked):
+    """
+    used by analyze screen.
+
+    Computes transfer entropy between all selected channels and adds it to the results.
+    """
+    compute_spectral_granger(DATA)
+    DATA.df['spectral_granger_freqs'] = DATA.spectral_granger[0]
+    DATA.df['spectral_granger_causality'] = DATA.spectral_granger[1]
+
+    return generate_table(DATA.df)
+
+
+@app.callback(Output("result-table", "children", allow_duplicate=True),
+              Input("analyze-csd", "n_clicks"),
+              prevent_initial_call=True)
+def analyze_current_source_densities(clicked):
+    """
+    used by analyze screen.
+
+    Computes transfer entropy between all selected channels and adds it to the results.
+    """
+    compute_current_source_density(DATA)
+    # TODO correct the addition to df
+    DATA.df['current_source_density'] = DATA.csds
 
     return generate_table(DATA.df)
 
@@ -650,8 +724,9 @@ def analyze_coherence(clicked):
 @app.callback(Output("analyze-animate-play", "n_clicks"),
               Input("analyze-animate-play", "n_clicks"),
               State("analyze-animate-fps", "value"),
-              State("analyze-animate-slow-down", "value"))
-def analyze_amplitude_animation(clicked: int, fps: str, slow_down, t_start, t_stop):
+              State("analyze-animate-slow-down", "value"),
+              prevent_initial_call=True)
+def analyze_amplitude_animation(clicked: int, fps: str, slow_down: str):
     """
     Used by analyze screen.
 

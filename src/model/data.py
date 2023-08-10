@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import pint
 
 class Data:
@@ -64,12 +65,13 @@ class Data:
         self.xcorrs = None # tuple[ ndarray (1, data.shape[1]), ndarray (data.shape[0], data.shape[0], data.shape[1])]
         self.mutual_informations = None # ndarray (data.shape[0], data.shape[0])
         self.transfer_entopies = None # ndarray (data.shape[0], data.shape[0])
-        self.coherences = None # tuple[ndarray (#freqs), tuple[ndarray (1, #coherences), ndarray (1, #lags)]]
-        self.granger_causalities = None # list[list[dict]] (len(n_chanels), len(n_channels/2-1), caus_x_y, caus_y_x, instant_caus, total_dep)
+        self.coherences = None # tuple[ndarray (#freqs), tuple[ndarray (#coherences), ndarray (#lags)]]
+        self.granger_causalities = None # list[list[dict]] (len(n_chanels), len((n_channels-1)/2), caus_x_y, caus_y_x, instant_caus, total_dep)
         self.spectral_granger = None # freqs, as above
         self.csds = None # neo.AnalogSignal with estimated CSD
         self.events = None # TODO check and adapt
-        self.result_df = None
+        self.df = pd.DataFrame() 
+        print(self.df)
 # self.psis = None # finnpy
 # self.pacs = None # tensorpac
 # synchrony

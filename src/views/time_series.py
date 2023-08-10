@@ -1,6 +1,9 @@
+from multiprocessing import Process
+
 import numpy as np
 import pyqtgraph as pg
-from multiprocessing import Process
+from PyQt6 import QtWidgets
+from PyQt6.QtCore import Qt
 
 from model.data import Data
 from views.grid_plot_iterator import MEAGridPlotIterator
@@ -14,18 +17,17 @@ def do_plot(data):
     t_start, t_stop = data.get_time_s()
     ts = np.linspace(t_start, t_stop, num=data.data.shape[1])
 
-    plot_app = pg.mkQApp("Raw Time Series Plot")
     win = pg.GraphicsLayoutWidget(show=True, title="Raw signals")
     win.resize(800, 800)
-    pg.setConfigOptions(antialias=True)
-
+    win.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
+    win.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
+    # pg.setConfigOptions(antialias=True)
     for i, (row, col) in enumerate(MEAGridPlotIterator(data)):
-        p = win.addPlot(title=sel_names[i], x=ts, y=data.data[i], row=row, col=col)
-        p.setLabel('left', units='V')
-        p.setLabel('bottom', units='s')
+        p = win.addPlot(x=ts, y=data.data[i], row=row, col=col) # title=sel_names[i], 
+        if i == 0:
+            p.setLabel('left', units='V')
 
     pg.exec()
-    print("done")
 
 def plot_time_series_grid(data: Data):
     proc = Process(target=do_plot, args=(data,))
