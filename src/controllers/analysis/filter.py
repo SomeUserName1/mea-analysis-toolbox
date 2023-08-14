@@ -7,11 +7,10 @@ from model.data import Data
 
 
 def frequency_filter(data: Data,
-                     filter_type: int,
+                     stop: bool,
                      low_cut: Optional[float],
                      high_cut: Optional[float],
-                     order: Optional[int] = 16,
-                     stop: Optional[bool] = False
+                     order: Optional[int] = 8,
                      ) -> np.ndarray:
     """
     A general purpose digital filter for low-pass, high-pass and band-pass
@@ -26,8 +25,6 @@ def frequency_filter(data: Data,
     Args:
         signal (numpy array): Input signal as a one-dimensional np.array.
         fs (int, float): Sampling frequency of input data.
-        filter_type (str): 'BTR' or 'CBY' for Butterworth or Chebychev
-            respectively.
         low_cut (int, float): Low-pass cutoff frequency in Hz.
         high_cut (int, float): High-pass cutoff frequency in Hz.
         order (int): Default set to 6.
@@ -71,7 +68,6 @@ def frequency_filter(data: Data,
 
     data.data = sg.sosfiltfilt(sos, data.data)
 
-
 def downsample(data: Data, new_fs: int) -> None:
     """
     Downsample the data to a new sampling rate. The new sampling rate must be
@@ -81,6 +77,7 @@ def downsample(data: Data, new_fs: int) -> None:
         data (Data): The data to downsample.
         new_fs (int): The new sampling rate.
     """
+    print("called downsample")
     q = int(np.round(data.sampling_rate / new_fs))
     q_it = 0
 

@@ -12,6 +12,7 @@ import multiprocessing as mp
 from dash import dcc, html, Dash
 from dash.dependencies import Input, Output, State
 import dash_bootstrap_components as dbc
+import numpy as np
 from plotly import graph_objects as go
 
 ## Code used to import data into a Data object, see model/Data.py
@@ -21,7 +22,7 @@ from controllers.select import (apply_selection, convert_to_jpeg, update_electro
                                 max_duration, str_to_mus, update_time_window)
 from controllers.analysis.filter import frequency_filter, downsample, filter_el_humming
 from controllers.analysis.analyze import (compute_snrs, compute_rms,
-                                          compute_derivative, compute_mv_avg,
+                                          compute_derivatives, compute_mv_avg,
                                           compute_mv_vars, compute_mv_mads,
                                           compute_envelopes, compute_entropies)
 from controllers.analysis.spectral import (compute_psds, 
@@ -40,7 +41,7 @@ from controllers.analysis.network import (compute_xcorrs, compute_mutual_info,
 from ui.nav import navbar, nav_items
 from ui.importer import importer, build_import_infos
 from ui.select import select, no_data, next_button
-from ui.analyze import analyze, generate_table
+from ui.analyze import analyze, generate_table, TimeSeriesPlottable
 
 # Plots using Plotly for selection and pyqtgraph everything else
 from views.electrode_grid import draw_electrode_grid
@@ -242,7 +243,7 @@ def select_plot_raw(_: int, t_start: str, t_end: str) -> None:
     """
     # converts the start and end time from s:ms:mus to mus
     update_time_window(DATA, t_start, t_end) 
-    plot_time_series_grid(DATA)
+    plot_time_series_grid(DATA, [0])
     return None
 
 
@@ -295,7 +296,7 @@ def analyze_filter(_: int, lower: str, upper: str, ftype: str) -> html.Div:
 
     @return A banner indicating that the filter was applied.
     """
-    frequency_filter(DATA, ftype, float(lower), float(upper), bool(ftype))
+    frequency_filter(DATA, bool(ftype), float(lower), float(upper))
 
     return dbc.Alert("Successfully applied bandstop filter", color="success")
 
@@ -317,13 +318,14 @@ def analyze_downsample(_, sampling_rate: str) -> html.Div:
 
         @return a banner indicating if the downsampling was applied
     """
+    print("hook downsample")
     downsample(DATA, int(sampling_rate))
 
     return dbc.Alert("Successfully downsampled", color="success")
 
 
 @app.callback(Output("analyze-linenoise-result", "children"),
-              Input("analyse-linenoise-apply", "n_clicks"),
+              Input("analyze-linenoise-apply", "n_clicks"),
               prevent_initial_call=True)
 def analyze_humming(_) -> html.Div:
     """
@@ -402,8 +404,7 @@ def analyze_envelope(clicked):
         dataframe 
     """
     compute_envelopes(DATA)
-    DATA.df.loc[:, 'envelope'] = DATA.envelopes
-    # FIXME Continue here
+    #DATA.df['envelope'] = np.split(DATA.envelopes, DATA.envelopes.shape[0])
 
     return generate_table(DATA.df)
 
@@ -418,9 +419,8 @@ def analyze_derivative(clicked):
     Computes the derivative per channel and adds it to the result 
         dataframe 
     """
-    print("div")
     compute_derivatives(DATA)
-    DATA.df['derivative'] = DATA.derivatives
+    #DATA.df['derivative'] = np.split(DATA.derivatives, DATA.derivatives.shape[0])
 
     return generate_table(DATA.df)
 
@@ -435,9 +435,8 @@ def analyze_mv_average(clicked):
     Computes the moving average per channel and adds it to the result 
         dataframe 
     """
-    print("mv avg")
     compute_mv_avg(DATA)
-    DATA.df['mv_average'] = DATA.mv_means
+    #DATA.df['mv_average'] = np.split(DATA.mv_means, DATA.mv_means.shape[0])
 
     return generate_table(DATA.df)
 
@@ -452,9 +451,8 @@ def analyze_mv_mad(clicked):
     Computes the moving mean absolute deviation per channel and adds it to the result 
         dataframe 
     """
-    print("mv_mad")
     compute_mv_mads(DATA)
-    DATA.df['mv_mad'] = DATA.mv_mads
+    #DATA.df['mv_mad'] = np.split(DATA.mv_mads, DATA.mv_mads.shape[0])
 
     return generate_table(DATA.df)
 
@@ -469,9 +467,8 @@ def analyze_mv_var(clicked):
     Computes the moving variance per channel and adds it to the result 
         dataframe 
     """
-    print("mv var")
     compute_mv_vars(DATA)
-    DATA.df['mv_var'] = DATA.mv_vars
+    #DATA.df['mv_var'] = np.split(DATA.mv_vars, DATA.mv_vars.shape[0])
 
     return generate_table(DATA.df)
 
@@ -486,10 +483,11 @@ def analyze_psds(clicked):
 
     Computes the power spectral densities for all selected rows and stores the result.
     """
-    print("psd")
     compute_psds(DATA)
-    DATA.df['psd'] = DATA.psds[1]
-    DATA.df['psd_freq'] = DATA.psds[1]
+
+    #DATA.df["psd_freq"].apply(lambda x: DATA.psds[0])
+    #DATA.df['psd_power'] = np.split(DATA.psds[1], DATA.psds[1].shape[0])
+    #DATA.df['psd_phase'] = np.split(DATA.psds[2], DATA.psds[2].shape[0])
 
     return generate_table(DATA.df)
 
@@ -505,7 +503,6 @@ def analyze_periodic_aperiodic(clicked):
                    from the aperiodic components. Stores the parameter of the
                    aperiodic component to the result dataframe
     """
-    print("fooof")
     compute_periodic_aperiodic_decomp(DATA)
     DATA.df['aperiodic_offset'] = DATA.fooof_group.get_params('aperiodic_params', 'offset')
     DATA.df['aperiodic_exponent'] = DATA.fooof_group.get_params('aperiodic_params', 'exponent')
@@ -523,9 +520,8 @@ def analyze_detrend_psds(clicked):
     Computes the power spectral densities for all selected rows and plots the \
        #            results.
     """
-    print("detrend")
     detrend_fooof(DATA)
-    DATA.df['detrended_psd'] = DATA.detrended_psds
+    DATA.df['detrended_psd'] = np.split(DATA.detrended_psds, DATA.detrended_psds.shape[0])
 
     return generate_table(DATA.df)
 
@@ -539,7 +535,6 @@ def analyze_spectrograms(clicked):
 
     Computes the spectrogram for all selected rows and plots the results.
     """
-    print("spects")
     compute_spectrograms(DATA)
     DATA.df[:, 'spectrogram_freqs'] = DATA.spectrograms[0]
     DATA.df[:, 'spectrogram_time'] = DATA.spectrograms[1]
@@ -561,7 +556,6 @@ def analyze_peaks_ampl(clicked, thresh_factor):
        #            depending on the standard deviation of a baseline signal or half \
        #            the signal std.
     """
-    print("peaks")
     if clicked is not None and clicked > 0:
         if loc_thresh_factor is not None and glob_thresh_factor is not None:
             detect_peaks_amplitude(DATA, True, STD_BASE, float(loc_thresh_factor), float(glob_thresh_factor))
@@ -590,7 +584,6 @@ def analyze_events_moving_dev(clicked, method, thresh_factor, export, fname):
     Detects events/bursts by computing the moving average with a large window \
        #            and a threshold.
     """
-    print("events")
     export = len(export) > 0
     res = None
     if clicked is not None and clicked > 0:
@@ -615,7 +608,6 @@ def analyze_cross_correlation(clicked):
     Computes the cross correlation between all selected channels and adds it to the results.
     """
     compute_xcorrs(DATA)
-    print(df.columns)
     DATA.df.loc[:, 'cross-correlation_lags'] = DATA.xcorrs[0]
     DATA.df['cross-correlation'] = DATA.xcorrs[1]
 
@@ -716,7 +708,73 @@ def analyze_current_source_densities(clicked):
 
     return generate_table(DATA.df)
 
+
 ######## Visualize
+@app.callback(Output("analyze-output-dummy", "children", allow_duplicate=True),
+              Input("analyze-plot-ts", "n_clicks"),
+              State("analyze-plot-ts-input", "value")
+              prevent_initial_call=True)
+def analyze_plot_time_series(_: int, to_plot: list[int]) -> None:
+    """
+    Used on select screen.
+
+    Plots the raw signals of the selected electrodes in the given time window.
+
+        @param t_start: the start of the selected time windw in s:ms:mus
+        @param t_end: the end of the selected time window in s:ms:mus
+
+        @return A dummy as dash callbacks require an output. The plotting is
+                done in a separate process by matplotlib (as Dash plots are
+                only suitable for small amounts of data)
+    """
+    signals = False
+    envelope = False
+    derivative = False
+    mv_average = False
+    mv_mad = False
+    mv_var = False
+    peaks = False
+    bursts = False
+    seizure = False
+
+    if TimeSeriesPlottable.SIG.value in to_plot:
+        signals = True
+    if TimeSeriesPlottable.ENV.value in to_plot:
+        if DATA.envelopes is None:
+            compute_envelopes(DATA)
+        envelope = True
+    if TimeSeriesPlottable.DERV.value in to_plot:
+        if DATA.derivatives is None:
+            compute_derivatives(DATA)
+        derivative = True
+    if TimeSeriesPlottable.MV_AVG.value in to_plot:
+        if DATA.mv_means is None:
+            compute_mv_avgs(DATA)
+        mv_average = True
+    if TimeSeriesPlottable.MV_MAD.value in to_plot:
+        if DATA.mv_mads is None:
+            compute_mv_mads(DATA)
+        mv_mad = True
+    if TimeSeriesPlottable.MV_VAR.value in to_plot:
+        if DATA.mv_vars is None:
+            compute_mv_vars(DATA)
+        mv_var = True
+    if TimeSeriesPlottable.PEAKS.value in to_plot:
+        if DATA.peaks is None:
+            detect_peaks(DATA)
+        peaks = True
+    if TimeSeriesPlottable.BRUSTS.value in to_plot:
+        if DATA.bursts is None:
+            detect_bursts(DATA)
+        bursts = True
+    if TimeSeriesPlottable.SEIZURE.value in to_plot:
+        if DATA.seizure is None:
+            detect_seizure(DATA)
+        seizure = True
+
+
+    plot_time_series_grid(DATA, signals, envelope, derivative, mv_average, mv_mad, mv_var, peaks, bursts, seizure)
+    return None
 
 
 

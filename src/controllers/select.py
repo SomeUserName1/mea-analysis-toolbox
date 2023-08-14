@@ -125,7 +125,7 @@ def str_to_mus(smsmus: str) -> int:
 
     @return added seconds, milliseconds and microseconds all in micro seconds
     """
-    if len(t_start.split(":")) != 3:
+    if len(smsmus.split(":")) != 3:
         raise RuntimeError(("The start point of the selected time window"
                             "needs to be in the format s:ms:mus"))
     s, ms, mus = smsmus.split(":")

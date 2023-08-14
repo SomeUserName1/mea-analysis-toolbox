@@ -18,7 +18,7 @@ def compute_rms(data: Data) -> np.ndarray:
 
 
 # @nb.njit(parallel=True)
-def compute_derivative(data: Data):
+def compute_derivatives(data: Data):
     data.derivatives = np.diff(data.data) * data.sampling_rate # x / 1 /sampling period == x * sampling_period
 
 
@@ -33,7 +33,7 @@ def moving_avg(sig: np.ndarray, w: int, fs: int) -> np.ndarray:
     if w % 2 == 0:
         w = w + 1
 
-    pad = (w - 1) / 2
+    pad = int((w - 1) / 2)
     abs_pad = np.pad(np.absolute(sig), (pad, pad), "edge")
     ret = np.cumsum(abs_pad, dtype=float, axis=-1)
     ret[:, w:] = ret[:, w:] - ret[:, :-w]
@@ -51,7 +51,7 @@ def compute_mv_vars(data: Data, w: int=None):
 # @nb.njit(parallel=True)
 def compute_mv_mads(data: Data, w: int=None):
     sigs = data.data
-    abs_devs = np.absolute((sigs.T - np.mean(sigs, axis=-1)).T)
+    abs_dev = np.absolute((sigs.T - np.mean(sigs, axis=-1)).T)
     data.mv_mads = moving_avg(abs_dev, w=w, fs=data.sampling_rate)
 
 

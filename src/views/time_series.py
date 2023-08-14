@@ -9,7 +9,7 @@ from model.data import Data
 from views.grid_plot_iterator import MEAGridPlotIterator
 
 
-def do_plot(data):
+def do_plot(data: Data, signals, envelope, derivative, mv_average, mv_mad, mv_var, peaks, bursts, seizure):
     sel_names = data.get_sel_names()
     if len(sel_names) == 0:
         sel_names = data.electrode_names
@@ -22,10 +22,34 @@ def do_plot(data):
     win.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
     win.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
     # pg.setConfigOptions(antialias=True)
-    for i, (row, col) in enumerate(MEAGridPlotIterator(data)):
-        p = win.addPlot(x=ts, y=data.data[i], row=row, col=col) # title=sel_names[i], 
-        if i == 0:
-            p.setLabel('left', units='V')
+    it = MEAGridPlotIterator(data)
+    for i, (row, col) in enumerate(it):
+        title_str = f'<font size="3">{sel_names[i]}</font>'
+        p = win.addPlot(row=row, col=col, title=title_str)
+        
+        if signals:
+            p.plot(x=ts, y=data.data[i])
+        if envelope:
+            p.plot(x=ts, y=data.envelopes[i])
+        if derivative:
+            p.plot(x=ts, y=data.derivatives[i])
+        if mv_average:
+            p.plot(x=ts, y=data.mv_means[i])
+        if mv_mad:
+            p.plot(x=ts, y=data.mv_mads[i])
+        if mv_var:
+            p.plot(x=ts, y=data.mv_var)
+        if peaks:
+            p.scatter(x=data.peaks[i][0], y=)# access peaks dict
+        if bursts:
+            # TODO
+        if seizure:
+            # TODO
+        # FIXME continue here
+
+        p.setLabel('left', units='V')
+        p.setLabel('bottom', unit='s')
+
 
     pg.exec()
 

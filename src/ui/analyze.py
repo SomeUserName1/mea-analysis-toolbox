@@ -1,8 +1,11 @@
 """
 Dash-based HTML code for the analyze ui to be displayed in the browser via the Dash server.
 """
+from enum import Enum
+
 from dash import html
 import dash_bootstrap_components as dbc
+import numpy as np
 
 # , style={"padding": "50px"}
 # width="auto"
@@ -10,11 +13,39 @@ import dash_bootstrap_components as dbc
 # fluid=True
 # , align="center", justify="center", style={"padding": "25px"}
 
+class TimeSeriesPlottables(Enum):
+    SIG = 0,
+    ENV = 1,
+    DERV = 2,
+    MV_AVG = 3,
+    MV_MAD = 4,
+    MV_VAR = 5,
+    PEAKS = 6,
+    BURSTS = 7,
+    SEIZURE = 8
+
 
 result_table = dbc.Col([], id="result-table", width='auto')
 
-def generate_table(df):
-    return dbc.Table.from_dataframe(df, striped=True, bordered=True, hover=True, index=True)
+#def generate_table(df):
+#    return dbc.Table.from_dataframe(df, striped=True, bordered=True, hover=True, index=True)
+
+
+def generate_table(dataframe):
+    return html.Table([
+        html.Thead(
+            html.Tr([html.Th(col) for col in dataframe.columns])
+        ),
+        html.Tbody([
+            html.Tr(
+                [html.Td(f"{dataframe.iloc[i][col]:.8f}") 
+                        if type(dataframe.iloc[i][col]) is not np.ndarray 
+                        else html.Td(f"shape: {dataframe.iloc[i][col].shape}")
+                        for col in dataframe.columns
+            ]) for i in range(len(dataframe))
+        ])
+    ], className='table table-bordered table-hover table-responsive')
+
 
 
 filters = dbc.AccordionItem([
@@ -22,7 +53,7 @@ filters = dbc.AccordionItem([
     dbc.Row([
         dbc.Col([dbc.Input(placeholder="New sampling rate", id="analyze-dwnsmpl-rate")]),
         dbc.Col([dbc.Button("Downsample", id="analyze-dwnsmpl-apply")]),
-        dbc.Row([], id="preproc-dwnsmpl-result"),
+        dbc.Row([], id="analyze-dwnsmpl-result"),
     ], style={"padding": "25px"}, class_name="border rounded-3"),
     # Line Noise
     dbc.Row([
@@ -124,7 +155,26 @@ visualize = dbc.AccordionItem([
     # single values on grid
     # single values on grid over time
     # time series
-    dbc.Row([dbc.Button("Plot Signals", id="analyze-plot-sig")], style={"padding": "5px"}),
+    dbc.Row([
+        dbc.Row([
+            dbc.Label("Choose a bunch"),
+            dbc.Checklist(
+                options=[
+                    {"label": "Signals", "value": TimeSeriesPlottable.SIG.value},
+                    {"label": "Envelope", "value": TimeSeriesPlottable.ENV.value},
+                    {"label": "Derivative", "value": TimeSeriesPlottable.DERV.value},
+                    {"label": "Moving Average", "value": TimeSeriesPlottable.MV_AVG.value},
+                    {"label": "Moving Mean Absolute Deviation", "value": TimeSeriesPlottable.MV_MAD.value},
+                    {"label": "Moving Variance", "value": TimeSeriesPlottable.MV_VAR.value},
+                    {"label": "Peaks", "value": TimeSeriesPlottable.PEAKS.value},
+                    {"label": "Bursts", "value": TimeSeriesPlottable.BURSTS.value},
+                    {"label": "Seizure", "value": TimeSeriesPlottable.SEIZURE.value},
+                ],
+                value=[TimeSeriesPlottable.SIG.valuTimeSeriesPlottable.SIG.value],
+                id="analyze-plot-ts-input",),
+            ])
+        dbc.Row([dbc.Button("Plot Signals", id="analyze-plot-ts")], style={"padding": "5px"}),
+    ])
     # time series with peak scatter
     # time series with bursts overlay
     # time series with seizure overlay
@@ -134,6 +184,7 @@ visualize = dbc.AccordionItem([
     # Network relation (w. networkx
     # Coherence
     # Current Source Densities
+    html.Div(id='analyze-output-dummy', style={'display': 'none'})
 ], title="Visualize")
 
 export = dbc.AccordionItem([

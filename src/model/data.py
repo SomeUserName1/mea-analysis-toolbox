@@ -41,7 +41,7 @@ class Data:
         self.duration_mus = data.shape[1] / sampling_rate * 1000000
         self.sampling_rate = sampling_rate
         self.unit = unit
-        self. data = data
+        self.data = data
         self.start_idx = start_idx
         self.stop_idx = stop_idx
         self.electrode_names = names
@@ -71,7 +71,6 @@ class Data:
         self.csds = None # neo.AnalogSignal with estimated CSD
         self.events = None # TODO check and adapt
         self.df = pd.DataFrame() 
-        print(self.df)
 # self.psis = None # finnpy
 # self.pacs = None # tensorpac
 # synchrony
