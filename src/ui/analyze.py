@@ -13,15 +13,15 @@ import numpy as np
 # fluid=True
 # , align="center", justify="center", style={"padding": "25px"}
 
-class TimeSeriesPlottables(Enum):
-    SIG = 0,
-    ENV = 1,
-    DERV = 2,
-    MV_AVG = 3,
-    MV_MAD = 4,
-    MV_VAR = 5,
-    PEAKS = 6,
-    BURSTS = 7,
+class TimeSeriesPlottable(Enum):
+    SIG = 0
+    ENV = 1
+    DERV = 2
+    MV_AVG = 3
+    MV_MAD = 4
+    MV_VAR = 5
+    PEAKS = 6
+    BURSTS = 7
     SEIZURE = 8
 
 
@@ -170,11 +170,11 @@ visualize = dbc.AccordionItem([
                     {"label": "Bursts", "value": TimeSeriesPlottable.BURSTS.value},
                     {"label": "Seizure", "value": TimeSeriesPlottable.SEIZURE.value},
                 ],
-                value=[TimeSeriesPlottable.SIG.valuTimeSeriesPlottable.SIG.value],
+                value=[TimeSeriesPlottable.SIG.value],
                 id="analyze-plot-ts-input",),
-            ])
+            ]),
         dbc.Row([dbc.Button("Plot Signals", id="analyze-plot-ts")], style={"padding": "5px"}),
-    ])
+    ]),
     # time series with peak scatter
     # time series with bursts overlay
     # time series with seizure overlay

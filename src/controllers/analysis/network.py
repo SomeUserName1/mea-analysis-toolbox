@@ -131,7 +131,7 @@ def compute_current_source_density(data: Data):
     coords = [[(int(s)-1) * 200 * pq.um for s in name.split() if s.isdigit()] \
                       for name in data.names()]
 
-    signal = neo.AnalogSignal(data.data, units='uV',
+    signal = neo.AnalogSignal(data.data, units='V',
                               sampling_rate=data.sampling_rate*pq.Hz)
 
     data.csd = ep.current_source_density.estimate_csd(signal,

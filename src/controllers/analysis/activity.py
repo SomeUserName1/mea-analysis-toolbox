@@ -18,20 +18,20 @@ from model.data import Data
 #
 # Maybe parallelize using ProcessPoolExec.
 # @nb.jit(parallel=True)
-def detect_peaks(data: Data):
+def detect_peaks(data: Data, threshold_factor=5):
     signals = data.data
-    mads = np.mean(np.absolute((signals.T - np.means(signals, axis=-1)).T), axis=-1)
+    mads = np.mean(np.absolute((signals.T - np.mean(signals, axis=-1)).T), axis=-1)
     signals = np.absolute(signals)
     data.peaks = []
 
     for i in range(data.data.shape[0]):
-        data.peaks.append(sg.find_peaks(signals[i], threshold=3*mads[i]))
+        data.peaks.append(sg.find_peaks(signals[i], height=threshold_factor*mads[i]))
 
 
 # @nb.njit(parallel=True)
 def compute_inter_peak_intervals(data: Data):
     if data.peaks is None:
-        compute_peaks(datas)
+        compute_peaks(data)
 
     data.ipis = []
     for peaks, _ in data.peaks:

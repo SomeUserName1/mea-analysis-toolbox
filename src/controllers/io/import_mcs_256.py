@@ -14,7 +14,6 @@ import McsPy.McsData as Mcs256
 import numpy as np
 import scipy.signal as sg
 from tabulate import tabulate
-from pint import UnitRegistry
 
 from model.data import Data
 
@@ -42,8 +41,7 @@ def mcs_256_import(path: str, que: Queue) -> None:
         stream = file_contents.recordings[0].analog_streams[0]
         num_channels = stream.channel_data.shape[0]
         sampling_rate = stream.channel_infos[2].sampling_frequency.magnitude
-        unit = None
-        data = np.array(stream.channel_data, dtype=np.float64)
+        data = np.array(stream.channel_data, dtype=np.double)
 
         channel_row_map = {}
         row_order = None
@@ -55,8 +53,6 @@ def mcs_256_import(path: str, que: Queue) -> None:
         # correct signal values, see MCS implementation:
         # https://mcspydatatools.readthedocs.io/en/latest/api.html#Mcs256.AnalogStream.get_channel_in_range
         for i in [c.channel_id for c in stream.channel_infos.values()]:
-            if unit is None:
-                unit = stream.channel_infos[i].adc_step.units
             adc_step = stream.channel_infos[i].adc_step.magnitude
             ad_zero = stream.channel_infos[i].get_field('ADZero')
             data[channel_row_map[i]] = ((data[channel_row_map[i]] - ad_zero)
@@ -77,7 +73,7 @@ def mcs_256_import(path: str, que: Queue) -> None:
         names = np.array([x for x in names if x not in ground_el_names])
 
         info = mcs_info(path, file_contents)
-        data = Data(fname, date, n_mea_electrodes, sampling_rate, unit, data, 0, data.shape[1] - 1,
+        data = Data(fname, date, n_mea_electrodes, sampling_rate, data, 0, data.shape[1] - 1,
                 names, ground_els, ground_el_names)
         del file_contents
 

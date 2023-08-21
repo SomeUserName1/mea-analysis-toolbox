@@ -22,7 +22,7 @@ def compute_derivatives(data: Data):
     data.derivatives = np.diff(data.data) * data.sampling_rate # x / 1 /sampling period == x * sampling_period
 
 
-def compute_mv_avg(data: Data, w: int=None):
+def compute_mv_avgs(data: Data, w: int=None):
     data.mv_means = moving_avg(data.data, w, fs=data.sampling_rate)
 
 
@@ -37,7 +37,7 @@ def moving_avg(sig: np.ndarray, w: int, fs: int) -> np.ndarray:
     abs_pad = np.pad(np.absolute(sig), (pad, pad), "edge")
     ret = np.cumsum(abs_pad, dtype=float, axis=-1)
     ret[:, w:] = ret[:, w:] - ret[:, :-w]
-
+    print(ret.shape)
     return ret[w - 1:] / w
 
 

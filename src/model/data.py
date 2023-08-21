@@ -1,13 +1,11 @@
 import numpy as np
 import pandas as pd
-import pint
 
 class Data:
     recording_date: str
     n_mea_electrodes: int
     duration_mus: int
     sampling_rate: int
-    unit: pint.Unit
     data: np.ndarray
     start_idx: int
     stop_idx: int
@@ -18,7 +16,6 @@ class Data:
                  date: str,
                  n_electrodes: int,
                  sampling_rate: int,
-                 unit: pint.Unit,
                  data: np.ndarray,
                  start_idx: int,
                  stop_idx: int,
@@ -31,7 +28,6 @@ class Data:
 
         @param date: the date when this recording was carried out.
         @param sampling rate: Sampling rate with which data was recorded.
-        @param unit: unit of the data
         @param data: the matrix holding the actual data.
             (num_channels, duration * sampling rate)
         """
@@ -40,7 +36,6 @@ class Data:
         self.n_mea_electrodes = n_electrodes
         self.duration_mus = data.shape[1] / sampling_rate * 1000000
         self.sampling_rate = sampling_rate
-        self.unit = unit
         self.data = data
         self.start_idx = start_idx
         self.stop_idx = stop_idx

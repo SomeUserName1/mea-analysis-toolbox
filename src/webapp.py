@@ -22,9 +22,10 @@ from controllers.select import (apply_selection, convert_to_jpeg, update_electro
                                 max_duration, str_to_mus, update_time_window)
 from controllers.analysis.filter import frequency_filter, downsample, filter_el_humming
 from controllers.analysis.analyze import (compute_snrs, compute_rms,
-                                          compute_derivatives, compute_mv_avg,
+                                          compute_derivatives, compute_mv_avgs,
                                           compute_mv_vars, compute_mv_mads,
                                           compute_envelopes, compute_entropies)
+from controllers.analysis.activity import detect_peaks
 from controllers.analysis.spectral import (compute_psds, 
                                            compute_periodic_aperiodic_decomp,
                                            detrend_fooof, compute_spectrograms)
@@ -243,7 +244,7 @@ def select_plot_raw(_: int, t_start: str, t_end: str) -> None:
     """
     # converts the start and end time from s:ms:mus to mus
     update_time_window(DATA, t_start, t_end) 
-    plot_time_series_grid(DATA, [0])
+    plot_time_series_grid(DATA, selected=False)
     return None
 
 
@@ -712,7 +713,7 @@ def analyze_current_source_densities(clicked):
 ######## Visualize
 @app.callback(Output("analyze-output-dummy", "children", allow_duplicate=True),
               Input("analyze-plot-ts", "n_clicks"),
-              State("analyze-plot-ts-input", "value")
+              State("analyze-plot-ts-input", "value"),
               prevent_initial_call=True)
 def analyze_plot_time_series(_: int, to_plot: list[int]) -> None:
     """
@@ -736,6 +737,7 @@ def analyze_plot_time_series(_: int, to_plot: list[int]) -> None:
     peaks = False
     bursts = False
     seizure = False
+    selected = True
 
     if TimeSeriesPlottable.SIG.value in to_plot:
         signals = True
@@ -763,7 +765,7 @@ def analyze_plot_time_series(_: int, to_plot: list[int]) -> None:
         if DATA.peaks is None:
             detect_peaks(DATA)
         peaks = True
-    if TimeSeriesPlottable.BRUSTS.value in to_plot:
+    if TimeSeriesPlottable.BURSTS.value in to_plot:
         if DATA.bursts is None:
             detect_bursts(DATA)
         bursts = True
@@ -772,8 +774,7 @@ def analyze_plot_time_series(_: int, to_plot: list[int]) -> None:
             detect_seizure(DATA)
         seizure = True
 
-
-    plot_time_series_grid(DATA, signals, envelope, derivative, mv_average, mv_mad, mv_var, peaks, bursts, seizure)
+    plot_time_series_grid(DATA, selected, signals, envelope, derivative, mv_average, mv_mad, mv_var, peaks, bursts, seizure)
     return None
 
 
