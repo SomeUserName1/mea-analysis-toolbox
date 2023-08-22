@@ -1,8 +1,39 @@
 import numba as nb
 import numpy as np
+import pandas as pd
 import scipy.signal as sg
 
 from model.data import Data
+
+
+# Maybe parallelize using ProcessPoolExec.
+# @nb.jit(parallel=True)
+def detect_peaks(data: Data, threshold_factor=3):
+    signals = data.data
+    mads = np.mean(np.absolute((signals.T - np.mean(signals, axis=-1)).T), axis=-1)
+    signals = np.absolute(signals)
+    n_peaks = np.zeros(data.data.shape[1])
+    peak_freq = np.zeros(data.data.shape[1])
+    names = data.get_sel_names()
+    data.peaks_df = pd.DataFrame([], columns=["Channel", "PeakIndex", "PeakTime", "Amplitude", "InterPeakInterval"])
+
+    for i in range(data.data.shape[0]):
+        peaks, _ = sg.find_peaks(signals[i], height=threshold_factor*mads[i])
+        n_peaks[i] = len(peaks)
+        peaks_freq[i] = n_peaks[i] / data.duration_mus / 1000000
+
+        peak_ampls = data.data[i][peaks]
+        channel = np.repeat(names[i], len(peaks))
+        peak_times = peaks / data.sampling_rate
+        ipi = np.diff(peaks) / data.sampling_rate
+        ipi = np.insert(ipi, 0, np.nan, axis=-1)
+
+        channel_peaks = pd.DataFrame([[channel, peaks, peak_times, peak_ampls, ipi]], 
+                columns=["Channel", "PeakIndex", "PeakTime", "Amplitude", "InterPeakInterval"])
+        pd.concat([data.peaks_df, channel_peaks])
+
+    data.channels_df['n_peaks'] = n_peaks
+    data.channels_df['peak_freq'] = peaks_freq
 
 # GENERAL
 # baseline how?
@@ -12,52 +43,6 @@ from model.data import Data
 #
 # RN used is the signal + 3 *the MAD of the signal. Alternative: use roling mad instead of signal
 #
-# ---find_peaks---
-# seems to detect some peaks multiple times (check with higher resolution viz)
-# prominences are not always correct?
-#
-# Maybe parallelize using ProcessPoolExec.
-# @nb.jit(parallel=True)
-def detect_peaks(data: Data, threshold_factor=3):
-    signals = data.data
-    mads = np.mean(np.absolute((signals.T - np.mean(signals, axis=-1)).T), axis=-1)
-    signals = np.absolute(signals)
-    data.peaks = []
-    data.peak_slopes = []
-    data.peak_heights = []
-    data.peak_widths = []
-    data.n_peaks = np.zeros(data.data.shape[1])
-    data.peak_freq = np.zeros(data.data.shape[1])
-
-    for i in range(data.data.shape[0]):
-        peaks, _ = sg.find_peaks(signals[i], height=threshold_factor*mads[i])
-        data.n_peaks[i] = len(peaks)
-        data.peak_freq[i] = data.n_peaks[i] / data.duration_mus / 1000000
-        prominences, left_bases, right_bases = sg.peak_prominences(data.data[i], peaks)
-        data.peak_slopes[i] = 
-        data.peak_widths[i] =
-        data.peak_to_peak_ampls[i] = 
-        data.peaks.append(peaks)
-
-
-def evaluate_peaks(data: Data):
-
-
-    for i in range(data.data.shape[1]):
-
-
-
-# @nb.njit(parallel=True)
-def compute_inter_peak_intervals(data: Data):
-    if data.peaks is None:
-        compute_peaks(data)
-
-    data.ipis = []
-    for peaks, _ in data.peaks:
-        ipi = np.diff(peaks)
-        data.ipis.append(ipi)
-
-
 def detect_events_moving_dev(data, method, base_std=None, std_factor=1, window=None, export=False, fname=None):
     signal = data.data
     aggs = []

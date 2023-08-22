@@ -346,7 +346,7 @@ def analyze_humming(_) -> html.Div:
 
 
 ######### Basics
-@app.callback(Output("result-table", "children", allow_duplicate=True),
+@app.callback(Output("channels-table", "children", allow_duplicate=True),
               Input("analyze-snr", "n_clicks"),
               prevent_initial_call=True)
 def analyze_snr(clicked):
@@ -357,12 +357,11 @@ def analyze_snr(clicked):
         dataframe 
     """
     compute_snrs(DATA)
-    DATA.df['snr'] = DATA.snrs
 
-    return generate_table(DATA.df)
+    return generate_table(DATA.channels_df)
 
 
-@app.callback(Output("result-table", "children", allow_duplicate=True),
+@app.callback(Output("channels-table", "children", allow_duplicate=True),
               Input("analyze-rms", "n_clicks"),
               prevent_initial_call=True)
 def analyze_rms(clicked):
@@ -373,12 +372,11 @@ def analyze_rms(clicked):
         dataframe 
     """
     compute_rms(DATA)
-    DATA.df['rms'] = DATA.rms
 
-    return generate_table(DATA.df)
+    return generate_table(DATA.channels_df)
 
 
-@app.callback(Output("result-table", "children", allow_duplicate=True),
+@app.callback(Output("channels-table", "children", allow_duplicate=True),
               Input("analyze-ent", "n_clicks"),
               prevent_initial_call=True)
 def analyze_entropy(clicked):
@@ -389,93 +387,93 @@ def analyze_entropy(clicked):
         dataframe 
     """
     compute_entropies(DATA)
-    DATA.df['apprx_entropy'] = DATA.entropies
 
-    return generate_table(DATA.df)
-
-
-@app.callback(Output("result-table", "children", allow_duplicate=True),
-              Input("analyze-env", "n_clicks"),
-              prevent_initial_call=True)
-def analyze_envelope(clicked):
-    """
-    used by analyze screen.
-
-    Computes the envelope per channel and adds it to the result 
-        dataframe 
-    """
-    compute_envelopes(DATA)
-    #DATA.df['envelope'] = np.split(DATA.envelopes, DATA.envelopes.shape[0])
-
-    return generate_table(DATA.df)
+    return generate_table(DATA.channels_df)
 
 
-@app.callback(Output("result-table", "children", allow_duplicate=True),
-              Input("analyze-derv", "n_clicks"),
-              prevent_initial_call=True)
-def analyze_derivative(clicked):
-    """
-    used by analyze screen.
-
-    Computes the derivative per channel and adds it to the result 
-        dataframe 
-    """
-    compute_derivatives(DATA)
-    #DATA.df['derivative'] = np.split(DATA.derivatives, DATA.derivatives.shape[0])
-
-    return generate_table(DATA.df)
-
-
-@app.callback(Output("result-table", "children", allow_duplicate=True),
-              Input("analyze-mean", "n_clicks"),
-              prevent_initial_call=True)
-def analyze_mv_average(clicked):
-    """
-    used by analyze screen.
-
-    Computes the moving average per channel and adds it to the result 
-        dataframe 
-    """
-    compute_mv_avg(DATA)
-    #DATA.df['mv_average'] = np.split(DATA.mv_means, DATA.mv_means.shape[0])
-
-    return generate_table(DATA.df)
-
-
-@app.callback(Output("result-table", "children", allow_duplicate=True),
-              Input("analyze-mad", "n_clicks"),
-              prevent_initial_call=True)
-def analyze_mv_mad(clicked):
-    """
-    used by analyze screen.
-
-    Computes the moving mean absolute deviation per channel and adds it to the result 
-        dataframe 
-    """
-    compute_mv_mads(DATA)
-    #DATA.df['mv_mad'] = np.split(DATA.mv_mads, DATA.mv_mads.shape[0])
-
-    return generate_table(DATA.df)
-
-
-@app.callback(Output("result-table", "children", allow_duplicate=True),
-              Input("analyze-var", "n_clicks"),
-              prevent_initial_call=True)
-def analyze_mv_var(clicked):
-    """
-    used by analyze screen.
-
-    Computes the moving variance per channel and adds it to the result 
-        dataframe 
-    """
-    compute_mv_vars(DATA)
-    #DATA.df['mv_var'] = np.split(DATA.mv_vars, DATA.mv_vars.shape[0])
-
-    return generate_table(DATA.df)
+#@app.callback(Output("channels-table", "children", allow_duplicate=True),
+#              Input("analyze-env", "n_clicks"),
+#              prevent_initial_call=True)
+#def analyze_envelope(clicked):
+#    """
+#    used by analyze screen.
+#
+#    Computes the envelope per channel and adds it to the result 
+#        dataframe 
+#    """
+#    compute_envelopes(DATA)
+#    #DATA.df['envelope'] = np.split(DATA.envelopes, DATA.envelopes.shape[0])
+#
+#    return generate_table(DATA.df)
+#
+#
+#@app.callback(Output("channels-table", "children", allow_duplicate=True),
+#              Input("analyze-derv", "n_clicks"),
+#              prevent_initial_call=True)
+#def analyze_derivative(clicked):
+#    """
+#    used by analyze screen.
+#
+#    Computes the derivative per channel and adds it to the result 
+#        dataframe 
+#    """
+#    compute_derivatives(DATA)
+#    #DATA.df['derivative'] = np.split(DATA.derivatives, DATA.derivatives.shape[0])
+#
+#    return generate_table(DATA.df)
+#
+#
+#@app.callback(Output("channels-table", "children", allow_duplicate=True),
+#              Input("analyze-mean", "n_clicks"),
+#              prevent_initial_call=True)
+#def analyze_mv_average(clicked):
+#    """
+#    used by analyze screen.
+#
+#    Computes the moving average per channel and adds it to the result 
+#        dataframe 
+#    """
+#    compute_mv_avg(DATA)
+#    #DATA.df['mv_average'] = np.split(DATA.mv_means, DATA.mv_means.shape[0])
+#
+#    return generate_table(DATA.df)
+#
+#
+#@app.callback(Output("channels-table", "children", allow_duplicate=True),
+#              Input("analyze-mad", "n_clicks"),
+#              prevent_initial_call=True)
+#def analyze_mv_mad(clicked):
+#    """
+#    used by analyze screen.
+#
+#    Computes the moving mean absolute deviation per channel and adds it to the result 
+#        dataframe 
+#    """
+#    compute_mv_mads(DATA)
+#    #DATA.df['mv_mad'] = np.split(DATA.mv_mads, DATA.mv_mads.shape[0])
+#
+#    return generate_table(DATA.df)
+#
+#
+#@app.callback(Output("channels-table", "children", allow_duplicate=True),
+#              Input("analyze-var", "n_clicks"),
+#              prevent_initial_call=True)
+#def analyze_mv_var(clicked):
+#    """
+#    used by analyze screen.
+#
+#    Computes the moving variance per channel and adds it to the result 
+#        dataframe 
+#    """
+#    compute_mv_vars(DATA)
+#    #DATA.df['mv_var'] = np.split(DATA.mv_vars, DATA.mv_vars.shape[0])
+#
+#    return generate_table(DATA.df)
 
 
 ########### Spectral
-@app.callback(Output("result-table", "children", allow_duplicate=True),
+# TODO use dummy, only for plotting/subsequent analysis
+@app.callback(Output("channels-table", "children", allow_duplicate=True),
               Input("analyze-psd", "n_clicks"),
               prevent_initial_call=True)
 def analyze_psds(clicked):
@@ -490,10 +488,46 @@ def analyze_psds(clicked):
     #DATA.df['psd_power'] = np.split(DATA.psds[1], DATA.psds[1].shape[0])
     #DATA.df['psd_phase'] = np.split(DATA.psds[2], DATA.psds[2].shape[0])
 
-    return generate_table(DATA.df)
+    return generate_table(DATA.channels_df)
 
 
-@app.callback(Output("result-table", "children", allow_duplicate=True),
+# TODO maybe store
+@app.callback(Output("channels-table", "children", allow_duplicate=True),
+              Input("analyze-dpsd", "n_clicks"),
+              prevent_initial_call=True)
+def analyze_detrend_psds(clicked):
+    """
+    used by analyze screen.
+
+    Computes the power spectral densities for all selected rows and plots the \
+       #            results.
+    """
+    detrend_fooof(DATA)
+    DATA.df['detrended_psd'] = np.split(DATA.detrended_psds, DATA.detrended_psds.shape[0])
+
+    return generate_table(DATA.channels_df)
+
+
+# Both plotting and qunatities
+@app.callback(Output("channels-table", "children", allow_duplicate=True),
+              Input("analyze-spec", "n_clicks"),
+              prevent_initial_call=True)
+def analyze_spectrograms(clicked):
+    """
+    used by analyze screen.
+
+    Computes the spectrogram for all selected rows and plots the results.
+    """
+    compute_spectrograms(DATA)
+    DATA.df[:, 'spectrogram_freqs'] = DATA.spectrograms[0]
+    DATA.df[:, 'spectrogram_time'] = DATA.spectrograms[1]
+    DATA.df['spectrogram'] = DATA.spectrograms[2]
+
+    return generate_table(DATA.channels_df)
+
+
+# Quantities
+@app.callback(Output("channels-table", "children", allow_duplicate=True),
               Input("analyze-aperiodic-periodic", "n_clicks"),
               prevent_initial_call=True)
 def analyze_periodic_aperiodic(clicked):
@@ -508,48 +542,17 @@ def analyze_periodic_aperiodic(clicked):
     DATA.df['aperiodic_offset'] = DATA.fooof_group.get_params('aperiodic_params', 'offset')
     DATA.df['aperiodic_exponent'] = DATA.fooof_group.get_params('aperiodic_params', 'exponent')
 
-    return generate_table(DATA.df)
+    return generate_table(DATA.channels_df)
 
 
-@app.callback(Output("result-table", "children", allow_duplicate=True),
-              Input("analyze-dpsd", "n_clicks"),
-              prevent_initial_call=True)
-def analyze_detrend_psds(clicked):
-    """
-    used by analyze screen.
-
-    Computes the power spectral densities for all selected rows and plots the \
-       #            results.
-    """
-    detrend_fooof(DATA)
-    DATA.df['detrended_psd'] = np.split(DATA.detrended_psds, DATA.detrended_psds.shape[0])
-
-    return generate_table(DATA.df)
-
-
-@app.callback(Output("result-table", "children", allow_duplicate=True),
-              Input("analyze-spec", "n_clicks"),
-              prevent_initial_call=True)
-def analyze_spectrograms(clicked):
-    """
-    used by analyze screen.
-
-    Computes the spectrogram for all selected rows and plots the results.
-    """
-    compute_spectrograms(DATA)
-    DATA.df[:, 'spectrogram_freqs'] = DATA.spectrograms[0]
-    DATA.df[:, 'spectrogram_time'] = DATA.spectrograms[1]
-    DATA.df['spectrogram'] = DATA.spectrograms[2]
-
-    return generate_table(DATA.df)
 
 
 ################## TODO Activity
-@app.callback(Output("analyze-peaks-ampl", "n_clicks"),
+@app.callback(Output("peaks-table", "children"),
               Input("analyze-peaks-ampl", "n_clicks"),
               State("analyze-peaks-ampl-thresh", "value"),
               prevent_initial_call=True)
-def analyze_peaks_ampl(clicked, thresh_factor):
+def analyze_peaks(clicked, thresh_factor):
     """
     used by analyze screen.
 
@@ -557,18 +560,12 @@ def analyze_peaks_ampl(clicked, thresh_factor):
        #            depending on the standard deviation of a baseline signal or half \
        #            the signal std.
     """
-    if clicked is not None and clicked > 0:
-        if loc_thresh_factor is not None and glob_thresh_factor is not None:
-            detect_peaks_amplitude(DATA, True, STD_BASE, float(loc_thresh_factor), float(glob_thresh_factor))
-        elif loc_thresh_factor is not None:
-            detect_peaks_amplitude(DATA, True, STD_BASE, float(loc_thresh_factor))
-        elif glob_thresh_factor is not None:
-            detect_peaks_amplitude(DATA, True, STD_BASE, global_std_factor=float(glob_thresh_factor))
-        else:
-            detect_peaks_amplitude(DATA, True, STD_BASE)
+    if thresh_factor is not None:
+        detect_peaks(DATA, thesh_factor)
+    else:
+        detect_peaks(DATA)
 
-    return 0
-
+    return generate_table(DATA.peaks_df)
 
 @app.callback(Output("analyze-events-stats", "children"),
               Output("analyze-events", "n_clicks"),
@@ -599,7 +596,7 @@ def analyze_events_moving_dev(clicked, method, thresh_factor, export, fname):
 ###################
 
 ######### Network
-@app.callback(Output("result-table", "children", allow_duplicate=True),
+@app.callback(Output("network-table", "children", allow_duplicate=True),
               Input("analyze-xcorr", "n_clicks"),
               prevent_initial_call=True)
 def analyze_cross_correlation(clicked):
@@ -612,10 +609,10 @@ def analyze_cross_correlation(clicked):
     DATA.df.loc[:, 'cross-correlation_lags'] = DATA.xcorrs[0]
     DATA.df['cross-correlation'] = DATA.xcorrs[1]
 
-    return generate_table(DATA.df)
+    return generate_table(DATA.network_df)
 
 
-@app.callback(Output("result-table", "children", allow_duplicate=True),
+@app.callback(Output("network-table", "children", allow_duplicate=True),
               Input("analyze-mi", "n_clicks"),
               prevent_initial_call=True)
 def analyze_mutual_information(clicked):
@@ -627,10 +624,10 @@ def analyze_mutual_information(clicked):
     compute_mutual_info(DATA)
     DATA.df['mutual_information'] = DATA.mutual_informations
 
-    return generate_table(DATA.df)
+    return generate_table(DATA.network_df)
 
 
-@app.callback(Output("result-table", "children", allow_duplicate=True),
+@app.callback(Output("network-table", "children", allow_duplicate=True),
               Input("analyze-te", "n_clicks"),
               prevent_initial_call=True)
 def analyze_transfer_entropy(clicked):
@@ -642,10 +639,10 @@ def analyze_transfer_entropy(clicked):
     compute_transfer_entropy(DATA)
     DATA.df['transfer_entropy'] = DATA.transfer_entropy
 
-    return generate_table(DATA.df)
+    return generate_table(DATA.network_df)
 
 
-@app.callback(Output("result-table", "children", allow_duplicate=True),
+@app.callback(Output("network-table", "children", allow_duplicate=True),
               Input("analyze-coh", "n_clicks"),
               prevent_initial_call=True)
 def analyze_coherence(clicked):
@@ -660,10 +657,10 @@ def analyze_coherence(clicked):
     DATA.df['coherence_lags'] = DATA.coherence[:][2]
     DATA.df['coherence'] = DATA.coherences[:][1]
 
-    return generate_table(DATA.df)
+    return generate_table(DATA.network_df)
 
 
-@app.callback(Output("result-table", "children", allow_duplicate=True),
+@app.callback(Output("network-table", "children", allow_duplicate=True),
               Input("analyze-gc", "n_clicks"),
               prevent_initial_call=True)
 def analyze_granger_causality(clicked):
@@ -675,10 +672,10 @@ def analyze_granger_causality(clicked):
     compute_granger_causality(DATA)
     DATA.df['granger_causality'] = DATA.granger_causalities
 
-    return generate_table(DATA.df)
+    return generate_table(DATA.network_df)
 
 
-@app.callback(Output("result-table", "children", allow_duplicate=True),
+@app.callback(Output("network-table", "children", allow_duplicate=True),
               Input("analyze-sgc", "n_clicks"),
               prevent_initial_call=True)
 def analyze_spectral_granger_causality(clicked):
@@ -691,10 +688,10 @@ def analyze_spectral_granger_causality(clicked):
     DATA.df['spectral_granger_freqs'] = DATA.spectral_granger[0]
     DATA.df['spectral_granger_causality'] = DATA.spectral_granger[1]
 
-    return generate_table(DATA.df)
+    return generate_table(DATA.network_df)
 
 
-@app.callback(Output("result-table", "children", allow_duplicate=True),
+@app.callback(Output("network-table", "children", allow_duplicate=True),
               Input("analyze-csd", "n_clicks"),
               prevent_initial_call=True)
 def analyze_current_source_densities(clicked):
@@ -707,7 +704,7 @@ def analyze_current_source_densities(clicked):
     # TODO correct the addition to df
     DATA.df['current_source_density'] = DATA.csds
 
-    return generate_table(DATA.df)
+    return generate_table(DATA.network_df)
 
 
 ######## Visualize

@@ -9,12 +9,23 @@ from model.data import Data
 # @nb.njit(parallel=True)
 def compute_snrs(data: Data):
     signals = data.data
-    data.snrs = np.square(np.mean(signals, axis=-1)) / np.var(signals, axis=-1)
+    data.channels_df['SNR'] = np.square(np.mean(signals, axis=-1)) / np.var(signals, axis=-1)
 
 
 # @nb.njit(parallel=True)
 def compute_rms(data: Data) -> np.ndarray:
-    data.rms = np.sqrt(np.mean(np.square(data.data), axis=-1))
+    data.channels_df['RMS'] = np.sqrt(np.mean(np.square(data.data), axis=-1))
+
+
+# antropy uses numba
+# Parallelize for loop w. conc.fut.ProcessPoolExec maybe
+def compute_entropies(data: Data):
+    n_els = data.data.shape[0]
+    entropies = np.zeros(n_els)
+    for i in range(n_els):
+        entropies[i] = ant.app_entropy(data.data[i])
+
+    data.channels_df['Apprx_Entropy'] = entropies
 
 
 # @nb.njit(parallel=True)
@@ -37,7 +48,7 @@ def moving_avg(sig: np.ndarray, w: int, fs: int) -> np.ndarray:
     abs_pad = np.pad(np.absolute(sig), (pad, pad), "edge")
     ret = np.cumsum(abs_pad, dtype=float, axis=-1)
     ret[:, w:] = ret[:, w:] - ret[:, :-w]
-    print(ret.shape)
+
     return ret[w - 1:] / w
 
 
@@ -58,15 +69,6 @@ def compute_mv_mads(data: Data, w: int=None):
 # No njit as scipy.signal is not supported & scipy already calls C routines
 def compute_envelopes(data: Data):
     data.envelopes = np.absolute(sg.hilbert(data.data))
-
-
-# antropy uses numba
-# Parallelize for loop w. conc.fut.ProcessPoolExec maybe
-def compute_entropies(data: Data):
-    n_els = data.data.shape[0]
-    data.entropies = np.zeros(n_els)
-    for i in range(n_els):
-        data.entropies[i] = ant.app_entropy(data.data[i])
 
 
 # @nb.njit

@@ -43,20 +43,18 @@ class Data:
         self.ground_els = ground_els
         self.ground_el_names = ground_el_names
         self.selected_electrodes = []
-        self.snrs = None # ndarray (data.shape[0], 1)
-        self.rms = None # ndarray (data.shape[0], 1)
-        self.entropies = None # ndarray (data.shape[0], 1)
+        ##### Maybe used for burst detection and burst & peak characterization
         self.derivatives = None # ndarray (data.shape)
         self.mv_means = None # ndarray (data.shape)
         self.mv_vars = None # ndarray (data.shape)
         self.mv_mads = None # ndarray (data.shape)
         self.envelopes = None # ndarray (data.shape)
+        ###### Spectral --- Store output of fooof wrt. psd. May use spectrogram as fooof group
         self.psds = None # tuple[ndarray (1,#freqs), ndarray(data.shape[0], #freqs) ]
         self.detrended_psds = None # ndarray(data.shape[0], #freqs)
         self.fooof_group = None # FOOOFGroup object
         self.spectrograms = None # freqs, ts, ndarray (data.shape[0], freqs, time_res?)
-        self.peaks = None # list[ndarray (1, #peaks), dict (len=#peaks)] (len = data.shape[0])
-        self.ipis = None # list[ndarray (1, #peaks -1)]
+        ####### Not sure how to put that into df. maybe max for xcorr, for coherence peaks and so on. check papers
         self.xcorrs = None # tuple[ ndarray (1, data.shape[1]), ndarray (data.shape[0], data.shape[0], data.shape[1])]
         self.mutual_informations = None # ndarray (data.shape[0], data.shape[0])
         self.transfer_entopies = None # ndarray (data.shape[0], data.shape[0])
@@ -64,10 +62,11 @@ class Data:
         self.granger_causalities = None # list[list[dict]] (len(n_chanels), len((n_channels-1)/2), caus_x_y, caus_y_x, instant_caus, total_dep)
         self.spectral_granger = None # freqs, as above
         self.csds = None # neo.AnalogSignal with estimated CSD
-        self.channels_df = pd.DataFrame() 
-        self.peaks_df = pd.DataFrame()
+        self.channels_df = pd.DataFrame() # Cols: SNR, RMS, Apprx_Entropy, n_peaks, firing rate
+        self.peaks_df = None
         self.bursts_df = pd.DataFrame()
         self.seizures_df = pd.DataFrame()
+        self.network_df = pd.DataFrame()
 # self.psis = None # finnpy
 # self.pacs = None # tensorpac
 # synchrony

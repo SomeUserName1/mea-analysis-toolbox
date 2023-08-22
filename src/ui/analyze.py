@@ -25,7 +25,35 @@ class TimeSeriesPlottable(Enum):
     SEIZURE = 8
 
 
-result_table = dbc.Col([], id="result-table", width='auto')
+
+channels_table = dbc.Card(
+    dbc.CardBody([], id="channels-table")
+)
+
+peaks_table = dbc.Card(
+    dbc.CardBody([], id="peaks-table")
+)
+
+bursts_table = dbc.Card(
+    dbc.CardBody([], id="bursts-table")
+)
+
+seizure_table = dbc.Card(
+    dbc.CardBody([], id="seizure-table")
+)
+
+network_table = dbc.Card(
+    dbc.CardBody([], id="network-table")
+)
+
+
+result_tables = dbc.Col(dbc.Tabs([
+    dbc.Tab(channels_table, label="Channels"),
+    dbc.Tab(peaks_table, label="Peaks"),
+    dbc.Tab(bursts_table, label="Bursts"),
+    dbc.Tab(seizure_table, label="Seizure"),
+    dbc.Tab(network_table, label="Network")
+    ]), width='auto')
 
 #def generate_table(df):
 #    return dbc.Table.from_dataframe(df, striped=True, bordered=True, hover=True, index=True)
@@ -87,16 +115,16 @@ basics = dbc.AccordionItem([
     dbc.Row([dbc.Button("RMS", id="analyze-rms")], style={"padding": "5px"}),
     # Entropies
     dbc.Row([dbc.Button("Approximate Entropy", id="analyze-ent")], style={"padding": "5px"}),
-    # Envelope
-    dbc.Row([dbc.Button("Envelope", id="analyze-env")], style={"padding": "5px"}),
-    # Derivative
-    dbc.Row([dbc.Button("Derivative", id="analyze-derv")], style={"padding": "5px"}),
-    # Mv mean
-    dbc.Row([dbc.Button("Moving Average", id="analyze-mean")], style={"padding": "5px"}),
-    # mv mad
-    dbc.Row([dbc.Button("Moving Mean Absolute Deviation", id="analyze-mad")], style={"padding": "5px"}),
-    # mv var
-    dbc.Row([dbc.Button("Moving Variance", id="analyze-var")], style={"padding": "5px"}),
+#    # Envelope
+#    dbc.Row([dbc.Button("Envelope", id="analyze-env")], style={"padding": "5px"}),
+#    # Derivative
+#    dbc.Row([dbc.Button("Derivative", id="analyze-derv")], style={"padding": "5px"}),
+#    # Mv mean
+#    dbc.Row([dbc.Button("Moving Average", id="analyze-mean")], style={"padding": "5px"}),
+#    # mv mad
+#    dbc.Row([dbc.Button("Moving Mean Absolute Deviation", id="analyze-mad")], style={"padding": "5px"}),
+#    # mv var
+#    dbc.Row([dbc.Button("Moving Variance", id="analyze-var")], style={"padding": "5px"}),
 ], title="Basic Properties")
 
 spectral = dbc.AccordionItem([
@@ -210,4 +238,4 @@ compute = dbc.AccordionItem([dbc.Accordion([basics, spectral, activity, network]
 
 side_bar = dbc.Col([dbc.Accordion([filters, compute, visualize, export], always_open=True)], width=4)
 
-analyze = dbc.Container([dbc.Row([side_bar, result_table], align='start', justify='start')])
+analyze = dbc.Container([dbc.Row([side_bar, result_tables], align='start', justify='start')])
