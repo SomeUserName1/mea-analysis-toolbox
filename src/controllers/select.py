@@ -1,6 +1,7 @@
+"""
+TODO
+"""
 import math
-from multiprocessing import Process
-import re
 from typing import Optional
 
 import numpy as np
@@ -17,7 +18,9 @@ def apply_selection(data: Data):
         to the selected electrodes and the selected time window only.
     """
     temp = data.data
-    data.data = data.data[data.selected_electrodes, data.start_idx:data.stop_idx]
+    data.data = data.data[data.selected_electrodes,
+                          data.start_idx:data.stop_idx]
+    data.channels_df['Channel'] = data.get_sel_names()
     del temp
 
 
@@ -90,7 +93,7 @@ def update_electrode_selection(data: Data,
         # If it is already remove it.
         if idx in data.selected_electrodes:
             data.selected_electrodes.remove(idx)
-        elif idx == -1: # is a ground electrode
+        elif idx == -1:  # is a ground electrode
             continue
         # Else add it.
         else:

@@ -2,14 +2,13 @@ from multiprocessing import Process
 
 import numpy as np
 import pyqtgraph as pg
-from PyQt6 import QtWidgets
-from PyQt6.QtCore import Qt
 
 from model.data import Data
 from views.grid_plot_iterator import MEAGridPlotIterator
 
 
-def do_plot(data: Data, selected, signals, envelope, derivative, mv_average, mv_mad, mv_var, peaks, bursts, seizure):
+def do_plot(data: Data, selected, signals, envelope, derivative, mv_average,
+            mv_mad, mv_var, peaks, bursts, seizure):
     sel_names = data.get_sel_names()
     if len(sel_names) == 0:
         sel_names = data.electrode_names
@@ -29,9 +28,6 @@ def do_plot(data: Data, selected, signals, envelope, derivative, mv_average, mv_
         title_str = f'<font size="1">{sel_names[i]}</font>'
         p = win.addPlot(row=row, col=col, title=title_str)
 
-        if peaks:
-            peak_idxs = data.peaks[i]
-            p.plot(x=ts[peak_idxs], y=data.data[i][peak_idxs], pen=None, symbolBrush=(255, 0, 0, 255), symbolPen='w', name="Peaks")
         if signals:
             p.plot(x=ts, y=sig[i], pen=(255, 255, 255, 200), name="Raw")
         if envelope:
@@ -44,6 +40,10 @@ def do_plot(data: Data, selected, signals, envelope, derivative, mv_average, mv_
             p.plot(x=ts, y=data.mv_mads[i], pen=(255, 255, 0, 255), name="Moving MAD")
         if mv_var:
             p.plot(x=ts, y=data.mv_vars[i], pen=(0, 255, 255, 255), name="Moving Var")
+        if peaks:
+            peak_idxs = data.peaks_df[data.peaks_df['Channel'] == sel_names[i]]['PeakIndex'].values.astype(int)
+            p.plot(x=ts[peak_idxs], y=data.data[i][peak_idxs], pen=None,
+                   symbolBrush=(255, 0, 0, 255), symbolPen='w', name="Peaks")
         if bursts:
             print("TODO")
             # TODO
@@ -58,7 +58,6 @@ def do_plot(data: Data, selected, signals, envelope, derivative, mv_average, mv_
             p.setYLink(prev_p)
 
         prev_p = p
-
 
     pg.exec()
 

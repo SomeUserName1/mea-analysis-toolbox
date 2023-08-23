@@ -1,5 +1,8 @@
+"""
+TODO
+"""
 import antropy as ant
-import numba as nb
+# import numba as nb
 import numpy as np
 import scipy.signal as sg
 
@@ -9,7 +12,8 @@ from model.data import Data
 # @nb.njit(parallel=True)
 def compute_snrs(data: Data):
     signals = data.data
-    data.channels_df['SNR'] = np.square(np.mean(signals, axis=-1)) / np.var(signals, axis=-1)
+    mean_squared = np.square(np.mean(signals, axis=-1))
+    data.channels_df['SNR'] = mean_squared / np.var(signals, axis=-1)
 
 
 # @nb.njit(parallel=True)
@@ -30,17 +34,18 @@ def compute_entropies(data: Data):
 
 # @nb.njit(parallel=True)
 def compute_derivatives(data: Data):
-    data.derivatives = np.diff(data.data) * data.sampling_rate # x / 1 /sampling period == x * sampling_period
+    # x / 1 /sampling period == x * sampling_period
+    data.derivatives = np.diff(data.data) * data.sampling_rate
 
 
-def compute_mv_avgs(data: Data, w: int=None):
+def compute_mv_avgs(data: Data, w: int = None):
     data.mv_means = moving_avg(data.data, w, fs=data.sampling_rate)
 
 
 # @nb.njit(parallel=True)
 def moving_avg(sig: np.ndarray, w: int, fs: int) -> np.ndarray:
     if w is None:
-        w = int(np.round(0.01 * fs)) # 10 ms
+        w = int(np.round(0.01 * fs))  # 10 ms
     if w % 2 == 0:
         w = w + 1
 
@@ -49,20 +54,13 @@ def moving_avg(sig: np.ndarray, w: int, fs: int) -> np.ndarray:
     ret = np.cumsum(abs_pad, dtype=float, axis=-1)
     ret[:, w:] = ret[:, w:] - ret[:, :-w]
 
-    return ret[w - 1:] / w
+    return ret[:, w - 1:] / w
 
 
 # @nb.njit(parallel=True)
-def compute_mv_vars(data: Data, w: int=None):
+def compute_mv_mads(data: Data, w: int = None):
     sigs = data.data
-    sq_dev = np.square((sigs.T - np.mean(sigs, axis=-1)).T)
-    data.mv_vars = moving_avg(sq_dev, w=w, fs=data.sampling_rate)
-
-
-# @nb.njit(parallel=True)
-def compute_mv_mads(data: Data, w: int=None):
-    sigs = data.data
-    abs_dev = np.absolute((sigs.T - np.mean(sigs, axis=-1)).T)
+    abs_dev = np.absolute((sigs.T - np.median(sigs, axis=-1)).T)
     data.mv_mads = moving_avg(abs_dev, w=w, fs=data.sampling_rate)
 
 
@@ -72,7 +70,7 @@ def compute_envelopes(data: Data):
 
 
 # @nb.njit
-def bin_amplitude(data: Data, new_sr: int=500, absolute: bool=False) -> np.ndarray:
+def bin_amplitude(data: Data, new_sr: int = 500) -> np.ndarray:
     signals = data.data
     n_bins = new_sr / data.sampling_rate * signals.shape[1]
     bins = np.zeros((signals.shape[0], n_bins))

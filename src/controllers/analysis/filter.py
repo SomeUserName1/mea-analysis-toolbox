@@ -1,9 +1,12 @@
+"""
+TODO
+"""
 from typing import Optional
 
 import numpy as np
 import scipy.signal as sg
 
-from model.data import Data 
+from model.data import Data
 
 
 def frequency_filter(data: Data,
@@ -47,15 +50,15 @@ def frequency_filter(data: Data,
                             btype='bandstop', output='sos')
         else:
             sos = sg.butter(N=order, Wn=[low_cut, high_cut],
-                            btype='bandpass',  fs=fs,output='sos')
+                            btype='bandpass',  fs=fs, output='sos')
 
     # if the stop filter is used invert the limits.
     # i.e. instead of filtering everything below low as in a high pass, we
     # filter everything above low to get a high stop)
     if stop:
-        temp = low
-        low = high
-        high = temp
+        temp = low_cut
+        low_cut = high_cut
+        high_cut = temp
 
     if low_cut and not high_cut:
         # Highpass filter
@@ -67,6 +70,7 @@ def frequency_filter(data: Data,
                         output='sos')
 
     data.data = sg.sosfiltfilt(sos, data.data)
+
 
 def downsample(data: Data, new_fs: int) -> None:
     """
@@ -127,4 +131,3 @@ def filter_el_humming(data: Data, order: Optional[int] = 16) -> None:
                         output='sos', fs=data.sampling_rate)
 
         data.data = sg.sosfilt(sos, data.data)
-

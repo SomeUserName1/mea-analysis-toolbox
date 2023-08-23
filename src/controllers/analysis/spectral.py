@@ -1,9 +1,13 @@
-from fooof import FOOOF, FOOOFGroup
-import numba as nb
+"""
+TODO
+"""
+from fooof import FOOOFGroup
+# import numba as nb
 import numpy as np
 import scipy.signal as sg
 
 from model.data import Data
+
 
 # No njit as numpy.fft is not supported & numpy already calls C routines
 def compute_psds(data: Data) -> tuple[np.ndarray, np.ndarray]:
@@ -19,7 +23,7 @@ def compute_psds(data: Data) -> tuple[np.ndarray, np.ndarray]:
 
 # No njit as fooof is unknown to numba
 def compute_periodic_aperiodic_decomp(data: Data,
-                                      freq_range: tuple[int, int]=(1, 150)
+                                      freq_range: tuple[int, int] = (1, 150)
                                       ) -> FOOOFGroup:
     if data.psds is None:
         compute_psds(data.data)
@@ -37,8 +41,9 @@ def compute_periodic_aperiodic_decomp(data: Data,
 # @nb.njit(parallel=True)
 def detrend_fooof(data: Data):
     if data.fooof_group is None:
-        fg = compute_periodic_aperiodic_decomp(data)
+        compute_periodic_aperiodic_decomp(data)
 
+    fg = data.fooof_group
     n_els = data.data.shape[0]
     norm_psd = np.empty((n_els,
                          fg.get_fooof(0).power_spectrum))
@@ -55,8 +60,5 @@ def detrend_fooof(data: Data):
 
 # No njit as scipy.signal is not supported & scipy already calls C routines
 def compute_spectrograms(data: Data):
-    data.spectrograms =  sg.spectrogram(data.data, data.sampling_rate,
-                                          nfft=1024)
-
-
-
+    data.spectrograms = sg.spectrogram(data.data, data.sampling_rate,
+                                       nfft=1024)

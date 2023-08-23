@@ -1,4 +1,4 @@
-import numba as nb
+# import numba as nb
 import numpy as np
 import pandas as pd
 import scipy.signal as sg
@@ -8,15 +8,18 @@ from model.data import Data
 
 # Maybe parallelize using ProcessPoolExec.
 # @nb.jit(parallel=True)
-def detect_peaks(data: Data, threshold_factor=3):
+def detect_peaks(data: Data, threshold_factor=5):
     signals = data.data
-    mads = np.mean(np.absolute((signals.T - np.mean(signals, axis=-1)).T), axis=-1)
+    mads = np.median(np.absolute(signals.T - np.median(signals, axis=-1)).T,
+                     axis=-1)
     signals = np.absolute(signals)
-    n_peaks = np.zeros(data.data.shape[1])
-    peak_freq = np.zeros(data.data.shape[1])
+    n_peaks = np.zeros(data.data.shape[0])
+    peaks_freq = np.zeros(data.data.shape[0])
     names = data.get_sel_names()
-    data.peaks_df = pd.DataFrame([], columns=["Channel", "PeakIndex", "PeakTime", "Amplitude", "InterPeakInterval"])
-
+    data.peaks_df = pd.DataFrame([],
+                                 columns=["Channel", "PeakIndex", "TimeStamp",
+                                          "Amplitude", "InterPeakInterval"])
+    rows = [data.peaks_df]
     for i in range(data.data.shape[0]):
         peaks, _ = sg.find_peaks(signals[i], height=threshold_factor*mads[i])
         n_peaks[i] = len(peaks)
@@ -28,12 +31,19 @@ def detect_peaks(data: Data, threshold_factor=3):
         ipi = np.diff(peaks) / data.sampling_rate
         ipi = np.insert(ipi, 0, np.nan, axis=-1)
 
-        channel_peaks = pd.DataFrame([[channel, peaks, peak_times, peak_ampls, ipi]], 
-                columns=["Channel", "PeakIndex", "PeakTime", "Amplitude", "InterPeakInterval"])
-        pd.concat([data.peaks_df, channel_peaks])
+        channel_peaks = pd.DataFrame(
+                {"Channel": channel,
+                 "PeakIndex": peaks,
+                 "TimeStamp": peak_times,
+                 "Amplitude": peak_ampls,
+                 "InterPeakInterval": ipi}
+                )
+        rows.append(channel_peaks)
 
+    data.peaks_df = pd.concat(rows)
     data.channels_df['n_peaks'] = n_peaks
     data.channels_df['peak_freq'] = peaks_freq
+
 
 # GENERAL
 # baseline how?

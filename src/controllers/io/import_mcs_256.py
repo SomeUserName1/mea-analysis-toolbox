@@ -2,17 +2,15 @@
 :author: Fabian Klopfer <fabian.klofper@ieee.org>
 :date:   21.04.2023
 
-Importer for multi channel systems 256MEAs chip, assuming all data is in a single \
-        analog stream in the same recording.
+Importer for multi channel systems 256MEAs chip, assuming all data is in a
+single analog stream in the same recording.
 """
 import datetime
 from multiprocessing import Queue
 import os.path
 
-import McsPy
 import McsPy.McsData as Mcs256
 import numpy as np
-import scipy.signal as sg
 from tabulate import tabulate
 
 from model.data import Data
@@ -33,22 +31,18 @@ def mcs_256_import(path: str, que: Queue) -> None:
         return None, "File does not exist or invalid path!"
     fname = path.split('/')[-1].split('.')[0]
 
-
     Mcs256.VERBOSE = False
     try:
         file_contents = Mcs256.RawData(path)
         date = file_contents.date
         stream = file_contents.recordings[0].analog_streams[0]
-        num_channels = stream.channel_data.shape[0]
         sampling_rate = stream.channel_infos[2].sampling_frequency.magnitude
         data = np.array(stream.channel_data, dtype=np.double)
 
         channel_row_map = {}
-        row_order = None
 
         for i in [c.channel_id for c in stream.channel_infos.values()]:
-            row = stream.channel_infos[i].row_index
-            channel_row_map[i] = row
+            channel_row_map[i] = stream.channel_infos[i].row_index
 
         # correct signal values, see MCS implementation:
         # https://mcspydatatools.readthedocs.io/en/latest/api.html#Mcs256.AnalogStream.get_channel_in_range
@@ -58,23 +52,28 @@ def mcs_256_import(path: str, que: Queue) -> None:
             data[channel_row_map[i]] = ((data[channel_row_map[i]] - ad_zero)
                                         * adc_step)
 
-        with open("assets/mcs_256mea_mapping.txt", "r") as ids_file:
-            order = np.array([int(v) for v in ids_file.read().split(",") \
-                    if v.strip() != ''])
+        with (open("assets/mcs_256mea_mapping.txt", "r", encoding="utf-8")
+                as ids_file):
+            order = np.array([int(v) for v in ids_file.read().split(",")
+                              if v.strip() != ''])
 
         data = data[order]
 
         n_mea_electrodes = 256
         side_len = int(np.sqrt(n_mea_electrodes))
-        ground_els = np.array([0, side_len - 1, side_len * (side_len - 1), side_len**2 - 1])
-        names = np.array([f"R {i} C {j}" for i in range(1, side_len + 1) \
-                    for j in range(1, side_len + 1)])
+
+        ground_els = np.array([0, side_len - 1, side_len * (side_len - 1),
+                              side_len**2 - 1])
+
+        names = np.array([f"R {i} C {j}" for i in range(1, side_len + 1)
+                          for j in range(1, side_len + 1)])
+
         ground_el_names = names[ground_els]
         names = np.array([x for x in names if x not in ground_el_names])
 
         info = mcs_info(path, file_contents)
-        data = Data(fname, date, n_mea_electrodes, sampling_rate, data, 0, data.shape[1] - 1,
-                names, ground_els, ground_el_names)
+        data = Data(fname, date, n_mea_electrodes, sampling_rate, data, 0,
+                    data.shape[1] - 1, names, ground_els, ground_el_names)
         del file_contents
 
     except IOError as err:

@@ -13,6 +13,7 @@ import numpy as np
 # fluid=True
 # , align="center", justify="center", style={"padding": "25px"}
 
+
 class TimeSeriesPlottable(Enum):
     SIG = 0
     ENV = 1
@@ -23,7 +24,6 @@ class TimeSeriesPlottable(Enum):
     PEAKS = 6
     BURSTS = 7
     SEIZURE = 8
-
 
 
 channels_table = dbc.Card(
@@ -60,20 +60,26 @@ result_tables = dbc.Col(dbc.Tabs([
 
 
 def generate_table(dataframe):
-    return html.Table([
-        html.Thead(
-            html.Tr([html.Th(col) for col in dataframe.columns])
-        ),
-        html.Tbody([
-            html.Tr(
-                [html.Td(f"{dataframe.iloc[i][col]:.8f}") 
-                        if type(dataframe.iloc[i][col]) is not np.ndarray 
-                        else html.Td(f"shape: {dataframe.iloc[i][col].shape}")
-                        for col in dataframe.columns
-            ]) for i in range(len(dataframe))
-        ])
-    ], className='table table-bordered table-hover table-responsive')
+    rows = []
+    for i in range(len(dataframe)):
+        cols = []
+        for col in dataframe.columns:
+            field = dataframe.iloc[i][col]
+            if type(field) == float:
+                cols.append(html.Td(f"{dataframe.iloc[i][col]:.8f}"))
+            elif type(field) == np.ndarray:
+                cols.append(html.Td(f"shape: {dataframe.iloc[i][col].shape}"))
+            else:
+                cols.append(html.Td(f"{dataframe.iloc[i][col]}"))
 
+        rows.append(html.Tr(cols))
+
+    return (
+        html.Table([
+            html.Thead(html.Tr([html.Th(col) for col in dataframe.columns])),
+            html.Tbody(rows)],
+            className='table table-bordered table-hover table-responsive')
+        )
 
 
 filters = dbc.AccordionItem([
@@ -123,8 +129,6 @@ basics = dbc.AccordionItem([
 #    dbc.Row([dbc.Button("Moving Average", id="analyze-mean")], style={"padding": "5px"}),
 #    # mv mad
 #    dbc.Row([dbc.Button("Moving Mean Absolute Deviation", id="analyze-mad")], style={"padding": "5px"}),
-#    # mv var
-#    dbc.Row([dbc.Button("Moving Variance", id="analyze-var")], style={"padding": "5px"}),
 ], title="Basic Properties")
 
 spectral = dbc.AccordionItem([
@@ -143,7 +147,7 @@ activity = dbc.AccordionItem([
     dbc.Row([
         html.Strong("Detect peaks by MAD"),
         dbc.Col(html.H6("Mean absolute deviation threshold:"), width="auto"),
-        dbc.Input(placeholder="3", id="analyze-peaks-ampl-thresh"),
+        dbc.Input(placeholder="5", id="analyze-peaks-ampl-thresh"),
         dbc.Button("Start", id="analyze-peaks-ampl")    
      ], style={"padding": "25px"}),
     # Detect Bursts
@@ -193,7 +197,6 @@ visualize = dbc.AccordionItem([
                     {"label": "Derivative", "value": TimeSeriesPlottable.DERV.value},
                     {"label": "Moving Average", "value": TimeSeriesPlottable.MV_AVG.value},
                     {"label": "Moving Mean Absolute Deviation", "value": TimeSeriesPlottable.MV_MAD.value},
-                    {"label": "Moving Variance", "value": TimeSeriesPlottable.MV_VAR.value},
                     {"label": "Peaks", "value": TimeSeriesPlottable.PEAKS.value},
                     {"label": "Bursts", "value": TimeSeriesPlottable.BURSTS.value},
                     {"label": "Seizure", "value": TimeSeriesPlottable.SEIZURE.value},
