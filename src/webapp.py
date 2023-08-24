@@ -27,12 +27,12 @@ from controllers.analysis.filter import (frequency_filter, downsample,
                                          filter_el_humming)
 from controllers.analysis.analyze import (compute_snrs,
                                           compute_rms,
-                                          compute_derivatives,
-                                          compute_mv_avgs,
-                                          compute_mv_mads,
-                                          compute_envelopes,
                                           compute_entropies)
-from controllers.analysis.activity import detect_peaks
+from controllers.analysis.activity import (detect_peaks,
+                                           compute_derivatives,
+                                           compute_mv_avgs,
+                                           compute_mv_mads,
+                                           compute_envelopes)
 from controllers.analysis.spectral import (compute_psds,
                                            compute_periodic_aperiodic_decomp,
                                            detrend_fooof,
@@ -770,7 +770,7 @@ def analyze_plot_time_series(_: int, to_plot: list[int]) -> None:
         compute_mv_avgs(DATA)
     if DATA.mv_mads is None:
         compute_mv_mads(DATA)
-    if DATA.channels_df.empty:
+    if DATA.peaks_df.empty:
         detect_peaks(DATA)
 #   if DATA.bursts is None:
 #        detect_bursts(DATA)

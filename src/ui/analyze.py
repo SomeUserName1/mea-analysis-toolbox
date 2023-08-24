@@ -147,7 +147,7 @@ activity = dbc.AccordionItem([
     dbc.Row([
         html.Strong("Detect peaks by MAD"),
         dbc.Col(html.H6("Mean absolute deviation threshold:"), width="auto"),
-        dbc.Input(placeholder="5", id="analyze-peaks-ampl-thresh"),
+        dbc.Input(placeholder="6", id="analyze-peaks-ampl-thresh"),
         dbc.Button("Start", id="analyze-peaks-ampl")    
      ], style={"padding": "25px"}),
     # Detect Bursts

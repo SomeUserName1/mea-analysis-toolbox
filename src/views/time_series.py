@@ -31,17 +31,27 @@ def do_plot(data: Data, selected, signals, envelope, derivative, mv_average,
         if signals:
             p.plot(x=ts, y=sig[i], pen=(255, 255, 255, 200), name="Raw")
         if envelope:
-            p.plot(x=ts, y=data.envelopes[i], pen=(0, 255, 0, 255), name="Envelope")
+            env_low, env_high = data.envelopes[0][i]
+            p.plot(x=ts, y=data.data[i][data.envelopes], pen=(0, 255, 0, 255),
+                   name="low envelope")
+            p.plot(x=ts, y=data.envelopes[i], pen=(0, 255, 0, 255),
+                   name="high envelope")
+
         if derivative:
-            p.plot(x=ts[1:], y=data.derivatives[i], pen=(0, 0, 255, 255), name="Derivative")
+            p.plot(x=ts[1:], y=data.derivatives[i], pen=(0, 0, 255, 255),
+                   name="Derivative")
         if mv_average:
-            p.plot(x=ts, y=data.mv_means[i], pen=(255, 165, 0, 255), name="Moving Average")
+            p.plot(x=ts, y=data.mv_means[i], pen=(255, 165, 0, 255),
+                   name="Moving Average")
         if mv_mad:
-            p.plot(x=ts, y=data.mv_mads[i], pen=(255, 255, 0, 255), name="Moving MAD")
+            p.plot(x=ts, y=data.mv_mads[i], pen=(255, 255, 0, 255),
+                   name="Moving MAD")
         if mv_var:
-            p.plot(x=ts, y=data.mv_vars[i], pen=(0, 255, 255, 255), name="Moving Var")
+            p.plot(x=ts, y=data.mv_vars[i], pen=(0, 255, 255, 255),
+                   name="Moving Var")
         if peaks:
-            peak_idxs = data.peaks_df[data.peaks_df['Channel'] == sel_names[i]]['PeakIndex'].values.astype(int)
+            pdf = data.peaks_df[data.peaks_df['Channel'] == sel_names[i]]
+            peak_idxs = pdf['PeakIndex'].values.astype(int)
             p.plot(x=ts[peak_idxs], y=data.data[i][peak_idxs], pen=None,
                    symbolBrush=(255, 0, 0, 255), symbolPen='w', name="Peaks")
         if bursts:
@@ -61,7 +71,19 @@ def do_plot(data: Data, selected, signals, envelope, derivative, mv_average,
 
     pg.exec()
 
-def plot_time_series_grid(data: Data, selected=True, signals=True, envelope=False, derivative=False, mv_average=False, mv_mad=False, mv_var=False, peaks=False, bursts=False, seizure=False):
-    proc = Process(target=do_plot, args=(data, selected, signals, envelope, derivative, mv_average, mv_mad, mv_var, peaks, bursts, seizure))
-    proc.start()
 
+def plot_time_series_grid(data: Data,
+                          selected: bool = True,
+                          signals: bool = True,
+                          envelope: bool = False,
+                          derivative: bool = False,
+                          mv_average: bool = False,
+                          mv_mad=False,
+                          mv_var=False,
+                          peaks=False,
+                          bursts=False,
+                          seizure=False):
+    proc = Process(target=do_plot, args=(data, selected, signals, envelope,
+                   derivative, mv_average, mv_mad, mv_var, peaks, bursts,
+                   seizure))
+    proc.start()

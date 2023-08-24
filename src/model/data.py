@@ -63,7 +63,7 @@ class Data:
         self.spectral_granger = None # freqs, as above
         self.csds = None # neo.AnalogSignal with estimated CSD
         self.channels_df = pd.DataFrame() # Cols: SNR, RMS, Apprx_Entropy, n_peaks, firing rate
-        self.peaks_df = None
+        self.peaks_df = pd.DataFrame()
         self.bursts_df = pd.DataFrame()
         self.seizures_df = pd.DataFrame()
         self.network_df = pd.DataFrame()

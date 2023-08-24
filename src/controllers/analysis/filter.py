@@ -81,8 +81,8 @@ def downsample(data: Data, new_fs: int) -> None:
         data (Data): The data to downsample.
         new_fs (int): The new sampling rate.
     """
-    print("called downsample")
     q = int(np.round(data.sampling_rate / new_fs))
+    data.stop_idx = data.stop_idx / q
     q_it = 0
 
     # determine if we can find a factor that is divisible by 12

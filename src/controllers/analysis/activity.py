@@ -6,13 +6,122 @@ import scipy.signal as sg
 from model.data import Data
 
 
+# @nb.njit(parallel=True)
+def compute_derivatives(data: Data):
+    # x / 1 /sampling period == x * sampling_period
+    data.derivatives = np.diff(data.data) * data.sampling_rate
+
+
+def compute_mv_avgs(data: Data, w: int = None):
+    data.mv_means = moving_avg(data.data, w, fs=data.sampling_rate)
+
+
+# @nb.njit(parallel=True)
+def moving_avg(sig: np.ndarray, w: int, fs: int) -> np.ndarray:
+    if w is None:
+        w = int(np.round(0.005 * fs))  # 5 ms
+    if w % 2 == 0:
+        w = w + 1
+
+    pad = int((w - 1) / 2)
+    abs_pad = np.pad(np.absolute(sig), ((0, 0), (pad, pad)), "edge")
+    ret = np.cumsum(abs_pad, dtype=float, axis=-1)
+    ret[:, w:] = ret[:, w:] - ret[:, :-w]
+
+    return ret[:, w - 1:] / w
+
+
+# @nb.njit(parallel=True)
+def compute_mv_mads(data: Data, w: int = None):
+    sigs = data.data
+    abs_dev = np.absolute((sigs.T - np.median(sigs, axis=-1)).T)
+    data.mv_mads = moving_avg(abs_dev, w=w, fs=data.sampling_rate)
+
+
+# TODO finish envelope
+def compute_envelope_idxs(data, dmin=1, dmax=1, split=False):
+    """
+    Input :
+    s: 1d-array, data signal from which to extract high and low envelopes
+    dmin, dmax: int, optional, size of chunks, use this if the size of the
+        input signal is too big
+    split: bool, optional, if True, split the signal in half along its mean,
+        might help to generate the envelope in some cases
+    Output :
+    lmin,lmax : high/low envelope idx of input signal s
+    """
+    s = data.data
+    # locals min
+    lmin = (np.diff(np.sign(np.diff(s))) > 0).nonzero()[0] + 1
+    # locals max
+    lmax = (np.diff(np.sign(np.diff(s))) < 0).nonzero()[0] + 1
+
+    if split:
+        # s_mid is zero if s centered around the mean of signal
+        s_mid = np.mean(s)
+        # pre-sorting of locals min based on position with respect to s_mid
+        lmin = lmin[s[lmin] < s_mid]
+        # pre-sorting of local max based on position with respect to s_mid
+        lmax = lmax[s[lmax] > s_mid]
+
+    # global min of dmin-chunks of locals min
+    lmin = lmin[[i+np.argmin(s[lmin[i:i+dmin]])
+                for i in range(0, len(lmin), dmin)]]
+    # global max of dmax-chunks of locals max
+    lmax = lmax[[i+np.argmax(s[lmax[i:i+dmax]])
+                 for i in range(0, len(lmax), dmax)]]
+
+    data.envelopes = lmin, lmax
+
+# TODO tomorrow
+# IMPL https://stackoverflow.com/questions/22583391/peak-signal-detection-in-realtime-timeseries-data/22640362#22640362
+def detect_peaks_dispersion():
+    #     # Let y be a vector of timeseries data of at least length lag+2
+    # # Let mean() be a function that calculates the mean
+    # # Let std() be a function that calculates the standard deviaton
+    # # Let absolute() be the absolute value function
+    # 
+    # # Settings (these are examples: choose what is best for your data!)
+    # set lag to 5;          # average and std. are based on past 5 observations
+    # set threshold to 3.5;  # signal when data point is 3.5 std. away from average
+    # set influence to 0.5;  # between 0 (no influence) and 1 (full influence)
+    # 
+    # # Initialize variables
+    # set signals to vector 0,...,0 of length of y;   # Initialize signal results
+    # set filteredY to y(1),...,y(lag)                # Initialize filtered series
+    # set avgFilter to null;                          # Initialize average filter
+    # set stdFilter to null;                          # Initialize std. filter
+    # set avgFilter(lag) to mean(y(1),...,y(lag));    # Initialize first value average
+    # set stdFilter(lag) to std(y(1),...,y(lag));     # Initialize first value std.
+    # 
+    # for i=lag+1,...,t do
+    #   if absolute(y(i) - avgFilter(i-1)) > threshold*stdFilter(i-1) then
+    #     if y(i) > avgFilter(i-1) then
+    #       set signals(i) to +1;                     # Positive signal
+    #     else
+    #       set signals(i) to -1;                     # Negative signal
+    #     end
+    #     set filteredY(i) to influence*y(i) + (1-influence)*filteredY(i-1);
+    #   else
+    #     set signals(i) to 0;                        # No signal
+    #     set filteredY(i) to y(i);
+    #   end
+    #   set avgFilter(i) to mean(filteredY(i-lag+1),...,filteredY(i));
+    #   set stdFilter(i) to std(filteredY(i-lag+1),...,filteredY(i));
+    # end
+
+
 # Maybe parallelize using ProcessPoolExec.
 # @nb.jit(parallel=True)
-def detect_peaks(data: Data, threshold_factor=5):
+def detect_peaks(data: Data, threshold_factor=6):
+    if data.mv_mads is None:
+        win = int(np.round(0.15 * data.sampling_rate))
+        compute_mv_avgs(data, win)
+
     signals = data.data
     mads = np.median(np.absolute(signals.T - np.median(signals, axis=-1)).T,
                      axis=-1)
-    signals = np.absolute(signals)
+    signals = np.abs(signals)
     n_peaks = np.zeros(data.data.shape[0])
     peaks_freq = np.zeros(data.data.shape[0])
     names = data.get_sel_names()
@@ -21,21 +130,53 @@ def detect_peaks(data: Data, threshold_factor=5):
                                           "Amplitude", "InterPeakInterval"])
     rows = [data.peaks_df]
     for i in range(data.data.shape[0]):
-        peaks, _ = sg.find_peaks(signals[i], height=threshold_factor*mads[i])
+        peaks = []
+        peak_durations = []
+        peak_up_slopes = []
+        peak_down_slopes = []
+
+        thresh = threshold_factor*mads[i]
+
+        above_thresh = (signals[i] > thresh).astype(int)
+        above_thresh = np.concatenate(([0], above_thresh, [0]))
+        abs_diff = np.abs(np.diff(above_thresh))
+        above_thresh_idxs = np.where(abs_diff == 1)[0].reshape(-1, 2)
+        # TODO use envelope 
+        for idxs in above_thresh_idxs:
+            peak = np.argmax(signals[i][idxs[0]:idxs[1]]) + idxs[0]
+            duration = (idxs[1] - idxs[0]) / data.sampling_rate
+            up_dx = (peak - idxs[0]) / data.sampling_rate
+            up_dy = data.data[i][peak] - data.data[i][idxs[0]]
+            down_dx = (idxs[1] - peak) / data.sampling_rate
+            down_dy = data.data[i][idxs[0]] - data.data[i][peak]
+
+            peaks.append(peak)
+            peak_durations.append(duration)
+            peak_up_slopes.append(up_dy / up_dx)
+            peak_down_slopes.append(down_dy / down_dx)
+
+        peaks = np.array(peaks).astype(int)
+        peak_durations = np.array(peak_durations)
+
         n_peaks[i] = len(peaks)
         peaks_freq[i] = n_peaks[i] / data.duration_mus / 1000000
 
         peak_ampls = data.data[i][peaks]
         channel = np.repeat(names[i], len(peaks))
         peak_times = peaks / data.sampling_rate
+
         ipi = np.diff(peaks) / data.sampling_rate
-        ipi = np.insert(ipi, 0, np.nan, axis=-1)
+        if peaks.shape[0] > 0:
+            ipi = np.insert(ipi, 0, np.nan, axis=-1)
 
         channel_peaks = pd.DataFrame(
                 {"Channel": channel,
                  "PeakIndex": peaks,
                  "TimeStamp": peak_times,
                  "Amplitude": peak_ampls,
+                 "Duration": peak_durations,
+                 "UpSlope": peak_up_slopes,
+                 "DownSlope": peak_down_slopes,
                  "InterPeakInterval": ipi}
                 )
         rows.append(channel_peaks)
