@@ -83,12 +83,7 @@ def generate_table(dataframe):
 
 
 filters = dbc.AccordionItem([
-    # Downsample
-    dbc.Row([
-        dbc.Col([dbc.Input(placeholder="New sampling rate", id="analyze-dwnsmpl-rate")]),
-        dbc.Col([dbc.Button("Downsample", id="analyze-dwnsmpl-apply")]),
-        dbc.Row([], id="analyze-dwnsmpl-result"),
-    ], style={"padding": "25px"}, class_name="border rounded-3"),
+    # Rereference (to remove noise across all channels)
     # Line Noise
     dbc.Row([
         dbc.Row([dbc.Button("Remove Line Noise (EU)", id="analyze-linenoise-apply")]),
@@ -109,7 +104,13 @@ filters = dbc.AccordionItem([
         dbc.Row([dbc.Button("Apply", id="analyze-fltr-apply")]),
         dbc.Row([], id="analyze-fltr-result"),
         ], style={"padding": "25px"}, class_name="border rounded-3"),
-    # Rereference (to remove noise across all channels)
+    # Downsample
+    dbc.Row([
+        dbc.Col([dbc.Input(placeholder="New sampling rate", id="analyze-dwnsmpl-rate")]),
+        dbc.Col([dbc.Button("Downsample", id="analyze-dwnsmpl-apply")]),
+        dbc.Row([], id="analyze-dwnsmpl-result"),
+    ], style={"padding": "25px"}, class_name="border rounded-3"),
+
 ], title="Filter")
 
 

@@ -762,15 +762,15 @@ def analyze_plot_time_series(_: int, to_plot: list[int]) -> None:
     seizure = TimeSeriesPlottable.SEIZURE.value in to_plot
     selected = True
 
-    if DATA.envelopes is None:
+    if envelope and DATA.envelopes is None:
         compute_envelopes(DATA)
-    if DATA.derivatives is None:
+    if derivative and DATA.derivatives is None:
         compute_derivatives(DATA)
-    if DATA.mv_means is None:
+    if mv_average and DATA.mv_means is None:
         compute_mv_avgs(DATA)
-    if DATA.mv_mads is None:
+    if mv_mad and DATA.mv_mads is None:
         compute_mv_mads(DATA)
-    if DATA.peaks_df.empty:
+    if peaks and DATA.peaks_df.empty:
         detect_peaks(DATA)
 #   if DATA.bursts is None:
 #        detect_bursts(DATA)

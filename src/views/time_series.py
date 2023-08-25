@@ -54,6 +54,10 @@ def do_plot(data: Data, selected, signals, envelope, derivative, mv_average,
             peak_idxs = pdf['PeakIndex'].values.astype(int)
             p.plot(x=ts[peak_idxs], y=data.data[i][peak_idxs], pen=None,
                    symbolBrush=(255, 0, 0, 255), symbolPen='w', name="Peaks")
+            p.plot(x=ts, y=data.mv_median[i], pen=(0, 0, 255, 255))
+            p.plot(x=ts, y=data.mv_median[i]+data.mv_mad[i], pen=(0, 255, 255, 255))
+            p.plot(x=ts, y=data.mv_median[i]-data.mv_mad[i], pen=(0, 255, 255, 255))
+            p.plot(x=ts, y=max(data.data[i]) * data.peak_sig[i], pen=(255, 165, 0, 255))
         if bursts:
             print("TODO")
             # TODO
