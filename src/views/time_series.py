@@ -31,11 +31,12 @@ def do_plot(data: Data, selected, signals, envelope, derivative, mv_average,
         if signals:
             p.plot(x=ts, y=sig[i], pen=(255, 255, 255, 200), name="Raw")
         if envelope:
-            env_low, env_high = data.envelopes[0][i]
-            p.plot(x=ts, y=data.data[i][data.envelopes], pen=(0, 255, 0, 255),
-                   name="low envelope")
-            p.plot(x=ts, y=data.envelopes[i], pen=(0, 255, 0, 255),
-                   name="high envelope")
+            env_low = data.envelopes[0][i]
+            env_high = data.envelopes[1][i]
+            p.plot(x=ts[env_low], y=data.data[i][env_low],
+                   pen=(0, 255, 0, 255), name="low envelope")
+            p.plot(x=ts[env_high], y=data.data[i][env_high],
+                   pen=(0, 255, 0, 255), name="high envelope")
 
         if derivative:
             p.plot(x=ts[1:], y=data.derivatives[i], pen=(0, 0, 255, 255),
@@ -44,7 +45,7 @@ def do_plot(data: Data, selected, signals, envelope, derivative, mv_average,
             p.plot(x=ts, y=data.mv_means[i], pen=(255, 165, 0, 255),
                    name="Moving Average")
         if mv_mad:
-            p.plot(x=ts, y=data.mv_mads[i], pen=(255, 255, 0, 255),
+            p.plot(x=ts, y=data.mv_mads[i], pen=(0, 255, 255, 255),
                    name="Moving MAD")
         if mv_var:
             p.plot(x=ts, y=data.mv_vars[i], pen=(0, 255, 255, 255),
@@ -54,10 +55,10 @@ def do_plot(data: Data, selected, signals, envelope, derivative, mv_average,
             peak_idxs = pdf['PeakIndex'].values.astype(int)
             p.plot(x=ts[peak_idxs], y=data.data[i][peak_idxs], pen=None,
                    symbolBrush=(255, 0, 0, 255), symbolPen='w', name="Peaks")
-            p.plot(x=ts, y=data.mv_median[i], pen=(0, 0, 255, 255))
-            p.plot(x=ts, y=data.mv_median[i]+data.mv_mad[i], pen=(0, 255, 255, 255))
-            p.plot(x=ts, y=data.mv_median[i]-data.mv_mad[i], pen=(0, 255, 255, 255))
-            p.plot(x=ts, y=max(data.data[i]) * data.peak_sig[i], pen=(255, 165, 0, 255))
+            inf1 = pg.InfiniteLine(angle=0, pos=data.lower[i], pen=(0, 0, 200))
+            inf2 = pg.InfiniteLine(angle=0, pos=data.upper[i], pen=(255, 0, 255))
+            p.addItem(inf1)
+            p.addItem(inf2)
         if bursts:
             print("TODO")
             # TODO

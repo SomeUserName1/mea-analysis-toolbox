@@ -34,12 +34,11 @@ def moving_avg(sig: np.ndarray, w: int, fs: int) -> np.ndarray:
 # @nb.njit(parallel=True)
 def compute_mv_mads(data: Data, w: int = None):
     sigs = data.data
-    abs_dev = np.absolute((sigs.T - np.median(sigs, axis=-1)).T)
+    abs_dev = np.absolute((sigs.T - np.mean(sigs, axis=-1)).T)
     data.mv_mads = moving_avg(abs_dev, w=w, fs=data.sampling_rate)
 
 
-# TODO finish envelope
-def compute_envelopes(data, dmin=1, dmax=1, split=False):
+def compute_envelopes(data, win=1, split=False):
     """
     Input :
     s: 1d-array, data signal from which to extract high and low envelopes
@@ -50,37 +49,43 @@ def compute_envelopes(data, dmin=1, dmax=1, split=False):
     Output :
     lmin,lmax : high/low envelope idx of input signal s
     """
-    print("call compute envelopes")
     s = data.data
     # locals min
-    lmin = (np.diff(np.sign(np.diff(s))) > 0).nonzero()[0] + 1
+    lmin = (np.diff(np.sign(np.diff(s))) > 0)
+    lmin = [lmin[i].nonzero()[0] + 1 for i in range(lmin.shape[0])]
+
     # locals max
-    lmax = (np.diff(np.sign(np.diff(s))) < 0).nonzero()[0] + 1
+    lmax = (np.diff(np.sign(np.diff(s))) < 0)
+    lmax = [lmax[i].nonzero()[0] + 1 for i in range(lmax.shape[0])]
 
     if split:
         # s_mid is zero if s centered around the mean of signal
-        s_mid = np.mean(s)
+        s_mid = np.median(s)
         # pre-sorting of locals min based on position with respect to s_mid
         lmin = lmin[s[lmin] < s_mid]
         # pre-sorting of local max based on position with respect to s_mid
         lmax = lmax[s[lmax] > s_mid]
 
-    # global min of dmin-chunks of locals min
-    lmin = lmin[[i+np.argmin(s[lmin[i:i+dmin]])
-                for i in range(0, len(lmin), dmin)]]
-    # global max of dmax-chunks of locals max
-    lmax = lmax[[i+np.argmax(s[lmax[i:i+dmax]])
-                 for i in range(0, len(lmax), dmax)]]
+    # global min of win-chunks of locals min
+    lmin = [np.array([lmin[j][i + np.argmin(s[j][lmin[j][i:i + win]])]
+            for i in range(0, lmin[j].shape[0], win)])
+            for j in range(len(lmin))]
+    # global max of win-chunks of locals max
+    lmax = [np.array([lmax[j][i + np.argmax(s[j][lmax[j][i:i + win]])]
+            for i in range(0, lmax[j].shape[0], win)])
+            for j in range(len(lmax))]
 
     data.envelopes = lmin, lmax
 
 
-# TODO tomorrow
-# https://stackoverflow.com/questions/22583391/peak-signal-detection-in-realtime-timeseries-data/22640362#22640362
-def detect_peaks(data: Data,
-                 lag: int = None,
-                 thresh_factor: float = 4.5,
-                 influence: float = 0.0):
+def detect_peaks(data: Data, thresh_factor=None):
+    detect_peaks_mv_mad_envs_thresh(data)
+
+
+def detect_peaks_z_score_mv_mad_thresh(data: Data,
+                                       lag: int = None,
+                                       thresh_factor: float = 4.5,
+                                       influence: float = 0.0):
     # Initialize variables
     if lag is None:
         lag = data.sampling_rate
@@ -182,11 +187,131 @@ def detect_peaks(data: Data,
 
 # Maybe parallelize using ProcessPoolExec.
 # @nb.jit(parallel=True)
-def detect_peaks_mad_thresh(data: Data, threshold_factor=6):
-    if data.mv_mads is None:
-        win = int(np.round(0.15 * data.sampling_rate))
-        compute_mv_avgs(data, win)
+def detect_peaks_mv_mad_envs_thresh(data: Data):
+    win = int(np.round(0.01 * data.sampling_rate))
+    compute_mv_mads(data, win)
 
+    win = int(np.round(0.1 * data.sampling_rate))
+    compute_envelopes(data, win)
+
+    signals = data.mv_mads
+
+    n_peaks = np.zeros(data.data.shape[0])
+    peaks_freq = np.zeros(data.data.shape[0])
+    names = data.get_sel_names()
+    data.peaks_df = pd.DataFrame([],
+                                 columns=["Channel", "PeakIndex", "TimeStamp",
+                                          "Amplitude", "InterPeakInterval"])
+    data.lower = np.zeros(data.data.shape[0])
+    data.upper = np.zeros(data.data.shape[0])
+    rows = [data.peaks_df]
+    for i in range(data.data.shape[0]):
+        peaks = []
+        peak_durations = []
+        peak_left_slopes = []
+        peak_right_slopes = []
+
+        min_env = data.envelopes[0][i]
+        max_env = data.envelopes[1][i]
+        lower_thresh = np.percentile(data.data[i][min_env], 90)
+        data.lower[i] = lower_thresh
+        upper_thresh = np.percentile(data.data[i][max_env], 10)
+        data.upper[i] = upper_thresh
+
+        l_peaks = ((np.sign(data.data[i]) == -1)
+                   & (signals[i] > np.abs(lower_thresh)))
+        u_peaks = ((np.sign(data.data[i]) == 1) & (signals[i] > upper_thresh))
+        above_thresh = (l_peaks | u_peaks).astype(int)
+
+        above_thresh = np.concatenate(([0], above_thresh, [0]))
+        abs_diff = np.abs(np.diff(above_thresh))
+        above_thresh_idxs = np.where(abs_diff == 1)[0].reshape(-1, 2)
+        # TODO we assume that the signal will cross the threshold left to the
+        # mad signals crossing for the lower bound and right to the upperbound
+        for idxs in above_thresh_idxs:
+            print(signals[i][idxs[0]-5:idxs[0]+5])
+            if np.sign(data.data[i][idxs[0]]) == 1:  # data.data[i][idxs[0]] > upper_thresh:
+                # find actual boundaries, as the current ones are based on a
+                # a moving quantity with relatively large window size
+            #    for t in range(idxs[0], 0):
+            #        if data.data[i][t] < upper_thresh:
+            #            idxs[0] = t
+            #            break
+            #    for t in range(idxs[1], 1):
+            #        if data.data[i][t] < upper_thresh:
+            #            idxs[1] = t
+            #            break
+                peak = np.argmax(data.data[i][idxs[0]:idxs[1]]) + idxs[0]
+
+            if np.sign(data.data[i][idxs[0]]) == -1:  # data.data[i][idxs[0]] < lower_thresh:
+            #    for t in range(idxs[0], 0):
+            #        if data.data[i][t] > lower_thresh:
+            #            idxs[0] = t
+            #            break
+            #    for t in range(idxs[1], 1):
+            #        if data.data[i][t] > lower_thresh:
+            #            idxs[1] = t
+            #            break
+                peak = np.argmin(data.data[i][idxs[0]:idxs[1]]) + idxs[0]
+            
+            # FIXME what if we have a waveform and mad stays opsitive
+            # - maybe smaller mad window (con: rope jumping,  manual merging)
+            # two pass: one pos, one neg. Good solution
+            # check for zero crossing
+
+            print(peak)
+
+            duration = (idxs[1] - idxs[0]) / data.sampling_rate
+            left_dx = (peak - idxs[0]) / data.sampling_rate
+            left_dx = left_dx if left_dx != 0 else 1 / data.sampling_rate
+            left_dy = data.data[i][peak] - data.data[i][idxs[0]]
+            left_dy = (left_dy if left_dy != 0
+                       else data.data[i][peak] - data.data[i][idxs[0] - 1])
+            right_dx = (idxs[1] - peak) / data.sampling_rate
+            right_dx = right_dx if right_dx != 0 else 1 / data.sampling_rate
+            right_dy = data.data[i][idxs[0]] - data.data[i][peak]
+            right_dy = (right_dy if right_dy != 0
+                        else data.data[i][peak] - data.data[i][idxs[0] - 1])
+
+            peaks.append(peak)
+            peak_durations.append(duration)
+            peak_left_slopes.append(left_dy / left_dx)
+            peak_right_slopes.append(right_dy / right_dx)
+
+        peaks = np.array(peaks).astype(int)
+        peak_durations = np.array(peak_durations)
+
+        n_peaks[i] = len(peaks)
+        peaks_freq[i] = n_peaks[i] / data.duration_mus / 1000000
+
+        peak_ampls = data.data[i][peaks]
+        channel = np.repeat(names[i], len(peaks))
+        peak_times = peaks / data.sampling_rate
+
+        ipi = np.diff(peaks) / data.sampling_rate
+        if peaks.shape[0] > 0:
+            ipi = np.insert(ipi, 0, np.nan, axis=-1)
+
+        channel_peaks = pd.DataFrame(
+                {"Channel": channel,
+                 "PeakIndex": peaks,
+                 "TimeStamp": peak_times,
+                 "Amplitude": peak_ampls,
+                 "Duration": peak_durations,
+                 "LeftSlope": peak_left_slopes,
+                 "RightSlope": peak_right_slopes,
+                 "InterPeakInterval": ipi}
+                )
+        rows.append(channel_peaks)
+
+    data.peaks_df = pd.concat(rows)
+    data.channels_df['n_peaks'] = n_peaks
+    data.channels_df['peak_freq'] = peaks_freq
+
+
+# Maybe parallelize using ProcessPoolExec.
+# @nb.jit(parallel=True)
+def detect_peaks_abs_mad_thresh(data: Data, threshold_factor=6):
     signals = data.data
     mads = np.median(np.absolute(signals.T - np.median(signals, axis=-1)).T,
                      axis=-1)
@@ -253,6 +378,8 @@ def detect_peaks_mad_thresh(data: Data, threshold_factor=6):
     data.peaks_df = pd.concat(rows)
     data.channels_df['n_peaks'] = n_peaks
     data.channels_df['peak_freq'] = peaks_freq
+
+
 
 
 # GENERAL
