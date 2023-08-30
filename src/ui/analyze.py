@@ -55,8 +55,9 @@ result_tables = dbc.Col(dbc.Tabs([
     dbc.Tab(network_table, label="Network")
     ]), width='auto')
 
-#def generate_table(df):
-#    return dbc.Table.from_dataframe(df, striped=True, bordered=True, hover=True, index=True)
+# def generate_table(df):
+#    return dbc.Table.from_dataframe(df, striped=True, bordered=True,
+#                                    hover=True, index=True)
 
 
 def generate_table(dataframe):
@@ -86,33 +87,38 @@ filters = dbc.AccordionItem([
     # Rereference (to remove noise across all channels)
     # Line Noise
     dbc.Row([
-        dbc.Row([dbc.Button("Remove Line Noise (EU)", id="analyze-linenoise-apply")]),
+        dbc.Row([dbc.Button("Remove Line Noise (EU)",
+                            id="analyze-linenoise-apply")]),
         dbc.Row([], id="analyze-linenoise-result"),
     ], style={"padding": "25px"}, class_name="border rounded-3"),
     # Custom frequencies
     dbc.Row([
         dbc.Row([html.H6("Custom Frequency Filter")]),
-        dbc.Row([html.Hr(className="my-2"),]),
+        dbc.Row([html.Hr(className="my-2")]),
         dbc.Row([
-            dbc.Col([dbc.Input(placeholder="Lower Frequency", id="analyze-fltr-lower")]),
-            dbc.Col([dbc.Input(placeholder="Upper Frequency", id="analyze-fltr-upper")])
+            dbc.Col([dbc.Input(placeholder="Lower Frequency",
+                               id="analyze-fltr-lower")]),
+            dbc.Col([dbc.Input(placeholder="Upper Frequency",
+                               id="analyze-fltr-upper")])
             ]),
-        dbc.RadioItems(id="analyze-fltr-type", options=[{"label": "Bandpass", "value": 0}, 
-                                                        {"label": "Bandstop", "value": 1},],
-            labelCheckedClassName="text-success", inputCheckedClassName=("border border-success bg-success"),
-            style={"padding": "25px"}),
+        dbc.RadioItems(id="analyze-fltr-type",
+                       options=[{"label": "Bandpass", "value": 0},
+                                {"label": "Bandstop", "value": 1}],
+                       labelCheckedClassName="text-success",
+                       inputCheckedClassName=("border border-success bg-success"),
+                       style={"padding": "25px"}),
         dbc.Row([dbc.Button("Apply", id="analyze-fltr-apply")]),
         dbc.Row([], id="analyze-fltr-result"),
         ], style={"padding": "25px"}, class_name="border rounded-3"),
     # Downsample
     dbc.Row([
-        dbc.Col([dbc.Input(placeholder="New sampling rate", id="analyze-dwnsmpl-rate")]),
+        dbc.Col([dbc.Input(placeholder="New sampling rate",
+                           id="analyze-dwnsmpl-rate")]),
         dbc.Col([dbc.Button("Downsample", id="analyze-dwnsmpl-apply")]),
         dbc.Row([], id="analyze-dwnsmpl-result"),
     ], style={"padding": "25px"}, class_name="border rounded-3"),
 
 ], title="Filter")
-
 
 
 basics = dbc.AccordionItem([
@@ -121,26 +127,35 @@ basics = dbc.AccordionItem([
     # RMS
     dbc.Row([dbc.Button("RMS", id="analyze-rms")], style={"padding": "5px"}),
     # Entropies
-    dbc.Row([dbc.Button("Approximate Entropy", id="analyze-ent")], style={"padding": "5px"}),
-#    # Envelope
-#    dbc.Row([dbc.Button("Envelope", id="analyze-env")], style={"padding": "5px"}),
-#    # Derivative
-#    dbc.Row([dbc.Button("Derivative", id="analyze-derv")], style={"padding": "5px"}),
-#    # Mv mean
-#    dbc.Row([dbc.Button("Moving Average", id="analyze-mean")], style={"padding": "5px"}),
-#    # mv mad
-#    dbc.Row([dbc.Button("Moving Mean Absolute Deviation", id="analyze-mad")], style={"padding": "5px"}),
+    dbc.Row([dbc.Button("Approximate Entropy", id="analyze-ent")],
+            style={"padding": "5px"}),
+    # Envelope
+    # dbc.Row([dbc.Button("Envelope", id="analyze-env")],
+    #          style={"padding": "5px"}),
+    # Derivative
+    # dbc.Row([dbc.Button("Derivative", id="analyze-derv")],
+    #          style={"padding": "5px"}),
+    # Mv mean
+    # dbc.Row([dbc.Button("Moving Average", id="analyze-mean")],
+    #          style={"padding": "5px"}),
+    # mv mad
+    # dbc.Row([dbc.Button("Moving Mean Absolute Deviation", id="analyze-mad")],
+    #          style={"padding": "5px"}),
 ], title="Basic Properties")
 
 spectral = dbc.AccordionItem([
     # PSD
     dbc.Row([dbc.Button("PSD", id="analyze-psd")], style={"padding": "5px"}),
     # Periodic-Aperiodic decomposition
-    dbc.Row([dbc.Button("Periodic-Aperiodic PSD decomposition", id="analyze-fooof")], style={"padding": "5px"}),
+    dbc.Row([dbc.Button("Periodic-Aperiodic PSD decomposition",
+                        id="analyze-fooof")],
+            style={"padding": "5px"}),
     # Detrend PSD
-    dbc.Row([dbc.Button("Detrend PSD", id="analyze-dpsd")], style={"padding": "5px"}),
+    dbc.Row([dbc.Button("Detrend PSD", id="analyze-dpsd")],
+            style={"padding": "5px"}),
     # Spectrogram
-    dbc.Row([dbc.Button("Spectrogram", id="analyze-spec")], style={"padding": "5px"}),
+    dbc.Row([dbc.Button("Spectrogram", id="analyze-spec")],
+            style={"padding": "5px"}),
 ], title="Spectral Analysis")
 
 activity = dbc.AccordionItem([
@@ -148,15 +163,24 @@ activity = dbc.AccordionItem([
     dbc.Row([
         html.Strong("Detect peaks by MAD"),
         dbc.Col(html.H6("Mean absolute deviation threshold:"), width="auto"),
-        dbc.Input(placeholder="6", id="analyze-peaks-ampl-thresh"),
-        dbc.Button("Start", id="analyze-peaks-ampl")    
+        dbc.Input(placeholder="mad window (50ms)", id="analyze-peaks-mad-win"),
+        dbc.Input(placeholder="envelope window (100ms)",
+                  id="analyze-peaks-env-win"),
+        dbc.Input(placeholder="envelope percentile (5)",
+                  id="analyze-peaks-env-percentile"),
+        dbc.Input(placeholder="mad treshold (1.5)",
+                  id="analyze-peaks-mad-thrsh"),
+        dbc.Input(placeholder="envelope treshold (2)",
+                  id="analyze-peaks-env-thrsh"),
+        dbc.Button("Start", id="analyze-peaks-ampl")
      ], style={"padding": "25px"}),
     # Detect Bursts
     # Detect Events
     dbc.Row([
         html.Strong("Detect event by moving deviation measures"),
-        dbc.Row(dbc.RadioItems(id="analyze-events-method", value=1, inline=True, 
-                               options=[{"label": "Moving Std", "value": 1}, {"label": "Moving MAD", "value": 2}])),
+        dbc.Row(dbc.RadioItems(id="analyze-events-method", value=1, inline=True,
+                               options=[{"label": "Moving Std", "value": 1},
+                                        {"label": "Moving MAD", "value": 2}])),
         dbc.Row([
             dbc.Col(html.H6("Threshold factor")),
             dbc.Col(dbc.Input(placeholder="1", id="analyze-events-thresh")),

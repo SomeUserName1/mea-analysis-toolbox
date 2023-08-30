@@ -566,9 +566,18 @@ def analyze_periodic_aperiodic(_) -> html.Div:
 @app.callback(Output("channels-table", "children", allow_duplicate=True),
               Output("peaks-table", "children"),
               Input("analyze-peaks-ampl", "n_clicks"),
-              State("analyze-peaks-ampl-thresh", "value"),
+              State("analyze-peaks-mad-win", "value"),
+              State("analyze-peaks-env-win", "value"),
+              State("analyze-peaks-env-percentile", "value"),
+              State("analyze-peaks-mad-thrsh", "value"),
+              State("analyze-peaks-env-thrsh", "value"),
               prevent_initial_call=True)
-def analyze_peaks(_, thresh_factor: str) -> html.Div:
+def analyze_peaks(_,
+                  mad_win: str,
+                  env_win: str,
+                  env_percentile: str,
+                  mad_thrsh: str,
+                  env_thrsh) -> html.Div:
     """
     used by analyze screen.
 
@@ -576,10 +585,13 @@ def analyze_peaks(_, thresh_factor: str) -> html.Div:
     based on a user defined factor (default is 3) times the mean absolute
     deviation.
     """
-    if thresh_factor is not None:
-        detect_peaks(DATA, float(thresh_factor))
-    else:
-        detect_peaks(DATA)
+    mad_win = float(mad_win) if mad_win else None
+    env_win = float(env_win) if env_win else None
+    env_percentile = float(env_percentile) if env_percentile else None
+    mad_thrsh = float(mad_thrsh) if mad_thrsh else None
+    env_thrsh = float(env_thrsh) if env_thrsh else None
+
+    detect_peaks(DATA, mad_win, env_win, env_percentile, env_thrsh)
 
     return generate_table(DATA.channels_df), generate_table(DATA.peaks_df)
 

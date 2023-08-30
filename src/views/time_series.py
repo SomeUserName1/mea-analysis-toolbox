@@ -55,10 +55,13 @@ def do_plot(data: Data, selected, signals, envelope, derivative, mv_average,
             peak_idxs = pdf['PeakIndex'].values.astype(int)
             p.plot(x=ts[peak_idxs], y=data.data[i][peak_idxs], pen=None,
                    symbolBrush=(255, 0, 0, 255), symbolPen='w', name="Peaks")
+            p.plot(x=ts[data.mad_env[i]], y=data.mv_mads[i][data.mad_env[i]],  pen=(0, 255, 0, 255))
             inf1 = pg.InfiniteLine(angle=0, pos=data.lower[i], pen=(0, 0, 200))
             inf2 = pg.InfiniteLine(angle=0, pos=data.upper[i], pen=(255, 0, 255))
+            inf3 = pg.InfiniteLine(angle=0, pos=data.mad_thresh[i], pen=(155, 165, 0))
             p.addItem(inf1)
             p.addItem(inf2)
+            p.addItem(inf3)
         if bursts:
             print("TODO")
             # TODO
@@ -88,6 +91,7 @@ def plot_time_series_grid(data: Data,
                           peaks=False,
                           bursts=False,
                           seizure=False):
+    # FIXME use shared memory to avoid pickling!
     proc = Process(target=do_plot, args=(data, selected, signals, envelope,
                    derivative, mv_average, mv_mad, mv_var, peaks, bursts,
                    seizure))
