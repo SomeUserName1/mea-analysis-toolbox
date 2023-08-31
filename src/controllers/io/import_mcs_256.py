@@ -1,5 +1,5 @@
 """
-:author: Fabian Klopfer <fabian.klofper@ieee.org>
+:author: Fabian Klopfer <fabian.klofper:ieee.org>
 :date:   21.04.2023
 
 Importer for multi channel systems 256MEAs chip, assuming all data is in a
@@ -21,10 +21,10 @@ def mcs_256_import(path: str, que: Queue) -> None:
     Import data recorded with a MultiChannel Systems MEA into A Data object, \
             see model/Data.py.
 
-        @param path: the path to the file containing the data in McS h5 format.
-        @param que: A python Queue, to return the loaded data asynchronously.
+        :param path: the path to the file containing the data in McS h5 format.
+        :param que: A python Queue, to return the loaded data asynchronously.
 
-        @return a Data object containing the data in-memory and metadata or \
+        :return a Data object containing the data in-memory and metadata or \
                 None and an error message
     """
     if path is None or not os.path.exists(path):
@@ -91,10 +91,10 @@ def mcs_header_info(h5filename: str,
     Prints infos that are contained in the header of the McS h5 file, like \
             the MEA name, the version, ...
 
-        @param h5filename: Name of the file containing the data.
-        @param data: McsPy.McData.RawData object
+        :param h5filename: Name of the file containing the data.
+        :param data: McsPy.McData.RawData object
 
-        @return the information formatted as a table
+        :return the information formatted as a table
     """
     header_info = "\nFile path:" + h5filename + "\n\n"
     t_row = []
@@ -117,10 +117,10 @@ def mcs_info(h5filename: str, data: Mcs256.RawData) -> str:
     """
     Prints infos about the McS h5 file and the available stream(s)
 
-        @param h5filename: Name of the file containing the data.
-        @param data: : the object returned by calling McsPy.McData.RawData
+        :param h5filename: Name of the file containing the data.
+        :param data: : the object returned by calling McsPy.McData.RawData
 
-        @return the information formatted as a table
+        :return the information formatted as a table
     """
     info_string = mcs_header_info(h5filename, data) + "\n\n"
     recording = data.recordings[0]

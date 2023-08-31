@@ -1,7 +1,7 @@
 """
 This file contains all functions related to the webserver, i.e. the code to
 run the server, display the html sites and all callback. It holds the global
-DATA which contains metadata as well as the actual data numpy matrix. It uses
+REC which contains metadata as well as the actual data numpy matrix. It uses
 the Dash-based html code from views/ui, and the controllers implemented in
 controllers/.
 """
@@ -63,8 +63,8 @@ app = Dash(__name__,
 
 content = html.Div(id="page-content")
 app.layout = html.Div([dcc.Location(id="url"), navbar, content])
-# DATA shared memory
-DATA = None
+# REC shared memory
+REC = None
 
 
 # ================= Routing
@@ -81,11 +81,11 @@ def render_page_content(pathname: str) -> html.Div:
         @return the page contents as implemented in views/ui/. The navbar
                 is only displayed when not on the home/import screen.
     """
-    if pathname == "/" or DATA is None:
+    if pathname == "/" or REC is None:
         return importer, None
 
     if pathname == "/select":
-        grid = draw_electrode_grid(DATA)
+        grid = draw_electrode_grid(REC)
         return select(grid), nav_items
 
     if pathname == "/analyze":
@@ -115,7 +115,7 @@ def import_file(_: int,
     """
     Used on home/import screen.
 
-    Loads data from file into a Data object, stored in the DATA global
+    Loads data from file into a Data object, stored in the REC global
             variable, see model/Data.py using the importers provided in
             model/io.
     So far only the 252 channel MEA by MultiChannel Systems is supported.
@@ -130,10 +130,14 @@ def import_file(_: int,
     if input_file_path is None or file_type is None:
         return build_import_infos("Please enter a file path!", success=False)
 
-    global DATA
+    global REC
     import_que = Queue()
 
     if file_type == 0:
+
+        if REC:
+            REC.free()
+
         proc_import = Process(target=mcs_256_import,
                               args=(input_file_path, import_que))
 #    elif file_type == 1:
@@ -145,10 +149,10 @@ def import_file(_: int,
 
     proc_import.start()
 
-    DATA, info = import_que.get()
+    REC, info = import_que.get()
 
     proc_import.join()
-    success = DATA is not None
+    success = REC is not None
     feedback = build_import_infos(info, success=success)
 
     return feedback
@@ -198,7 +202,7 @@ def set_time_span(_) -> str:
         @return the minimum and maximum possible time in s:ms:mus
     """
     s_start, ms_start, mus_start = 0, 0, 0
-    s_end, ms_end, mus_end = max_duration(DATA)
+    s_end, ms_end, mus_end = max_duration(REC)
 
     return (f"{s_start}:{ms_start:03}:{mus_start:03}",
             f"{s_end}:{ms_end:03}:{mus_end:03}")
@@ -227,9 +231,9 @@ def select_update_selection_and_grid(selected_electrodes: str,
 
         @return the updated electrode grid to be shown
     """
-    update_electrode_selection(DATA, selected_electrodes,
+    update_electrode_selection(REC, selected_electrodes,
                                clicked_electrode)
-    grid = draw_electrode_grid(DATA)
+    grid = draw_electrode_grid(REC)
 
     return grid, None, None
 
@@ -253,8 +257,8 @@ def select_plot_raw(_: int, t_start: str, t_end: str) -> list:
                 only suitable for small amounts of data)
     """
     # converts the start and end time from s:ms:mus to mus
-    update_time_window(DATA, t_start, t_end)
-    plot_time_series_grid(DATA, selected=False)
+    update_time_window(REC, t_start, t_end)
+    plot_time_series_grid(REC, selected=False)
 
     return []
 
@@ -278,10 +282,10 @@ def select_apply(_: int, t_start: str, t_stop: str) -> None:
 
         @retrun a next button to get to the preprocessing page.
     """
-    if len(DATA.selected_electrodes) == 0:
+    if len(REC.selected_electrodes) == 0:
         return no_data
-    update_time_window(DATA, t_start, t_stop)
-    apply_selection(DATA)
+    update_time_window(REC, t_start, t_stop)
+    apply_selection(REC)
 
     return next_button
 
@@ -310,7 +314,7 @@ def analyze_filter(_: int, lower: str, upper: str, ftype: str) -> html.Div:
 
     @return A banner indicating that the filter was applied.
     """
-    frequency_filter(DATA, bool(ftype), float(lower), float(upper))
+    frequency_filter(REC, bool(ftype), float(lower), float(upper))
 
     return dbc.Alert("Successfully applied bandstop filter", color="success")
 
@@ -332,7 +336,7 @@ def analyze_downsample(_, sampling_rate: str) -> html.Div:
 
         @return a banner indicating if the downsampling was applied
     """
-    downsample(DATA, int(sampling_rate))
+    downsample(REC, int(sampling_rate))
 
     return dbc.Alert("Successfully downsampled", color="success")
 
@@ -351,7 +355,7 @@ def analyze_humming(_) -> html.Div:
 
         @return a banner indicating if the filter was applied
     """
-    filter_el_humming(DATA)
+    filter_el_humming(REC)
 
     return dbc.Alert("Successfully removed electrical humming",
                      color="success")
@@ -368,9 +372,9 @@ def analyze_snr(_) -> html.Div:
     Computes the signal to noise ratio per channel and adds it to the result
         dataframe
     """
-    compute_snrs(DATA)
+    compute_snrs(REC)
 
-    return generate_table(DATA.channels_df)
+    return generate_table(REC.channels_df)
 
 
 @app.callback(Output("channels-table", "children", allow_duplicate=True),
@@ -383,9 +387,9 @@ def analyze_rms(_) -> html.Div:
     Computes the root mean square/power per channel and adds it to the result
         dataframe
     """
-    compute_rms(DATA)
+    compute_rms(REC)
 
-    return generate_table(DATA.channels_df)
+    return generate_table(REC.channels_df)
 
 
 @app.callback(Output("channels-table", "children", allow_duplicate=True),
@@ -398,9 +402,9 @@ def analyze_entropy(_) -> html.Div:
     Computes the ientropy per channel and adds it to the result
         dataframe
     """
-    compute_entropies(DATA)
+    compute_entropies(REC)
 
-    return generate_table(DATA.channels_df)
+    return generate_table(REC.channels_df)
 
 
 # @app.callback(Output("channels-table", "children", allow_duplicate=True),
@@ -413,10 +417,10 @@ def analyze_entropy(_) -> html.Div:
 #     Computes the envelope per channel and adds it to the result
 #         dataframe
 #     """
-#     compute_envelopes(DATA)
-#     #DATA.df['envelope'] = np.split(DATA.envelopes, DATA.envelopes.shape[0])
+#     compute_envelopes(REC)
+#     #REC.df['envelope'] = np.split(REC.envelopes, REC.envelopes.shape[0])
 #
-#     return generate_table(DATA.df)
+#     return generate_table(REC.df)
 #
 #
 # @app.callback(Output("channels-table", "children", allow_duplicate=True),
@@ -429,11 +433,11 @@ def analyze_entropy(_) -> html.Div:
 #     Computes the derivative per channel and adds it to the result
 #         dataframe
 #     """
-#     compute_derivatives(DATA)
-#     #DATA.df['derivative'] = np.split(DATA.derivatives,
-#                                       DATA.derivatives.shape[0])
+#     compute_derivatives(REC)
+#     #REC.df['derivative'] = np.split(REC.derivatives,
+#                                       REC.derivatives.shape[0])
 #
-#     return generate_table(DATA.df)
+#     return generate_table(REC.df)
 #
 #
 # @app.callback(Output("channels-table", "children", allow_duplicate=True),
@@ -446,10 +450,10 @@ def analyze_entropy(_) -> html.Div:
 #     Computes the moving average per channel and adds it to the result
 #         dataframe
 #     """
-#     compute_mv_avg(DATA)
-#     #DATA.df['mv_average'] = np.split(DATA.mv_means, DATA.mv_means.shape[0])
+#     compute_mv_avg(REC)
+#     #REC.df['mv_average'] = np.split(REC.mv_means, REC.mv_means.shape[0])
 #
-#     return generate_table(DATA.df)
+#     return generate_table(REC.df)
 #
 #
 # @app.callback(Output("channels-table", "children", allow_duplicate=True),
@@ -462,10 +466,10 @@ def analyze_entropy(_) -> html.Div:
 #     Computes the moving mean absolute deviation per channel and adds it to
 #       the result dataframe
 #     """
-#     compute_mv_mads(DATA)
-#     #DATA.df['mv_mad'] = np.split(DATA.mv_mads, DATA.mv_mads.shape[0])
+#     compute_mv_mads(REC)
+#     #REC.df['mv_mad'] = np.split(REC.mv_mads, REC.mv_mads.shape[0])
 #
-#     return generate_table(DATA.df)
+#     return generate_table(REC.df)
 #
 #
 # @app.callback(Output("channels-table", "children", allow_duplicate=True),
@@ -478,10 +482,10 @@ def analyze_entropy(_) -> html.Div:
 #     Computes the moving variance per channel and adds it to the result
 #         dataframe
 #     """
-#     compute_mv_vars(DATA)
-#     #DATA.df['mv_var'] = np.split(DATA.mv_vars, DATA.mv_vars.shape[0])
+#     compute_mv_vars(REC)
+#     #REC.df['mv_var'] = np.split(REC.mv_vars, REC.mv_vars.shape[0])
 #
-#     return generate_table(DATA.df)
+#     return generate_table(REC.df)
 
 
 # ========== Spectral
@@ -496,13 +500,13 @@ def analyze_psds(_) -> html.Div:
     Computes the power spectral densities for all selected rows and stores the
         result.
     """
-    compute_psds(DATA)
+    compute_psds(REC)
 
-    # DATA.df["psd_freq"].apply(lambda x: DATA.psds[0])
-    # DATA.df['psd_power'] = np.split(DATA.psds[1], DATA.psds[1].shape[0])
-    # DATA.df['psd_phase'] = np.split(DATA.psds[2], DATA.psds[2].shape[0])
+    # REC.df["psd_freq"].apply(lambda x: REC.psds[0])
+    # REC.df['psd_power'] = np.split(REC.psds[1], REC.psds[1].shape[0])
+    # REC.df['psd_phase'] = np.split(REC.psds[2], REC.psds[2].shape[0])
 
-    return generate_table(DATA.channels_df)
+    return generate_table(REC.channels_df)
 
 
 # TODO maybe store
@@ -516,11 +520,11 @@ def analyze_detrend_psds(_) -> html.Div:
     Computes the power spectral densities for all selected rows and plots the \
        #            results.
     """
-    detrend_fooof(DATA)
-    DATA.df['detrended_psd'] = np.split(DATA.detrended_psds,
-                                        DATA.detrended_psds.shape[0])
+    detrend_fooof(REC)
+    REC.df['detrended_psd'] = np.split(REC.detrended_psds,
+                                       REC.detrended_psds.shape[0])
 
-    return generate_table(DATA.channels_df)
+    return generate_table(REC.channels_df)
 
 
 # Both plotting and qunatities
@@ -533,12 +537,12 @@ def analyze_spectrograms(_) -> html.Div:
 
     Computes the spectrogram for all selected rows and plots the results.
     """
-    compute_spectrograms(DATA)
-    DATA.df[:, 'spectrogram_freqs'] = DATA.spectrograms[0]
-    DATA.df[:, 'spectrogram_time'] = DATA.spectrograms[1]
-    DATA.df['spectrogram'] = DATA.spectrograms[2]
+    compute_spectrograms(REC)
+    REC.df[:, 'spectrogram_freqs'] = REC.spectrograms[0]
+    REC.df[:, 'spectrogram_time'] = REC.spectrograms[1]
+    REC.df['spectrogram'] = REC.spectrograms[2]
 
-    return generate_table(DATA.channels_df)
+    return generate_table(REC.channels_df)
 
 
 # Quantities
@@ -553,13 +557,13 @@ def analyze_periodic_aperiodic(_) -> html.Div:
                    from the aperiodic components. Stores the parameter of the
                    aperiodic component to the result dataframe
     """
-    compute_periodic_aperiodic_decomp(DATA)
-    DATA.df['aperiodic_offset'] = DATA.fooof_group.get_params(
+    compute_periodic_aperiodic_decomp(REC)
+    REC.df['aperiodic_offset'] = REC.fooof_group.get_params(
                                         'aperiodic_params', 'offset')
-    DATA.df['aperiodic_exponent'] = DATA.fooof_group.get_params(
+    REC.df['aperiodic_exponent'] = REC.fooof_group.get_params(
                                         'aperiodic_params', 'exponent')
 
-    return generate_table(DATA.channels_df)
+    return generate_table(REC.channels_df)
 
 
 # ================= TODO Activity
@@ -591,9 +595,9 @@ def analyze_peaks(_,
     mad_thrsh = float(mad_thrsh) if mad_thrsh else None
     env_thrsh = float(env_thrsh) if env_thrsh else None
 
-    detect_peaks(DATA, mad_win, env_win, env_percentile, env_thrsh)
+    detect_peaks(REC, mad_win, env_win, env_percentile, env_thrsh)
 
-    return generate_table(DATA.channels_df), generate_table(DATA.peaks_df)
+    return generate_table(REC.channels_df), generate_table(REC.peaks_df)
 
 
 # @app.callback(Output("analyze-events-stats", "children"),
@@ -615,10 +619,10 @@ def analyze_peaks(_,
 #     res = None
 #     if clicked is not None and clicked > 0:
 #         if thresh_factor is None:
-#             res = detect_events_moving_dev(DATA, method,
+#             res = detect_events_moving_dev(REC, method,
 #                                            export=export, fname=fname)
 #         else:
-#             res = detect_events_moving_dev(DATA, method, STD_BASE_MV_STD,
+#             res = detect_events_moving_dev(REC, method, STD_BASE_MV_STD,
 #                                            float(thresh_factor),
 #                                            export=export,
 #                                            fname=fname)
@@ -637,11 +641,11 @@ def analyze_cross_correlation(_) -> html.Div:
     Computes the cross correlation between all selected channels and adds it to
     the results.
     """
-    compute_xcorrs(DATA)
-    DATA.df.loc[:, 'cross-correlation_lags'] = DATA.xcorrs[0]
-    DATA.df['cross-correlation'] = DATA.xcorrs[1]
+    compute_xcorrs(REC)
+    REC.df.loc[:, 'cross-correlation_lags'] = REC.xcorrs[0]
+    REC.df['cross-correlation'] = REC.xcorrs[1]
 
-    return generate_table(DATA.network_df)
+    return generate_table(REC.network_df)
 
 
 @app.callback(Output("network-table", "children", allow_duplicate=True),
@@ -654,10 +658,10 @@ def analyze_mutual_information(_) -> html.Div:
     Computes mutual information between all selected channels and adds them to
     the results.
     """
-    compute_mutual_info(DATA)
-    DATA.df['mutual_information'] = DATA.mutual_informations
+    compute_mutual_info(REC)
+    REC.df['mutual_information'] = REC.mutual_informations
 
-    return generate_table(DATA.network_df)
+    return generate_table(REC.network_df)
 
 
 @app.callback(Output("network-table", "children", allow_duplicate=True),
@@ -670,10 +674,10 @@ def analyze_transfer_entropy(_) -> html.Div:
     Computes transfer entropy between all selected channels and adds it to te
     results.
     """
-    compute_transfer_entropy(DATA)
-    DATA.df['transfer_entropy'] = DATA.transfer_entropy
+    compute_transfer_entropy(REC)
+    REC.df['transfer_entropy'] = REC.transfer_entropy
 
-    return generate_table(DATA.network_df)
+    return generate_table(REC.network_df)
 
 
 @app.callback(Output("network-table", "children", allow_duplicate=True),
@@ -686,13 +690,13 @@ def analyze_coherence(_) -> html.Div:
     Computes transfer entropy between all selected channels and adds it to the
     results.
     """
-    compute_coherence(DATA)
+    compute_coherence(REC)
     # TODO correct the addition to df
-    DATA.df['coherence_freqs'] = DATA.coherences[:][0]
-    DATA.df['coherence_lags'] = DATA.coherence[:][2]
-    DATA.df['coherence'] = DATA.coherences[:][1]
+    REC.df['coherence_freqs'] = REC.coherences[:][0]
+    REC.df['coherence_lags'] = REC.coherence[:][2]
+    REC.df['coherence'] = REC.coherences[:][1]
 
-    return generate_table(DATA.network_df)
+    return generate_table(REC.network_df)
 
 
 @app.callback(Output("network-table", "children", allow_duplicate=True),
@@ -705,10 +709,10 @@ def analyze_granger_causality(_) -> html.Div:
     Computes transfer entropy between all selected channels and adds it to the
     results.
     """
-    compute_granger_causality(DATA)
-    DATA.df['granger_causality'] = DATA.granger_causalities
+    compute_granger_causality(REC)
+    REC.df['granger_causality'] = REC.granger_causalities
 
-    return generate_table(DATA.network_df)
+    return generate_table(REC.network_df)
 
 
 @app.callback(Output("network-table", "children", allow_duplicate=True),
@@ -721,11 +725,11 @@ def analyze_spectral_granger_causality(_) -> html.Div:
     Computes transfer entropy between all selected channels and adds it to the
     results.
     """
-    compute_spectral_granger(DATA)
-    DATA.df['spectral_granger_freqs'] = DATA.spectral_granger[0]
-    DATA.df['spectral_granger_causality'] = DATA.spectral_granger[1]
+    compute_spectral_granger(REC)
+    REC.df['spectral_granger_freqs'] = REC.spectral_granger[0]
+    REC.df['spectral_granger_causality'] = REC.spectral_granger[1]
 
-    return generate_table(DATA.network_df)
+    return generate_table(REC.network_df)
 
 
 @app.callback(Output("network-table", "children", allow_duplicate=True),
@@ -738,11 +742,11 @@ def analyze_current_source_densities(_) -> html.Div:
     Computes transfer entropy between all selected channels and adds it to the
     results.
     """
-    compute_current_source_density(DATA)
+    compute_current_source_density(REC)
     # TODO correct the addition to df
-    DATA.df['current_source_density'] = DATA.csds
+    REC.df['current_source_density'] = REC.csds
 
-    return generate_table(DATA.network_df)
+    return generate_table(REC.network_df)
 
 
 # ======= Visualize
@@ -774,22 +778,22 @@ def analyze_plot_time_series(_: int, to_plot: list[int]) -> None:
     seizure = TimeSeriesPlottable.SEIZURE.value in to_plot
     selected = True
 
-    if envelope and DATA.envelopes is None:
-        compute_envelopes(DATA)
-    if derivative and DATA.derivatives is None:
-        compute_derivatives(DATA)
-    if mv_average and DATA.mv_means is None:
-        compute_mv_avgs(DATA)
-    if mv_mad and DATA.mv_mads is None:
-        compute_mv_mads(DATA)
-    if peaks and DATA.peaks_df.empty:
-        detect_peaks(DATA)
-#   if DATA.bursts is None:
-#        detect_bursts(DATA)
-#    if DATA.seizure is None:
-#        detect_seizure(DATA)
+    if envelope and REC.envelopes is None:
+        compute_envelopes(REC)
+    if derivative and REC.derivatives is None:
+        compute_derivatives(REC)
+    if mv_average and REC.mv_means is None:
+        compute_mv_avgs(REC)
+    if mv_mad and REC.mv_mads is None:
+        compute_mv_mads(REC)
+    if peaks and REC.peaks_df.empty:
+        detect_peaks(REC)
+#   if REC.bursts is None:
+#        detect_bursts(REC)
+#    if REC.seizure is None:
+#        detect_seizure(REC)
 
-    plot_time_series_grid(DATA, selected, signals, envelope, derivative,
+    plot_time_series_grid(REC, selected, signals, envelope, derivative,
                           mv_average, mv_mad, mv_var, peaks, bursts, seizure)
     return None
 
@@ -823,7 +827,7 @@ def analyze_plot_time_series(_: int, to_plot: list[int]) -> None:
 #     """
 #     if clicked is not None and clicked > 0:
 #         new_sr = fps / slow_down
-#         bins = bin_amplitude(DATA, new_sr)
+#         bins = bin_amplitude(REC, new_sr)
 #
 #     return 0
 

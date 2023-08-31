@@ -6,15 +6,14 @@ from typing import Optional
 import numpy as np
 import scipy.signal as sg
 
-from model.data import Data
+from model.data import Recording, SharedArray
 
 
-def frequency_filter(data: Data,
+def frequency_filter(rec: Recording,
                      stop: bool,
                      low_cut: Optional[float],
                      high_cut: Optional[float],
-                     order: Optional[int] = 8,
-                     ) -> np.ndarray:
+                     order: Optional[int] = 16):
     """
     A general purpose digital filter for low-pass, high-pass and band-pass
     filtering. Uses the scipy.signal.sosfilt method:
@@ -25,66 +24,72 @@ def frequency_filter(data: Data,
     backwards. The combined filter has zero phase and a filter order twice that
     of the original.
 
-    Args:
-        signal (numpy array): Input signal as a one-dimensional np.array.
-        fs (int, float): Sampling frequency of input data.
-        low_cut (int, float): Low-pass cutoff frequency in Hz.
-        high_cut (int, float): High-pass cutoff frequency in Hz.
-        order (int): Default set to 6.
+    :param rec: Input recording object whose signals to filter.
+    :type rec: Recording
 
-    Returns:
-        y (numpy array (float32)): Return the filtered signal with the same
-            shape as the input signal
+    :param stop: If True, a bandstop filter is used, therwise a bandpass.
+    :type stop: bool
+
+    :param low_cut: Low-pass cutoff frequency in Hz.
+    :type low_cut: float
+
+    :param high_cut: High-pass cutoff frequency in Hz.
+    :type high_cut: float
+
+    :param order: Order of the filter.
+    :type order: int
     """
-    fs = data.sampling_rate
+    fs = rec.sampling_rate
     if low_cut == 0:
         low_cut = None
 
     if high_cut == fs // 2:
         high_cut = None
 
-    # Bandpass or bandstop/notch filter
+# Bandpass or bandstop/notch filter
     if low_cut and high_cut:
-        if stop:
-            sos = sg.butter(N=order, Wn=[low_cut, high_cut], fs=fs,
-                            btype='bandstop', output='sos')
-        else:
-            sos = sg.butter(N=order, Wn=[low_cut, high_cut],
-                            btype='bandpass',  fs=fs, output='sos')
+        btype = 'bandstop' if stop else 'bandpass'
+        sos = sg.butter(N=order, Wn=[low_cut, high_cut], fs=fs,
+                        btype=btype, output='sos')
+    else:
+        # if the stop filter is used invert the limits.
+        # i.e. instead of filtering everything below low as in a high pass, we
+        # filter everything above low to get a high stop)
+        if low_cut:
+            # Highpass filter
+            cut = high_cut if stop else low_cut
+            btype = 'highpass'
 
-    # if the stop filter is used invert the limits.
-    # i.e. instead of filtering everything below low as in a high pass, we
-    # filter everything above low to get a high stop)
-    if stop:
-        temp = low_cut
-        low_cut = high_cut
-        high_cut = temp
+        elif high_cut:
+            # Lowpass filter
+            cut = low_cut if stop else high_cut
+            btype = 'lowpass'
 
-    if low_cut and not high_cut:
-        # Highpass filter
-        sos = sg.butter(N=order, Wn=low_cut, btype='highpass', fs=fs,
-                        output='sos')
-    elif high_cut and not low_cut:
-        # Lowpass filter
-        sos = sg.butter(N=order, Wn=high_cut, btype='lowpass', fs=fs,
+        sos = sg.butter(N=order, Wn=cut, btype=btype, fs=fs,
                         output='sos')
 
-    data.data = sg.sosfiltfilt(sos, data.data)
+    data = rec.get_data()
+    data = sg.sosfiltfilt(sos, data)
+    data.close()
 
 
-def downsample(data: Data, new_fs: int) -> None:
+def downsample(rec: Recording, new_fs: int):
     """
     Downsample the data to a new sampling rate. The new sampling rate must be
     smaller than the current sampling rate.
 
-    Args:
-        data (Data): The data to downsample.
-        new_fs (int): The new sampling rate.
+    :param rec: The recording whichs signals to downsample.
+    :type rec: Recording
+
+    :param new_fs: The new sampling rate.
+    :type new_fs: int
     """
-    q = int(np.round(data.sampling_rate / new_fs))
-    data.stop_idx = data.stop_idx / q
+    q = int(np.round(rec.sampling_rate / new_fs))
+    rec.stop_idx = rec.stop_idx / q
     q_it = 0
 
+    data = rec.get_data()
+    downsampled = None
     # determine if we can find a factor that is divisible by 12
     # to downsample the signal without a residual
     for i in range(12):
@@ -102,32 +107,43 @@ def downsample(data: Data, new_fs: int) -> None:
     while q > 13:
         # On each iteration we downsample by a factor of q_it
         # and count how often we do that.
-        data.data = sg.decimate(data.data, q_it)
+        downsampled = sg.decimate(data, q_it)
         q = int(np.round(q / q_it))
         i += 1
 
     # Adjust the sampling rate with what was downsampled already
-    data.sampling_rate = data.sampling_rate / q_it**i
+    rec.sampling_rate = rec.sampling_rate / q_it**i
 
     q = int(np.floor(q))
     # if the residual factor is at least 2, downsample by what's left
     if q > 1:
-        data.data = sg.decimate(data.data, q)
-        data.sampling_rate = int(np.round(data.sampling_rate / q))
+        downsampled = sg.decimate(data, q)
+        rec.sampling_rate = int(np.round(rec.sampling_rate / q))
+
+    # if the residual factor is 1, we are done
+    # replace the data in the recording object with the downsampled data
+    # as it is smaller in size i.e. replace the larger buffer by a smaller one
+    rec.data = SharedArray(downsampled, rec.manager)
+    # release the larger array from memory
+    data.free()
 
 
-def filter_el_humming(data: Data, order: Optional[int] = 16) -> None:
+def filter_line_noise(rec: Recording, order: Optional[int] = 16) -> None:
     """
-    Filter out the 50 Hz humming noise (and multiples of it) from the data.
+    Filter out the 50 Hz line noise and multiples of it from the data.
 
-    Args:
-        data (Data): The data to filter.
-        order (int): The order of the filter.
+    :param rec: The data to filter the line noise from.
+    :type rec: Recording
+
+    :param order (int): The order of the filter.
+    :type order: int
     """
     freqs = [i * 50 for i in range(1, 10)]
 
+    data = rec.get_data()
     for freq in freqs:
         sos = sg.butter(N=order, Wn=[freq-1.5, freq+1.5], btype='bandstop',
-                        output='sos', fs=data.sampling_rate)
+                        output='sos', fs=rec.sampling_rate)
+        data = sg.sosfilt(sos, data)
 
-        data.data = sg.sosfilt(sos, data.data)
+    data.close()
