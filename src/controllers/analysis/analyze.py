@@ -69,7 +69,8 @@ def compute_snrs(rec: Recording):
     :param rec: Recording object containing signals to be processed
     :type rec: Recording
     """
-    rec.channels_df.add_column('SNR', compute_snrs_jit(rec.get_data()))
+    rec.channels_df.add_column(['SNR'], [compute_snrs_jit(rec.get_data())])
+    rec.data.close()
 
 
 def compute_rms(rec: Recording):
@@ -80,7 +81,8 @@ def compute_rms(rec: Recording):
     :param rec: Recording object containing signals to be processed
     :type rec: Recording
     """
-    rec.channels_df.add_column('RMS', compute_rms_jit(rec.get_data()))
+    rec.channels_df.add_column(['RMS'], [compute_rms_jit(rec.get_data())])
+    rec.data.close()
 
 
 def compute_entropies(rec: Recording):
@@ -92,7 +94,8 @@ def compute_entropies(rec: Recording):
     :type rec: Recording
     """
     entropies = compute_entropies_jit(rec.get_data())
-    rec.channels_df.add_column('ApproxEntropy', entropies)
+    rec.channels_df.add_column(['ApproxEntropy'], [entropies])
+    rec.data.close()
 
 
 def bin_amplitude(rec: Recording, new_sr: int = 500) -> np.ndarray:
@@ -129,4 +132,5 @@ def bin_amplitude(rec: Recording, new_sr: int = 500) -> np.ndarray:
         bins[:, bin_idx] = bins[:, bin_idx] / n_frames_in_bin
         bin_idx = bin_idx + 1
 
+    rec.data.close()
     return bins

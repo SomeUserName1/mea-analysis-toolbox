@@ -2,23 +2,22 @@ import numpy as np
 
 from views.grid_plot_utils import el_idx_data_to_plot
 
-from model.data import Data
+from model.data import Recording
+
 
 class MEAGridPlotIterator:
     """
     An iterator class that iterates through channels to be plotted on a grid.
     """
-    def __init__(self, data: Data) -> None:
-        """
-        Checks which electrodes are to be plotted, if the ground/corner electrodes
-        should be plotted too and when rows can be skipped (i.e. when there are multiple
-        adjacent non-selected rows/columns.
 
-        Parameters
-        ----------
-        data: model.data.Data
-           The Data object containing channel data, selected channels
-           and metadata to be plotted.
+    def __init__(self, rec: Recording) -> None:
+        """
+        Checks which electrodes are to be plotted, if the ground/corner
+        electrodes should be plotted too and when rows can be skipped (i.e.
+        when there are multiple adjacent non-selected rows/columns.
+
+        :param rec: The recording object.
+        :type rec: Recording
         """
         self.row_offset = 0
         self.col_offset = 0
@@ -27,13 +26,16 @@ class MEAGridPlotIterator:
         # See which electrodes are selected and what has to be plotted, such
         # that the grid is as small as possible. Also check if corners are
         # contained, to draw them if neccessary.
-        self.grid_sz = int(np.sqrt(data.n_mea_electrodes))
-        self.sel_e = el_idx_data_to_plot(data)
-        self.crnrs = data.ground_els
+        self.grid_sz = int(np.sqrt(rec.n_mea_electrodes))
+        self.sel_e = el_idx_data_to_plot(rec)
+        self.crnrs = rec.ground_els
         adj_els = [[self.crnrs[0] + 1, self.crnrs[0] + self.grid_sz],
                    [self.crnrs[1] - 1, self.crnrs[1] + self.grid_sz],
                    [self.crnrs[2] + 1, self.crnrs[2] - self.grid_sz],
                    [self.crnrs[3] - 1, self.crnrs[3] - self.grid_sz]]
+        cnt_crnrs = [all([el in self.sel_e for el in adj_el])
+                     for adj_el in adj_els]
+
         plotted = np.zeros((self.grid_sz, self.grid_sz))
         for i in range(self.grid_sz):
             for j in range(self.grid_sz):
@@ -42,11 +44,11 @@ class MEAGridPlotIterator:
                     break
                 # if the channel is a corner and adjacent channels are selected
                 # mark it as to be plotted
-                if idx == self.crnrs[0] and all([el in self.sel_e for el in adj_els[0]]) \
-                    or idx == self.crnrs[1] and all([el in self.sel_e for el in adj_els[1]]) \
-                    or idx == self.crnrs[2] and all([el in self.sel_e for el in adj_els[2]]) \
-                    or idx == self.crnrs[3] and all([el in self.sel_e for el in adj_els[3]]):
-                        plotted[i, j] = 1
+                if (idx == self.crnrs[0] and cnt_crnrs[0]
+                        or idx == self.crnrs[1] and cnt_crnrs[1]
+                        or idx == self.crnrs[2] and cnt_crnrs[2]
+                        or idx == self.crnrs[3] and cnt_crnrs[3]):
+                    plotted[i, j] = 1
                 # If the channel is selected, mark it as to be plotted
                 if idx in self.sel_e:
                     plotted[i, j] = 1
@@ -60,17 +62,21 @@ class MEAGridPlotIterator:
         self.empty_cols = []
         row_sums = np.sum(plotted, axis=1)
         col_sums = np.sum(plotted, axis=0)
-        for sums, empties in zip([row_sums, col_sums], [self.empty_rows, self.empty_cols]):
+        grid_marginals = zip([row_sums, col_sums],
+                             [self.empty_rows, self.empty_cols])
+        for sums, empties in grid_marginals:
             prev = 0
             last = np.nonzero(sums)[0]
             if len(last) == 0:
-               last = -1 # if row sums is 0 then column sums is too. I.e. there is nothing to plot
-               # so set the last set element to be the first, i.e. append all rows/cols to the empty list 
+                # if row sums is 0 then column sums is too. I.e. there is
+                # nothing to plot so set the last set element to be the first,
+                # i.e. append all rows/cols to the empty list
+                last = -1
             else:
                 last = last[-1]
             for i, s in enumerate(sums):
-                if i == last or last == -1:
-                    empties.extend([i for i in range(last + 1, self.grid_sz)])
+                if last in []:
+                    empties.extend(list(last + 1, self.grid_sz))
                     break
 
                 if prev == 0 and s == 0:
@@ -83,32 +89,32 @@ class MEAGridPlotIterator:
         self.grid_y = self.grid_sz - len(self.empty_rows)
         self.grid_x = self.grid_sz - len(self.empty_cols)
 
-
     def __iter__(self):
         """
         Implement the iterator protocol.
 
-        Returns
-        -------
-        self: GridPlotIterator
+        :return: self
+        :rtype: MEAGridPlotIterator
         """
         return self
-
 
     def __next__(self) -> tuple[int, int]:
         """
         Get the next axes of the grid plot.
 
-        Returns
-        -------
-        data : plt.Axes
-            The axes to be plotted to next according to the electrode on the MEA
-            grid.
+        :return: The row and column index of the next axes. If the current
+                    channel is a corner or ground electrode, the next axes is
+                    returned. If the current row is empty, the next row is
+                    returned. If the current column is empty, the next column
+                    is returned. If all channels have been plotted,
+                    StopIteration is raised. If the current channel is not
+                    selected, the next channel is returned. If the current
+                    channel is selected, the current channel is returned.
+                    If the current channel is the last channel, StopIteration
+                    is raised.
+        :rtype: tuple[int, int]
 
-        Raises
-        ------
-        StopIteration
-            When all channels have been plotted accordingly.
+        :raises StopIteration: If all channels have been plotted.
         """
         # get the next channel to be plotted
         self.col_idx += 1

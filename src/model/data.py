@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-import multiprocessing as mp
+from multiprocessing.shared_memory import SharedMemory
 
 
 class Recording:
@@ -45,11 +45,8 @@ class Recording:
         self.selected_electrodes = []
         self.sampling_rate = sampling_rate
 
-        # create shared memory manager
-        self.manager = mp.shared_memory.SharedMemoryManager()
-        self.manager.start()
         # create shared memory
-        self.data = SharedArray(data, self.manager)
+        self.data = SharedArray(data)
 
         # Maybe used for burst detection and burst & peak characterization
         self.derivatives = None # ndarray (data.shape)
@@ -94,7 +91,7 @@ class Recording:
         return self.data.read()
 
     def free(self):
-        self.manager.shutdown()
+        self.data.free()
 
 
 class SharedArray:
@@ -103,32 +100,48 @@ class SharedArray:
     avoiding unnecessary copying and (de)serializing.
     '''
 
-    def __init__(self, array, manager):
+    def __init__(self, array: np.ndarray):
         '''
         Creates the shared memory and copies the array therein
+
+        :param array: the array to be shared
+        :type array: np.ndarray
         '''
         # create the shared memory location of the same size of the array
-        self._shared = manager.SharedMemory(create=True, size=array.nbytes)
+        self._shared = SharedMemory(create=True, size=array.nbytes)
+        self._name = self._shared.name
 
         # save data type and shape, necessary to read the data correctly
-        self._dtype, self._shape = array.dtype, array.shape
+        self._dtype = array.dtype
+        self._shape = array.shape
 
         # create a new numpy array that uses the shared memory we created.
         # at first, it is filled with zeros
-        res = self.read()
+        res = np.ndarray(self._shape, self._dtype, buffer=self._shared.buf)
         # copy data from the array to the shared memory. numpy will
         # take care of copying everything in the correct format
         res[:] = array[:]
+        self._shared.close()
 
     def read(self):
         '''
         Reads the array from the shared memory without unnecessary copying.
         '''
-        # simply create an array of the correct shape and type,
-        # using the shared memory location we created earlier
+        #  open the shared memory region and simply create an array of the
+        # correct shape and type
+        self._shared = SharedMemory(self._name)
         return np.ndarray(self._shape, self._dtype, buffer=self._shared.buf)
 
+    def close(self):
+        '''
+        Closes the shared memory region.
+        '''
+        self._shared.close()
+
     def free(self):
+        '''
+        Closes and unlinks the shared memory region.
+        '''
         self._shared.close()
         self._shared.unlink()
 
@@ -139,12 +152,14 @@ class SharedDataFrame:
     avoiding unnecessary copying and (de)serializing.
     '''
 
-    def __init__(self, df, manager):
+    def __init__(self, df):
         '''
         Creates the shared memory and copies the dataframe therein
+
+        :param df: the dataframe to be shared
+        :type df: pd.DataFrame
         '''
-        self._manager = manager
-        self._values = SharedArray(df.values, manager)
+        self._values = SharedArray(df.values)
         self._columns = df.columns
 
     def read(self):
@@ -157,12 +172,20 @@ class SharedDataFrame:
             columns=self._columns
         )
 
-    def add_col(self, col_name, col):
-        self._columns.append(col_name)
+    def add_cols(self, col_names: list[str], cols: list[np.ndarray]):
+        for col_name in col_names:
+            self._columns.append(col_name)
+
         prev_values = self._values
-        self._values = SharedArray(np.hstack((self._values.read(), col)),
-                                   self._manager)
+        cols.insert(0, self._values.read())
+        self._values = SharedArray(np.hstack(cols))
         prev_values.free()
+
+    def close(self):
+        '''
+        Closes the shared memory region.
+        '''
+        self._values.close()
 
     def free(self):
         self._values.free()

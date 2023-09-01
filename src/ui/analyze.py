@@ -1,5 +1,6 @@
 """
-Dash-based HTML code for the analyze ui to be displayed in the browser via the Dash server.
+Dash-based HTML code for the analyze ui to be displayed in the browser via the
+Dash server.
 """
 from enum import Enum
 
@@ -15,15 +16,14 @@ import numpy as np
 
 
 class TimeSeriesPlottable(Enum):
+    """
+    Enum class for the different plottable time series.
+    """
     SIG = 0
-    ENV = 1
-    DERV = 2
-    MV_AVG = 3
-    MV_MAD = 4
-    MV_VAR = 5
-    PEAKS = 6
-    BURSTS = 7
-    SEIZURE = 8
+    PEAKS = 1
+    BURSTS = 2
+    SEIZURE = 3
+    THRESH = 4
 
 
 channels_table = dbc.Card(
@@ -55,20 +55,33 @@ result_tables = dbc.Col(dbc.Tabs([
     dbc.Tab(network_table, label="Network")
     ]), width='auto')
 
-# def generate_table(df):
-#    return dbc.Table.from_dataframe(df, striped=True, bordered=True,
-#                                    hover=True, index=True)
 
+def generate_table(dataframe, from_row=0, to_row=None, max_rows=100):
+    """
+    Generate a HTML table from a pandas dataframe.
 
-def generate_table(dataframe):
+    :param dataframe: The dataframe to generate the table from.
+    :type dataframe: pandas.DataFrame
+
+    :param from_row: The row to start from.
+    :type from_row: int
+
+    :param to_row: The row to end at.
+    :type to_row: int
+
+    :param max_rows: The maximum number of rows to display.
+
+    :return: The HTML table.
+    :rtype: dash_html_components.Table
+    """
     rows = []
-    for i in range(len(dataframe)):
+    for i in range(from_row, min(to_row, len(dataframe), from_row + max_rows)):
         cols = []
         for col in dataframe.columns:
             field = dataframe.iloc[i][col]
-            if type(field) == float:
+            if isinstance(field, float):
                 cols.append(html.Td(f"{dataframe.iloc[i][col]:.8f}"))
-            elif type(field) == np.ndarray:
+            elif isinstance(field, np.ndarray):
                 cols.append(html.Td(f"shape: {dataframe.iloc[i][col].shape}"))
             else:
                 cols.append(html.Td(f"{dataframe.iloc[i][col]}"))
@@ -105,8 +118,9 @@ filters = dbc.AccordionItem([
                        options=[{"label": "Bandpass", "value": 0},
                                 {"label": "Bandstop", "value": 1}],
                        labelCheckedClassName="text-success",
-                       inputCheckedClassName=("border border-success bg-success"),
+                       inputCheckedClassName=("border rounded-3"),
                        style={"padding": "25px"}),
+
         dbc.Row([dbc.Button("Apply", id="analyze-fltr-apply")]),
         dbc.Row([], id="analyze-fltr-result"),
         ], style={"padding": "25px"}, class_name="border rounded-3"),
@@ -178,7 +192,8 @@ activity = dbc.AccordionItem([
     # Detect Events
     dbc.Row([
         html.Strong("Detect event by moving deviation measures"),
-        dbc.Row(dbc.RadioItems(id="analyze-events-method", value=1, inline=True,
+        dbc.Row(dbc.RadioItems(id="analyze-events-method", value=1,
+                               inline=True,
                                options=[{"label": "Moving Std", "value": 1},
                                         {"label": "Moving MAD", "value": 2}])),
         dbc.Row([
@@ -193,17 +208,23 @@ activity = dbc.AccordionItem([
 
 network = dbc.AccordionItem([
     # Cross-Correlation
-    dbc.Row([dbc.Button("Cross-Correlation", id="analyze-xcorr")], style={"padding": "5px"}),
+    dbc.Row([dbc.Button("Cross-Correlation", id="analyze-xcorr")],
+            style={"padding": "5px"}),
     # Mutual Info
-    dbc.Row([dbc.Button("Mutual Information", id="analyze-mi")], style={"padding": "5px"}),
+    dbc.Row([dbc.Button("Mutual Information", id="analyze-mi")],
+            style={"padding": "5px"}),
     # Transfer Entropy
-    dbc.Row([dbc.Button("Transfer Entropy", id="analyze-te")], style={"padding": "5px"}),
+    dbc.Row([dbc.Button("Transfer Entropy", id="analyze-te")],
+            style={"padding": "5px"}),
     # Coherence
-    dbc.Row([dbc.Button("Coherence", id="analyze-coh")], style={"padding": "5px"}),
+    dbc.Row([dbc.Button("Coherence", id="analyze-coh")],
+            style={"padding": "5px"}),
     # Granger Causality
-    dbc.Row([dbc.Button("Granger Causality", id="analyze-gc")], style={"padding": "5px"}),
+    dbc.Row([dbc.Button("Granger Causality", id="analyze-gc")],
+            style={"padding": "5px"}),
     # Spectral Granger Causality
-    dbc.Row([dbc.Button("Spectral Granger Causality", id="analyze-sgc")], style={"padding": "5px"}),
+    dbc.Row([dbc.Button("Spectral Granger Causality", id="analyze-sgc")],
+            style={"padding": "5px"}),
 ], title="Network Analysis")
 
 
@@ -217,19 +238,22 @@ visualize = dbc.AccordionItem([
             dbc.Label("Choose a bunch"),
             dbc.Checklist(
                 options=[
-                    {"label": "Signals", "value": TimeSeriesPlottable.SIG.value},
-                    {"label": "Envelope", "value": TimeSeriesPlottable.ENV.value},
-                    {"label": "Derivative", "value": TimeSeriesPlottable.DERV.value},
-                    {"label": "Moving Average", "value": TimeSeriesPlottable.MV_AVG.value},
-                    {"label": "Moving Mean Absolute Deviation", "value": TimeSeriesPlottable.MV_MAD.value},
-                    {"label": "Peaks", "value": TimeSeriesPlottable.PEAKS.value},
-                    {"label": "Bursts", "value": TimeSeriesPlottable.BURSTS.value},
-                    {"label": "Seizure", "value": TimeSeriesPlottable.SEIZURE.value},
+                    {"label": "Signals",
+                     "value": TimeSeriesPlottable.SIG.value},
+                    {"label": "Peaks",
+                     "value": TimeSeriesPlottable.PEAKS.value},
+                    {"label": "Bursts",
+                     "value": TimeSeriesPlottable.BURSTS.value},
+                    {"label": "Seizure",
+                     "value": TimeSeriesPlottable.SEIZURE.value},
+                    {"label": "Detection Thresholds",
+                     "value": TimeSeriesPlottable.THRESH.value},
                 ],
                 value=[TimeSeriesPlottable.SIG.value],
                 id="analyze-plot-ts-input",),
             ]),
-        dbc.Row([dbc.Button("Plot Signals", id="analyze-plot-ts")], style={"padding": "5px"}),
+        dbc.Row([dbc.Button("Plot Signals", id="analyze-plot-ts")],
+                style={"padding": "5px"}),
     ]),
     # time series with peak scatter
     # time series with bursts overlay
@@ -244,26 +268,40 @@ visualize = dbc.AccordionItem([
 ], title="Visualize")
 
 export = dbc.AccordionItem([
-    # events, bursts, stats, 
+    # events, bursts, stats,
 
-    # event stats 
+    # event stats
     dbc.Row([
-        dbc.Col(dbc.Checklist(options=[{"label": "Export", "value": 1}], value=[], id="analyze-events-export")),
-        dbc.Col(dbc.Input(placeholder="Enter full file path for file to export", id="analyze-events-fname")),
+        dbc.Col(dbc.Checklist(options=[{"label": "Export", "value": 1}],
+                              value=[], id="analyze-events-export")),
+        dbc.Col(dbc.Input(placeholder="Enter full file path for output",
+                          id="analyze-events-fname")),
     ], style={"padding": "25px"}),
 
-    
+
     # animations
     dbc.Row([html.H6("Electrode Amplitude Animation"),
-        dbc.Input(placeholder="Column (only 1D signals)", id="analyze-animate-value"),
-        dbc.Input(placeholder="Playback Speed in FPS", id="analyze-animate-fps"),
-        dbc.Input(placeholder="Slow down from real time", id="analyze-animate-slow-down"),
-        dbc.Button("Generate Video (takes some minutes)", class_name="fas fa-play", id="analyze-animate-play", n_clicks=0)
-     ]),
+            dbc.Input(placeholder="Column (only 1D signals)",
+                      id="analyze-animate-value"),
+            dbc.Input(placeholder="Playback Speed in FPS",
+                      id="analyze-animate-fps"),
+            dbc.Input(placeholder="Slow down from real time",
+                      id="analyze-animate-slow-down"),
+            dbc.Button("Generate Video (takes some minutes)",
+                       class_name="fas fa-play",
+                       id="analyze-animate-play",
+                       n_clicks=0)]
+            ),
 ], title="Export")
 
-compute = dbc.AccordionItem([dbc.Accordion([basics, spectral, activity, network])], title="Compute")
+compute = dbc.AccordionItem([dbc.Accordion([basics,
+                                            spectral,
+                                            activity,
+                                            network])],
+                            title="Compute")
 
-side_bar = dbc.Col([dbc.Accordion([filters, compute, visualize, export], always_open=True)], width=4)
+side_bar = dbc.Col([dbc.Accordion([filters, compute, visualize, export],
+                                  always_open=True)], width=4)
 
-analyze = dbc.Container([dbc.Row([side_bar, result_tables], align='start', justify='start')])
+analyze = dbc.Container([dbc.Row([side_bar, result_tables],
+                                 align='start', justify='start')])

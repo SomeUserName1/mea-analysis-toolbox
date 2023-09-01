@@ -70,7 +70,7 @@ def frequency_filter(rec: Recording,
 
     data = rec.get_data()
     data = sg.sosfiltfilt(sos, data)
-    data.close()
+    rec.data.close()
 
 
 def downsample(rec: Recording, new_fs: int):
@@ -88,8 +88,7 @@ def downsample(rec: Recording, new_fs: int):
     rec.stop_idx = rec.stop_idx / q
     q_it = 0
 
-    data = rec.get_data()
-    downsampled = None
+    prev_data = rec.data
     # determine if we can find a factor that is divisible by 12
     # to downsample the signal without a residual
     for i in range(12):
@@ -101,13 +100,14 @@ def downsample(rec: Recording, new_fs: int):
     if q_it == 0:
         q_it = 10
 
+    downsampled = rec.get_data()
     # As mentioned in the scipy docs, downsampling should be done iteratively
     # if the downsampling factor is larger than 12
     i = 0
     while q > 13:
         # On each iteration we downsample by a factor of q_it
         # and count how often we do that.
-        downsampled = sg.decimate(data, q_it)
+        downsampled = sg.decimate(rec.get_data(), q_it)
         q = int(np.round(q / q_it))
         i += 1
 
@@ -117,15 +117,15 @@ def downsample(rec: Recording, new_fs: int):
     q = int(np.floor(q))
     # if the residual factor is at least 2, downsample by what's left
     if q > 1:
-        downsampled = sg.decimate(data, q)
+        downsampled = sg.decimate(downsampled, q)
         rec.sampling_rate = int(np.round(rec.sampling_rate / q))
 
     # if the residual factor is 1, we are done
     # replace the data in the recording object with the downsampled data
     # as it is smaller in size i.e. replace the larger buffer by a smaller one
-    rec.data = SharedArray(downsampled, rec.manager)
+    rec.data = SharedArray(downsampled)
     # release the larger array from memory
-    data.free()
+    prev_data.free()
 
 
 def filter_line_noise(rec: Recording, order: Optional[int] = 16) -> None:
@@ -146,4 +146,4 @@ def filter_line_noise(rec: Recording, order: Optional[int] = 16) -> None:
                         output='sos', fs=rec.sampling_rate)
         data = sg.sosfilt(sos, data)
 
-    data.close()
+    rec.data.close()

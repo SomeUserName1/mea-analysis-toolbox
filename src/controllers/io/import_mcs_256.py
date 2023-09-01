@@ -7,13 +7,12 @@ single analog stream in the same recording.
 """
 import datetime
 from multiprocessing import Queue
-import os.path
 
 import McsPy.McsData as Mcs256
 import numpy as np
 from tabulate import tabulate
 
-from model.data import Data
+from model.data import Recording
 
 
 def mcs_256_import(path: str, que: Queue) -> None:
@@ -27,8 +26,6 @@ def mcs_256_import(path: str, que: Queue) -> None:
         :return a Data object containing the data in-memory and metadata or \
                 None and an error message
     """
-    if path is None or not os.path.exists(path):
-        return None, "File does not exist or invalid path!"
     fname = path.split('/')[-1].split('.')[0]
 
     Mcs256.VERBOSE = False
@@ -72,8 +69,8 @@ def mcs_256_import(path: str, que: Queue) -> None:
         names = np.array([x for x in names if x not in ground_el_names])
 
         info = mcs_info(path, file_contents)
-        data = Data(fname, date, n_mea_electrodes, sampling_rate, data, 0,
-                    data.shape[1] - 1, names, ground_els, ground_el_names)
+        rec = Recording(fname, date, n_mea_electrodes, sampling_rate, data, 0,
+                        data.shape[1] - 1, names, ground_els, ground_el_names)
         del file_contents
 
     except IOError as err:
@@ -81,7 +78,8 @@ def mcs_256_import(path: str, que: Queue) -> None:
                 + " multi channel systems H5 formatted file.\n" \
                 + "Error: " + str(err)
 
-    que.put((data, info))
+    # que.put((data, info))
+    return rec, info
 
 
 def mcs_header_info(h5filename: str,

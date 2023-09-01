@@ -20,23 +20,27 @@ from plotly import graph_objects as go
 # Code used to import data into a Data object, see model/Data.py
 from controllers.io.import_mcs_256 import mcs_256_import
 # controllers to select, preprocess and analyze data.
-from controllers.select import (apply_selection, convert_to_jpeg,
-                                update_electrode_selection, max_duration,
+from controllers.select import (apply_selection,
+                                convert_to_jpeg,
+                                update_electrode_selection,
+                                max_duration,
                                 update_time_window)
-from controllers.analysis.filter import (frequency_filter, downsample,
-                                         filter_el_humming)
+
+from controllers.analysis.filter import (frequency_filter,
+                                         downsample,
+                                         filter_line_noise)
+
 from controllers.analysis.analyze import (compute_snrs,
                                           compute_rms,
                                           compute_entropies)
-from controllers.analysis.activity import (detect_peaks,
-                                           compute_derivatives,
-                                           compute_mv_avgs,
-                                           compute_mv_mads,
-                                           compute_envelopes)
+
+from controllers.analysis.activity import detect_peaks
+
 from controllers.analysis.spectral import (compute_psds,
                                            compute_periodic_aperiodic_decomp,
                                            detrend_fooof,
                                            compute_spectrograms)
+
 from controllers.analysis.network import (compute_xcorrs, compute_mutual_info,
                                           compute_transfer_entropy,
                                           compute_coherence,
@@ -127,8 +131,10 @@ def import_file(_: int,
         @return feedback if the import was successful. If so metadata shall be
                 displayed, if not an error message is shown.
     """
-    if input_file_path is None or file_type is None:
-        return build_import_infos("Please enter a file path!", success=False)
+    if (input_file_path is None or file_type is None
+            or os.path.exists(input_file_path) is False):
+        return build_import_infos("Please enter a valid file path!\n"
+                                  f"{input_file_path}", success=False)
 
     global REC
     import_que = Queue()
@@ -138,8 +144,9 @@ def import_file(_: int,
         if REC:
             REC.free()
 
-        proc_import = Process(target=mcs_256_import,
-                              args=(input_file_path, import_que))
+        REC, info = mcs_256_import(input_file_path, import_que)
+        # proc_import = Process(target=mcs_256_import,
+        #                      args=(input_file_path, import_que))
 #    elif file_type == 1:
 #        proc_import = Process(target=mcs_cmos_import,
 #                              args=(input_file_path, import_que))
@@ -147,11 +154,11 @@ def import_file(_: int,
         raise IOError("Only Multi Channel System H5 file format is supported"
                       "so far.")
 
-    proc_import.start()
+    #  proc_import.start()
 
-    REC, info = import_que.get()
+    # REC, info = import_que.get()
 
-    proc_import.join()
+    # proc_import.join()
     success = REC is not None
     feedback = build_import_infos(info, success=success)
 
@@ -258,7 +265,7 @@ def select_plot_raw(_: int, t_start: str, t_end: str) -> list:
     """
     # converts the start and end time from s:ms:mus to mus
     update_time_window(REC, t_start, t_end)
-    plot_time_series_grid(REC, selected=False)
+    plot_time_series_grid(REC)
 
     return []
 
@@ -355,7 +362,7 @@ def analyze_humming(_) -> html.Div:
 
         @return a banner indicating if the filter was applied
     """
-    filter_el_humming(REC)
+    filter_line_noise(REC)
 
     return dbc.Alert("Successfully removed electrical humming",
                      color="success")
@@ -405,87 +412,6 @@ def analyze_entropy(_) -> html.Div:
     compute_entropies(REC)
 
     return generate_table(REC.channels_df)
-
-
-# @app.callback(Output("channels-table", "children", allow_duplicate=True),
-#               Input("analyze-env", "n_clicks"),
-#               prevent_initial_call=True)
-# def analyze_envelope(clicked):
-#     """
-#     used by analyze screen.
-#
-#     Computes the envelope per channel and adds it to the result
-#         dataframe
-#     """
-#     compute_envelopes(REC)
-#     #REC.df['envelope'] = np.split(REC.envelopes, REC.envelopes.shape[0])
-#
-#     return generate_table(REC.df)
-#
-#
-# @app.callback(Output("channels-table", "children", allow_duplicate=True),
-#               Input("analyze-derv", "n_clicks"),
-#               prevent_initial_call=True)
-# def analyze_derivative(clicked):
-#     """
-#     used by analyze screen.
-#
-#     Computes the derivative per channel and adds it to the result
-#         dataframe
-#     """
-#     compute_derivatives(REC)
-#     #REC.df['derivative'] = np.split(REC.derivatives,
-#                                       REC.derivatives.shape[0])
-#
-#     return generate_table(REC.df)
-#
-#
-# @app.callback(Output("channels-table", "children", allow_duplicate=True),
-#               Input("analyze-mean", "n_clicks"),
-#               prevent_initial_call=True)
-# def analyze_mv_average(clicked):
-#     """
-#     used by analyze screen.
-#
-#     Computes the moving average per channel and adds it to the result
-#         dataframe
-#     """
-#     compute_mv_avg(REC)
-#     #REC.df['mv_average'] = np.split(REC.mv_means, REC.mv_means.shape[0])
-#
-#     return generate_table(REC.df)
-#
-#
-# @app.callback(Output("channels-table", "children", allow_duplicate=True),
-#               Input("analyze-mad", "n_clicks"),
-#               prevent_initial_call=True)
-# def analyze_mv_mad(clicked):
-#     """
-#     used by analyze screen.
-#
-#     Computes the moving mean absolute deviation per channel and adds it to
-#       the result dataframe
-#     """
-#     compute_mv_mads(REC)
-#     #REC.df['mv_mad'] = np.split(REC.mv_mads, REC.mv_mads.shape[0])
-#
-#     return generate_table(REC.df)
-#
-#
-# @app.callback(Output("channels-table", "children", allow_duplicate=True),
-#               Input("analyze-var", "n_clicks"),
-#               prevent_initial_call=True)
-# def analyze_mv_var(clicked):
-#     """
-#     used by analyze screen.
-#
-#     Computes the moving variance per channel and adds it to the result
-#         dataframe
-#     """
-#     compute_mv_vars(REC)
-#     #REC.df['mv_var'] = np.split(REC.mv_vars, REC.mv_vars.shape[0])
-#
-#     return generate_table(REC.df)
 
 
 # ========== Spectral
@@ -768,33 +694,22 @@ def analyze_plot_time_series(_: int, to_plot: list[int]) -> None:
                 only suitable for small amounts of data)
     """
     signals = TimeSeriesPlottable.SIG.value in to_plot
-    envelope = TimeSeriesPlottable.ENV.value in to_plot
-    derivative = TimeSeriesPlottable.DERV.value in to_plot
-    mv_average = TimeSeriesPlottable.MV_AVG.value in to_plot
-    mv_mad = TimeSeriesPlottable.MV_MAD.value in to_plot
-    mv_var = TimeSeriesPlottable.MV_VAR.value in to_plot
     peaks = TimeSeriesPlottable.PEAKS.value in to_plot
     bursts = TimeSeriesPlottable.BURSTS.value in to_plot
     seizure = TimeSeriesPlottable.SEIZURE.value in to_plot
+    thresh = TimeSeriesPlottable.THRESH.value in to_plot
     selected = True
 
-    if envelope and REC.envelopes is None:
-        compute_envelopes(REC)
-    if derivative and REC.derivatives is None:
-        compute_derivatives(REC)
-    if mv_average and REC.mv_means is None:
-        compute_mv_avgs(REC)
-    if mv_mad and REC.mv_mads is None:
-        compute_mv_mads(REC)
-    if peaks and REC.peaks_df.empty:
+    if peaks and REC.peaks_df is None:
         detect_peaks(REC)
 #   if REC.bursts is None:
 #        detect_bursts(REC)
 #    if REC.seizure is None:
 #        detect_seizure(REC)
 
-    plot_time_series_grid(REC, selected, signals, envelope, derivative,
-                          mv_average, mv_mad, mv_var, peaks, bursts, seizure)
+    plot_time_series_grid(REC, selected, signals, peaks, bursts, seizure,
+                          thresh)
+
     return None
 
 
@@ -836,14 +751,9 @@ if __name__ == "__main__":
     print("LFP Toolbox")
     mp.set_start_method('spawn')
 
-    if not os.path.exists(os.path.join(os.getcwd(), "plots")):
-        os.mkdir(os.path.join(os.getcwd(), "plots"))
-
     HOST = "localhost"
     PORT = 8080
 
-    app.run_server(
-            host=HOST,
-            port=PORT,
-            debug=True
-            )
+    app.run_server(host=HOST, port=PORT, debug=True, dev_tools_ui=True)
+    if REC:
+        REC.free()

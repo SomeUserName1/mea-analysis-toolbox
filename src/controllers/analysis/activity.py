@@ -6,7 +6,7 @@ import scipy.signal as sg
 from model.data import Recording, SharedArray, SharedDataFrame
 
 
-@njit(parallel=True)
+@njit(parallel=True, cache=True)
 def compute_derivatives_jit(data: np.ndarray, fs: int) -> np.ndarray:
     """
     Compute the first derivative of the signals using numbas
@@ -21,11 +21,9 @@ def compute_derivatives_jit(data: np.ndarray, fs: int) -> np.ndarray:
     return np.diff(data) * fs
 
 
-@njit(parallel=True)
-def moving_avg(sig: np.ndarray, w: int, fs: int) -> np.ndarray:
+def moving_avg(sig: np.ndarray, w: int, fs: int = None) -> np.ndarray:
     """
-    Compute the moving average of the signals using numbas
-    just-in-time compiler.
+    Compute the moving average of the signals.
 
     :param sig: numpy array to calculate the moving average from
     :type sig: np.ndarray
@@ -33,49 +31,22 @@ def moving_avg(sig: np.ndarray, w: int, fs: int) -> np.ndarray:
     :param w: window size
     :type w: int
 
-    :param fs: sampling rate
-    :type fs: int
-
     :return: moving average of the array
     :rtype: np.ndarray
     """
     if w is None:
+        assert fs is not None, ("Either window size or sampling rate"
+                                " must be given")
         w = int(np.round(0.005 * fs))  # 5 ms
     if w % 2 == 0:
         w = w + 1
 
     pad = int((w - 1) / 2)
-    abs_pad = np.pad(sig, ((0, 0), (pad, pad)), "reflect")
-    ret = np.cumsum(abs_pad, dtype=float, axis=-1)
+    padded = np.pad(sig, ((0, 0), (pad, pad)), "reflect")
+    ret = np.cumsum(padded, axis=-1)
     ret[:, w:] = ret[:, w:] - ret[:, :-w]
 
     return ret[:, w - 1:] / w
-
-
-@njit(parallel=True)
-def compute_mv_mads_jit(sigs: np.ndarray, w: int, fs: int) -> np.ndarray:
-    """
-    Compute the moving mean absolute deviation of the signals using numbas
-    just-in-time compiler.
-    The here computed quantity first subtracts the mean of the whole signal
-    and computes a moving average of the absolute deviation from that mean.
-    To emphasize, the calculation of the mean is not within the window so
-    strictly speaking this is not exactly moving mean absolute deviation.
-
-    :param data: numpy array to calculate the moving MAD from
-    :type data: np.ndarray
-
-    :param w: window size
-    :type w: int
-
-    :param fs: sampling rate
-    :type fs: int
-
-    :return: moving MAD of the array
-    :rtype: np.ndarray
-    """
-    abs_dev = np.absolute((sigs.T - np.mean(sigs, axis=-1)).T)
-    return moving_avg(abs_dev, w=w, fs=fs)
 
 
 # No numba as modifying lists in the loop is not supported
@@ -127,41 +98,56 @@ def compute_derivatives(rec: Recording):
     """
     data = rec.get_data()
     rec.derivatives = SharedArray(
-                        compute_derivatives_jit(data, rec.sampling_rate),
-                        rec.manager)
-    data.close()
+            compute_derivatives_jit(data, rec.sampling_rate)
+                                 )
+    rec.data.close()
 
 
 def compute_mv_avgs(rec: Recording, w: int = None):
     """
-    Compute the moving average of the signals.
+    Compute the moving average.
+    Pad the signal by window size / 2 on both sides to get the same shape
+    as the input array.
 
-    :param rec: the recording object
-    :type rec: Recording
+    :param sig: numpy array to calculate the moving average from
+    :type sig: np.ndarray
 
     :param w: window size
     :type w: int
+
+    :return: moving average of the array
+    :rtype: np.ndarray
     """
     data = rec.get_data()
-    rec.mv_avgs = SharedArray(moving_avg(data, w, rec.sampling_rate),
-                              rec.manager)
-    data.close()
+    rec.mv_avgs = SharedArray(moving_avg(data, w))
+    rec.data.close()
 
 
 def compute_mv_mads(rec: Recording, w: int = None):
     """
-    Compute the moving mean absolute deviation of the signals.
+    Compute the moving mean absolute deviation of the signals using numbas
+    just-in-time compiler.
+    The here computed quantity first subtracts the mean of the whole signal
+    and computes a moving average of the absolute deviation from that mean.
+    To emphasize, the calculation of the mean is not within the window so
+    strictly speaking this is not exactly moving mean absolute deviation.
 
-    :param rec: the recording object
-    :type rec: Recording
+    :param data: numpy array to calculate the moving MAD from
+    :type data: np.ndarray
 
     :param w: window size
     :type w: int
+
+    :param fs: sampling rate
+    :type fs: int
+
+    :return: moving MAD of the array
+    :rtype: np.ndarray
     """
     sigs = rec.get_data()
-    rec.mv_mads = SharedArray(compute_mv_mads_jit(sigs, w, rec.sampling_rate),
-                              rec.manager)
-    sigs.close()
+    abs_dev = np.absolute(sigs.T - np.mean(sigs, axis=-1)).T
+    rec.mv_mads = SharedArray(moving_avg(abs_dev, w))
+    rec.data.close()
 
 
 def compute_envelopes(rec: Recording, win: int = 100):
@@ -178,8 +164,8 @@ def compute_envelopes(rec: Recording, win: int = 100):
     # e.g. for 0.1s window size, 1kHz sampling rate, and a duration of 120 s
     # the lists will contain 1200 elements * number of selected channels.
     # For 10 selected channels, this is 12000 elements * 4 bytes = 48 kB.
-    data.envelopes = envelopes(data, win)
-    data.close()
+    rec.envelopes = envelopes(data, win)
+    rec.data.close()
 
 
 def detect_peaks(rec: Recording,
@@ -238,24 +224,25 @@ def detect_peaks(rec: Recording,
     # peaks as the moving MAD is smoother than the signal itself and increases
     # strongly when the siginal is peaking or bursting.
     win = int(np.round(mad_win * fs))
-    compute_mv_mads(data, win)
+    compute_mv_mads(rec, win)
 
     # compute the envelope of the MAD to estimate the noise threshold of
     # the moving MAD signal. Attach it to the recording object to be able to
     # plot it later, when tuning the parameters.
     win = int(np.round(env_win * fs))
-    _, mad_env = envelopes(rec.mv_mads, win)
-    rec.mad_env = SharedArray(mad_env, rec.manager)
+    mv_mads = rec.mv_mads.read()
+    _, mad_env = envelopes(mv_mads, win)
+    rec.mad_env = mad_env
 
     # compute the envelope of the sigal to later estimate the noise levels
     # per channel
-    compute_envelopes(data, win)
+    compute_envelopes(rec, win)
 
     rows, n_peaks, peaks_freq, lower, upper, mad_thresh = (
             detect_peaks_mv_mad_envs_thresh(data,
                                             rec.sampling_rate,
                                             names,
-                                            rec.mv_mads,
+                                            mv_mads,
                                             mad_env,
                                             rec.envelopes,
                                             env_percentile,
@@ -271,17 +258,17 @@ def detect_peaks(rec: Recording,
     # sort it by channel and peak index and attach it to the recording object
     peaks_df = pd.concat(rows)
     peaks_df.sort_values(by=["Channel", "PeakIndex"])
-    rec.peaks_df = SharedDataFrame(peaks_df, rec.manager)
+    rec.peaks_df = SharedDataFrame(peaks_df)
 
     # add the number of peaks and the peak frequency to the channels data frame
-    rec.channels_df.add_column('n_peaks', n_peaks)
-    rec.channels_df.add_column('peak_freq', peaks_freq)
+    rec.channels_df.add_cols(['n_peaks', 'peak_freq'], [n_peaks, peaks_freq])
 
-    data.close()
+    rec.data.close()
+    rec.mv_mads.close()
 
 
 # Maybe parallelize using ProcessPoolExec.
-@njit(parallel=True)
+# @njit(parallel=True)
 def detect_peaks_mv_mad_envs_thresh(data: np.ndarray,
                                     fs: int,
                                     names: list[str],
@@ -300,7 +287,7 @@ def detect_peaks_mv_mad_envs_thresh(data: np.ndarray,
     mad_thresh = np.zeros(data.data.shape[0])
     # we'll write concurrently to the list and sort it afterwards
     rows = []
-    for i in prange(data.data.shape[0]):
+    for i in range(data.data.shape[0]):  # prange
         peaks = []
         peak_durations = []
         peak_left_slopes = []
@@ -389,11 +376,11 @@ def detect_peaks_mv_mad_envs_thresh(data: np.ndarray,
 
         peak_ampls = data[i][peaks]
         channel = np.repeat(names[i], len(peaks))
-        peak_times = peaks / data.sampling_rate
+        peak_times = peaks / fs
 
         ipi = np.diff(peaks) / fs
         if peaks.shape[0] > 0:
-            ipi = np.insert(ipi, 0, np.nan, axis=-1)
+            ipi = np.hstack((np.array([np.nan]), ipi))
 
         channel_peaks = pd.DataFrame(
                 {"Channel": channel,
