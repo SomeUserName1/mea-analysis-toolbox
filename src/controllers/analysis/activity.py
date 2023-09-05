@@ -1,4 +1,3 @@
-from numba import njit, prange
 import numpy as np
 import pandas as pd
 import scipy.signal as sg
@@ -6,7 +5,6 @@ import scipy.signal as sg
 from model.data import Recording, SharedArray, SharedDataFrame
 
 
-@njit(parallel=True, cache=True)
 def compute_derivatives_jit(data: np.ndarray, fs: int) -> np.ndarray:
     """
     Compute the first derivative of the signals using numbas
@@ -100,7 +98,7 @@ def compute_derivatives(rec: Recording):
     rec.derivatives = SharedArray(
             compute_derivatives_jit(data, rec.sampling_rate)
                                  )
-    rec.data.close()
+#    rec.data.close()
 
 
 def compute_mv_avgs(rec: Recording, w: int = None):
@@ -120,7 +118,7 @@ def compute_mv_avgs(rec: Recording, w: int = None):
     """
     data = rec.get_data()
     rec.mv_avgs = SharedArray(moving_avg(data, w))
-    rec.data.close()
+#    rec.data.close()
 
 
 def compute_mv_mads(rec: Recording, w: int = None):
@@ -147,7 +145,7 @@ def compute_mv_mads(rec: Recording, w: int = None):
     sigs = rec.get_data()
     abs_dev = np.absolute(sigs.T - np.mean(sigs, axis=-1)).T
     rec.mv_mads = SharedArray(moving_avg(abs_dev, w))
-    rec.data.close()
+#    rec.data.close()
 
 
 def compute_envelopes(rec: Recording, win: int = 100):
@@ -165,7 +163,7 @@ def compute_envelopes(rec: Recording, win: int = 100):
     # the lists will contain 1200 elements * number of selected channels.
     # For 10 selected channels, this is 12000 elements * 4 bytes = 48 kB.
     rec.envelopes = envelopes(data, win)
-    rec.data.close()
+#    rec.data.close()
 
 
 def detect_peaks(rec: Recording,
@@ -217,7 +215,6 @@ def detect_peaks(rec: Recording,
         env_thrsh_f = 2
 
     fs = rec.sampling_rate
-    data = rec.get_data()
     names = rec.get_sel_names()
 
     # Compute moving mean absolute deviation of the signals, used to detect
@@ -238,6 +235,7 @@ def detect_peaks(rec: Recording,
     # per channel
     compute_envelopes(rec, win)
 
+    data = rec.get_data()
     rows, n_peaks, peaks_freq, lower, upper, mad_thresh = (
             detect_peaks_mv_mad_envs_thresh(data,
                                             rec.sampling_rate,
@@ -254,17 +252,16 @@ def detect_peaks(rec: Recording,
     rec.upper = upper
     rec.mad_thresh = mad_thresh
 
+#    rec.data.close()
+#    rec.mv_mads.close()
+
     # concatenate the list of data frames into one data frame,
     # sort it by channel and peak index and attach it to the recording object
     peaks_df = pd.concat(rows)
-    peaks_df.sort_values(by=["Channel", "PeakIndex"])
+    peaks_df.sort_values(by=["Channel", "PeakIndex"], inplace=True)
     rec.peaks_df = SharedDataFrame(peaks_df)
-
     # add the number of peaks and the peak frequency to the channels data frame
     rec.channels_df.add_cols(['n_peaks', 'peak_freq'], [n_peaks, peaks_freq])
-
-    rec.data.close()
-    rec.mv_mads.close()
 
 
 # Maybe parallelize using ProcessPoolExec.
@@ -279,15 +276,16 @@ def detect_peaks_mv_mad_envs_thresh(data: np.ndarray,
                                     env_percentile: int = 5,
                                     mad_thrsh_f: float = 1.5,
                                     env_thrsh_f: float = 2):
+
     n_peaks = np.zeros(data.shape[0])
     peaks_freq = np.zeros(data.shape[0])
 
-    lower = np.zeros(data.data.shape[0])
-    upper = np.zeros(data.data.shape[0])
-    mad_thresh = np.zeros(data.data.shape[0])
+    lower = np.zeros(data.shape[0])
+    upper = np.zeros(data.shape[0])
+    mad_thresh = np.zeros(data.shape[0])
     # we'll write concurrently to the list and sort it afterwards
     rows = []
-    for i in range(data.data.shape[0]):  # prange
+    for i in range(data.shape[0]):  # prange
         peaks = []
         peak_durations = []
         peak_left_slopes = []

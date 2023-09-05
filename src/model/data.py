@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 from multiprocessing.shared_memory import SharedMemory
 
-
 class Recording:
     recording_date: str
     n_mea_electrodes: int
@@ -121,7 +120,16 @@ class SharedArray:
         # copy data from the array to the shared memory. numpy will
         # take care of copying everything in the correct format
         res[:] = array[:]
-        self._shared.close()
+#         self.close()
+
+# FIXME     THE SEGFAULTS HAPPEN AS WE HAVE HETEROGENOUS DATA IN THE DF.
+#        WHEN LOADING DATA FROM THE BUFFER IT ASSUMES A HOMOGENOUS DATA TYPE
+#        AND THUS THE SEGFAULTS HAPPEN.
+# SOLUTION 1
+#       USE ONE SHARED MEMORY BUFFER PER COLUMN
+# SOLUTION 2
+#       USE A SINGLE SHARED MEMORY BUFFER BUT USE A STRUCTURED ARRAY AS DTYPE
+# https://stackoverflow.com/questions/48896258/reading-in-numpy-array-from-buffer-with-different-data-types-without-copying-arr
 
     def read(self):
         '''
@@ -129,7 +137,11 @@ class SharedArray:
         '''
         #  open the shared memory region and simply create an array of the
         # correct shape and type
-        self._shared = SharedMemory(self._name)
+#         self._shared = SharedMemory(self._name)
+# ar = np.ndarray(rec.peaks_df._values._shape, rec.peaks_df._values._dtype, buffer=rec.peaks_df._values._shared.buf)
+# ar2 = np.frombuffer(rec.peaks_df._values._shared._buf)
+
+
         return np.ndarray(self._shape, self._dtype, buffer=self._shared.buf)
 
     def close(self):
@@ -160,6 +172,7 @@ class SharedDataFrame:
         :type df: pd.DataFrame
         '''
         self._values = SharedArray(df.values)
+        self._index = df.index
         self._columns = df.columns
 
     def read(self):
@@ -169,17 +182,29 @@ class SharedDataFrame:
         '''
         return pd.DataFrame(
             self._values.read(),
+            index=self._index,
             columns=self._columns
         )
 
     def add_cols(self, col_names: list[str], cols: list[np.ndarray]):
-        for col_name in col_names:
-            self._columns.append(col_name)
+        '''
+        Adds columns to the dataframe.
 
-        prev_values = self._values
-        cols.insert(0, self._values.read())
-        self._values = SharedArray(np.hstack(cols))
-        prev_values.free()
+        :param col_names: list of column names
+        :type col_names: list[str]
+
+        :param cols: list of column values
+        :type cols: list[np.ndarray]
+        '''
+        additional_df = pd.DataFrame(dict(zip(col_names, cols)))
+        current_df = self.read()
+        new_df = pd.concat([current_df, additional_df], axis=1)
+
+        self._columns = new_df.columns
+        new_vals = SharedArray(new_df.values)
+#        self.close()
+        self._values.free()
+        self._values = new_vals
 
     def close(self):
         '''

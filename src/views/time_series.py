@@ -4,6 +4,8 @@ This module contains the function to plot the time series data in a grid.
 from multiprocessing import Process
 import numpy as np
 import pyqtgraph as pg
+import pdb
+import sys
 
 from model.data import Recording
 from views.grid_plot_iterator import MEAGridPlotIterator
@@ -78,11 +80,16 @@ def do_plot(rec: Recording,
     t_start, t_stop = rec.get_time_s()
     data = rec.get_data()
     ts = np.linspace(t_start, t_stop, num=data.shape[1])
-
     sigs = (data[rec.selected_electrodes, rec.start_idx:rec.stop_idx]
             if not selected else data)
     mv_mads = rec.mv_mads.read() if thresh else None
+    print("plot")
+    sys.stdin = open(0)
+    pdb.set_trace()
+    peaks = rec.peaks_df.read()
+    print(peaks)
     peaks_df = rec.peaks_df.read() if peaks else None
+    print("read peaks")
 
     win = pg.GraphicsLayoutWidget(show=True, title="Raw signals")
     win.resize(1200, 800)
@@ -109,6 +116,7 @@ def do_plot(rec: Recording,
                    label="Moving MAD")
 
         if peaks:
+            print("access peaks")
             pdf = peaks_df[sigs.peaks_df['Channel'] == sel_names[i]]
             peak_idxs = pdf['PeakIndex'].values.astype(int)
 

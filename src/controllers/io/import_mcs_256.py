@@ -77,6 +77,7 @@ def mcs_256_import(path: str, que: Queue) -> None:
         info = "Failed to import specified file! Please specify a valid" \
                 + " multi channel systems H5 formatted file.\n" \
                 + "Error: " + str(err)
+        rec = None
 
     # que.put((data, info))
     return rec, info

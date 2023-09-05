@@ -70,7 +70,7 @@ def frequency_filter(rec: Recording,
 
     data = rec.get_data()
     data = sg.sosfiltfilt(sos, data)
-    rec.data.close()
+#    rec.data.close()
 
 
 def downsample(rec: Recording, new_fs: int):
@@ -107,7 +107,7 @@ def downsample(rec: Recording, new_fs: int):
     while q > 13:
         # On each iteration we downsample by a factor of q_it
         # and count how often we do that.
-        downsampled = sg.decimate(rec.get_data(), q_it)
+        downsampled = sg.decimate(downsampled, q_it)
         q = int(np.round(q / q_it))
         i += 1
 
@@ -146,4 +146,4 @@ def filter_line_noise(rec: Recording, order: Optional[int] = 16) -> None:
                         output='sos', fs=rec.sampling_rate)
         data = sg.sosfilt(sos, data)
 
-    rec.data.close()
+#    rec.data.close()

@@ -15,6 +15,7 @@ from dash import dcc, html, Dash
 from dash.dependencies import Input, Output, State
 import dash_bootstrap_components as dbc
 import numpy as np
+import pandas as pd
 from plotly import graph_objects as go
 
 # Code used to import data into a Data object, see model/Data.py
@@ -263,6 +264,8 @@ def select_plot_raw(_: int, t_start: str, t_end: str) -> list:
                 done in a separate process by matplotlib (as Dash plots are
                 only suitable for small amounts of data)
     """
+    if len(REC.selected_electrodes) == 0:
+        return no_data
     # converts the start and end time from s:ms:mus to mus
     update_time_window(REC, t_start, t_end)
     plot_time_series_grid(REC)
@@ -750,6 +753,7 @@ def analyze_plot_time_series(_: int, to_plot: list[int]) -> None:
 if __name__ == "__main__":
     print("LFP Toolbox")
     mp.set_start_method('spawn')
+    pd.set_eng_float_format(accuracy=1)
 
     HOST = "localhost"
     PORT = 8080
