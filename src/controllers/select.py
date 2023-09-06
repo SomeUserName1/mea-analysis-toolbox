@@ -9,7 +9,7 @@ import pandas as pd
 from wand.image import Image
 
 from constants import img_size
-from model.data import Recording, SharedArray, SharedDataFrame
+from model.data import Recording, SharedArray
 from views.grid_plot_utils import el_idx_plot_to_data
 
 
@@ -26,8 +26,8 @@ def apply_selection(rec: Recording):
     rec.data = SharedArray(data[rec.selected_electrodes,
                                 rec.start_idx:rec.stop_idx])
     prev_data.free()
-    channels_df = pd.DataFrame(rec.get_sel_names(), columns=['Channel'])
-    rec.channels_df = SharedDataFrame(channels_df)
+    rec.channels_df = pd.DataFrame(rec.get_sel_names(), columns=['Channel'],
+                                   dtype="string")
 
 
 def update_time_window(rec: Recording, t_start: str, t_end: str):

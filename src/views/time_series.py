@@ -83,13 +83,6 @@ def do_plot(rec: Recording,
     sigs = (data[rec.selected_electrodes, rec.start_idx:rec.stop_idx]
             if not selected else data)
     mv_mads = rec.mv_mads.read() if thresh else None
-    print("plot")
-    sys.stdin = open(0)
-    pdb.set_trace()
-    peaks = rec.peaks_df.read()
-    print(peaks)
-    peaks_df = rec.peaks_df.read() if peaks else None
-    print("read peaks")
 
     win = pg.GraphicsLayoutWidget(show=True, title="Raw signals")
     win.resize(1200, 800)
@@ -116,8 +109,7 @@ def do_plot(rec: Recording,
                    label="Moving MAD")
 
         if peaks:
-            print("access peaks")
-            pdf = peaks_df[sigs.peaks_df['Channel'] == sel_names[i]]
+            pdf = rec.peaks_df[rec.peaks_df['Channel'] == sel_names[i]]
             peak_idxs = pdf['PeakIndex'].values.astype(int)
 
             p.plot(x=ts[peak_idxs], y=sigs[i][peak_idxs], pen=None,
@@ -156,9 +148,3 @@ def do_plot(rec: Recording,
         prev_p = p
 
     pg.exec()
-
-    rec.data.close()
-    if thresh:
-        mv_mads.close()
-    if peaks:
-        peaks_df.close()

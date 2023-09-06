@@ -6,8 +6,9 @@ the Dash-based html code from views/ui, and the controllers implemented in
 controllers/.
 """
 import os
-from multiprocessing import Process, Queue
+from multiprocessing import Queue
 import multiprocessing as mp
+import pdb
 
 # Dash server, html and core components as well as bootstrap components and
 # callback parameters
@@ -70,6 +71,8 @@ content = html.Div(id="page-content")
 app.layout = html.Div([dcc.Location(id="url"), navbar, content])
 # REC shared memory
 REC = None
+CHANNELS_TABLE_START = 0
+PEAKS_TABLE_START = 0
 
 
 # ================= Routing
@@ -373,6 +376,69 @@ def analyze_humming(_) -> html.Div:
 
 # ======== Basics
 @app.callback(Output("channels-table", "children", allow_duplicate=True),
+              Input("channels-table-next", "n_clicks"),
+              Input("channels-table-prev", "n_clicks"),
+              prevent_initial_call=True)
+def channels_table_scroll(next_click, prev_click) -> html.Div:
+    """
+    used by analyze screen.
+
+    Displays the next or previous 100 rows of the channels table.
+    """
+
+    pdb.set_trace()
+    global CHANNELS_TABLE_START
+    if next_click > 0:
+        CHANNELS_TABLE_START += 100
+
+        if CHANNELS_TABLE_START > REC.channels_df.shape[0]:
+            CHANNELS_TABLE_START -= 100
+
+        next_click = 0
+
+    elif prev_click > 0:
+        CHANNELS_TABLE_START -= 100
+
+        if CHANNELS_TABLE_START < 0:
+            CHANNELS_TABLE_START = 0
+
+        prev_click = 0
+
+    return generate_table(REC.channels_df, CHANNELS_TABLE_START)
+
+
+@app.callback(Output("peaks-table", "children", allow_duplicate=True),
+              Input("peaks-table-next", "n_clicks"),
+              Input("peaks-table-prev", "n_clicks"),
+              prevent_initial_call=True)
+def peaks_table_scroll(next_click, prev_click) -> html.Div:
+    """
+    used by analyze screen.
+
+    Displays the next or previous 100 rows of the channels table.
+    """
+
+    pdb.set_trace()
+    global PEAKS_TABLE_START
+    if next_click > 0:
+        PEAKS_TABLE_START += 100
+
+        if PEAKS_TABLE_START > REC.peaks_df.shape[0]:
+            PEAKS_TABLE_START -= 100
+
+        next_click = 0
+    elif prev_click > 0:
+        PEAKS_TABLE_START -= 100
+
+        if PEAKS_TABLE_START < 0:
+            PEAKS_TABLE_START = 0
+
+        prev_click = 0
+
+    return generate_table(REC.peaks_df, PEAKS_TABLE_START)
+
+
+@app.callback(Output("channels-table", "children", allow_duplicate=True),
               Input("analyze-snr", "n_clicks"),
               prevent_initial_call=True)
 def analyze_snr(_) -> html.Div:
@@ -524,7 +590,7 @@ def analyze_peaks(_,
     mad_thrsh = float(mad_thrsh) if mad_thrsh else None
     env_thrsh = float(env_thrsh) if env_thrsh else None
 
-    detect_peaks(REC, mad_win, env_win, env_percentile, env_thrsh)
+    detect_peaks(REC, mad_win, env_win, env_percentile, mad_thrsh, env_thrsh)
 
     return generate_table(REC.channels_df), generate_table(REC.peaks_df)
 
@@ -754,6 +820,7 @@ if __name__ == "__main__":
     print("LFP Toolbox")
     mp.set_start_method('spawn')
     pd.set_eng_float_format(accuracy=1)
+    pd.options.mode.string_storage = "pyarrow"
 
     HOST = "localhost"
     PORT = 8080

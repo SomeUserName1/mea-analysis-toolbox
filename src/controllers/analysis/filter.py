@@ -70,7 +70,6 @@ def frequency_filter(rec: Recording,
 
     data = rec.get_data()
     data = sg.sosfiltfilt(sos, data)
-#    rec.data.close()
 
 
 def downsample(rec: Recording, new_fs: int):
@@ -145,5 +144,3 @@ def filter_line_noise(rec: Recording, order: Optional[int] = 16) -> None:
         sos = sg.butter(N=order, Wn=[freq-1.5, freq+1.5], btype='bandstop',
                         output='sos', fs=rec.sampling_rate)
         data = sg.sosfilt(sos, data)
-
-#    rec.data.close()

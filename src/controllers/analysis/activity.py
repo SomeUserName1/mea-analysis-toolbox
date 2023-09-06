@@ -1,8 +1,7 @@
 import numpy as np
 import pandas as pd
-import scipy.signal as sg
 
-from model.data import Recording, SharedArray, SharedDataFrame
+from model.data import Recording, SharedArray
 
 
 def compute_derivatives_jit(data: np.ndarray, fs: int) -> np.ndarray:
@@ -47,7 +46,6 @@ def moving_avg(sig: np.ndarray, w: int, fs: int = None) -> np.ndarray:
     return ret[:, w - 1:] / w
 
 
-# No numba as modifying lists in the loop is not supported
 def envelopes(s: np.ndarray,
               win: int
               ) -> tuple[list[np.ndarray], list[np.ndarray]]:
@@ -98,7 +96,6 @@ def compute_derivatives(rec: Recording):
     rec.derivatives = SharedArray(
             compute_derivatives_jit(data, rec.sampling_rate)
                                  )
-#    rec.data.close()
 
 
 def compute_mv_avgs(rec: Recording, w: int = None):
@@ -118,7 +115,6 @@ def compute_mv_avgs(rec: Recording, w: int = None):
     """
     data = rec.get_data()
     rec.mv_avgs = SharedArray(moving_avg(data, w))
-#    rec.data.close()
 
 
 def compute_mv_mads(rec: Recording, w: int = None):
@@ -145,7 +141,6 @@ def compute_mv_mads(rec: Recording, w: int = None):
     sigs = rec.get_data()
     abs_dev = np.absolute(sigs.T - np.mean(sigs, axis=-1)).T
     rec.mv_mads = SharedArray(moving_avg(abs_dev, w))
-#    rec.data.close()
 
 
 def compute_envelopes(rec: Recording, win: int = 100):
@@ -163,7 +158,6 @@ def compute_envelopes(rec: Recording, win: int = 100):
     # the lists will contain 1200 elements * number of selected channels.
     # For 10 selected channels, this is 12000 elements * 4 bytes = 48 kB.
     rec.envelopes = envelopes(data, win)
-#    rec.data.close()
 
 
 def detect_peaks(rec: Recording,
@@ -252,16 +246,12 @@ def detect_peaks(rec: Recording,
     rec.upper = upper
     rec.mad_thresh = mad_thresh
 
-#    rec.data.close()
-#    rec.mv_mads.close()
-
     # concatenate the list of data frames into one data frame,
     # sort it by channel and peak index and attach it to the recording object
-    peaks_df = pd.concat(rows)
-    peaks_df.sort_values(by=["Channel", "PeakIndex"], inplace=True)
-    rec.peaks_df = SharedDataFrame(peaks_df)
-    # add the number of peaks and the peak frequency to the channels data frame
-    rec.channels_df.add_cols(['n_peaks', 'peak_freq'], [n_peaks, peaks_freq])
+    rec.peaks_df = pd.concat(rows)
+    rec.peaks_df.sort_values(by=["Channel", "PeakIndex"], inplace=True)
+    rec.channels_df['n_peaks'] = n_peaks
+    rec.channels_df['peak_freq'] = peaks_freq
 
 
 # Maybe parallelize using ProcessPoolExec.
@@ -288,8 +278,8 @@ def detect_peaks_mv_mad_envs_thresh(data: np.ndarray,
     for i in range(data.shape[0]):  # prange
         peaks = []
         peak_durations = []
-        peak_left_slopes = []
-        peak_right_slopes = []
+        starts = []
+        stops = []
 
         # the theshold for a peak/burst is a factor times a percentile of
         # the MAD signal envelope. The factor is given by the user, as well as
@@ -317,54 +307,37 @@ def detect_peaks_mv_mad_envs_thresh(data: np.ndarray,
         abs_diff = np.abs(np.diff(above_thresh))
         # and convert it to an array of tuples of the form (start, stop)
         above_thresh_idxs = np.where(abs_diff == 1)[0].reshape(-1, 2)
-        # TODO we assume that the signal will cross the threshold left to the
-        # mad signals crossing for the lower bound and right to the upperbound
         for (start, stop) in above_thresh_idxs:
-            idxs_peaks = []
             if any(data[i][start:stop] > upper[i]):
+                peaks.append(np.argmax(data[i][start:stop]) + start)
                 # find actual boundaries, as the current ones are based on a
                 # a moving quantity with relatively large window size
-                #    for t in range(start, 0):
-                #        if data.data[i][t] < upper_thresh:
-                #            start = t
-                #            break
-                #    for t in range(stop, 1):
-                #        if data.data[i][t] < upper_thresh:
-                #            stop = t
-                #            break
-                idxs_peaks.append(np.argmax(data[i][start:stop])
-                                  + start)
+                for t in range(peaks[-1], 0):
+                    if data.data[i][t] < upper[i]:
+                        start = t
+                        break
+                for t in range(peaks[-1], data.shape[1]):
+                    if data.data[i][t] < upper[i]:
+                        stop = t
+                        break
+                    starts.append(start)
+                    stops.append(stop)
+                peak_durations.append((stop - start) / fs)
 
             if any(data[i][start:stop] < lower[i]):
-                #    for t in range(start, 0):
-                #        if data.data[i][t] > lower_thresh:
-                #            start = t
-                #            break
-                #    for t in range(stop, 1):
-                #        if data.data[i][t] > lower_thresh:
-                #            stop = t
-                #            break
-                idxs_peaks.append(np.argmin(data[i][start:stop])
-                                  + start)
+                peaks.append(np.argmin(data[i][start:stop]) + start)
 
-            for peak in idxs_peaks:
-                duration = (stop - start) / fs
-                l_dx = (peak - start) / fs
-                l_dx = l_dx if l_dx != 0 else 1 / fs
-                l_dy = data[i][peak] - data[i][start]
-                l_dy = (l_dy if l_dy != 0
-                        else data[i][peak] - data[i][start - 1])
-
-                r_dx = (stop - peak) / fs
-                r_dx = r_dx if r_dx != 0 else 1 / fs
-                r_dy = data[i][start] - data[i][peak]
-                r_dy = (r_dy if r_dy != 0
-                        else data[i][peak] - data[i][start - 1])
-
-                peaks.append(peak)
-                peak_durations.append(duration)
-                peak_left_slopes.append(l_dy / l_dx)
-                peak_right_slopes.append(r_dy / r_dx)
+                for t in range(peaks[-1], 0):
+                    if data.data[i][t] > lower[i]:
+                        start = t
+                        break
+                for t in range(peaks[-1], data.shape[1]):
+                    if data.data[i][t] < lower[i]:
+                        stop = t
+                        break
+                peak_durations.append((stop - start) / fs)
+                starts.append(start)
+                stops.append(stop)
 
         peaks = np.array(peaks).astype(int)
         peak_durations = np.array(peak_durations)
@@ -385,9 +358,9 @@ def detect_peaks_mv_mad_envs_thresh(data: np.ndarray,
                  "PeakIndex": peaks,
                  "TimeStamp": peak_times,
                  "Amplitude": peak_ampls,
+                 "StartIndex": starts,
+                 "StopIndex": stops,
                  "Duration": peak_durations,
-                 "LeftSlope": peak_left_slopes,
-                 "RightSlope": peak_right_slopes,
                  "InterPeakInterval": ipi}
                 )
         rows.append(channel_peaks)
@@ -395,111 +368,161 @@ def detect_peaks_mv_mad_envs_thresh(data: np.ndarray,
     return rows, n_peaks, peaks_freq, lower, upper, mad_thresh
 
 
-def detect_events_moving_dev(data, method, base_std=None, std_factor=1, window=None, export=False, fname=None):
-    signal = data.data
-    aggs = []
-    bursts_longest = []
-    bursts_all = []
-    events = []
-    # take 5% of the signal as window
-    window = int(np.round(data.duration_mus / 1000000 / 20 * data.sampling_rate))
-    for i in range(len(data.selected_rows)):
-        if method == 1:
-            aggs.append(compute_mv_std(signal[i], window))
-        elif method == 2:
-            aggs.append(compute_mv_mad(signal[i], window))
-        else:
-            raise RuntimeError("Event detection method is not supported")
+def detect_events(rec: Recording,
+                  mad_win: float = None,
+                  env_percentile: int = None,
+                  mad_thrsh_f: float = None):
+    """
+    Detect events in the signals of a recording object.
+    The detection is based on the moving MAD of the signals and the envelope
+    of the moving MAD. The moving MAD is used to detect events as it is
+    smoother than the signal itself and increases strongly when the siginal is
+    bursting. The envelopes are used to estimate the noise noise levels per
+    channel. The thresholds are computed as a factor times a percentile of the
+    envelope of the moving mad. The factor is given by the user, as well as
+    the percentile.
 
-        if base_std is None:
-            std = np.std(signal[i]) * std_factor
-        else:
-            std = base_std[i] * std_factor
+    :param rec: the recording object
+    :type rec: Recording
 
-        bursts = find_event_boundaries(aggs[i], std)
-        bursts_all.append(bursts)
-        event_idxs = extract_longest_burst(bursts)
+    :param mad_win: window size for the moving MAD, defaults to 0.05
+    :type mad_win: float, optional
 
-        if event_idxs[0] is not None:
-            event = create_event(data, data.selected_rows[i], event_idxs, std)
-            events.append(event)
-            bursts_longest.append(event_idxs)
-        else:
-            bursts_longest.append([])
+    :param env_percentile: percentile of the envelope to use as threshold,
+        defaults to 5
+    :type env_percentile: int, optional
 
-    data.events = events
-    compute_event_delays(data)
-   # compute_event_tes(data)
-    show_event_psds(data)
-    proc = Process(target=plot_in_grid, args=('time_series', signal, data, aggs, None, bursts_all, bursts_longest))
-    proc.start()
-    proc.join()
+    :param mad_thrsh_f: factor to multiply the percentile of the MAD envelope
+        to use as threshold, defaults to 1.5
+    :type mad_thrsh_f: float, optional
+    """
+    if mad_win is None:
+        mad_win = 0.05
+    if env_percentile is None:
+        env_percentile = 5
+    if mad_thrsh_f is None:
+        mad_thrsh_f = 1.5
 
-    if export:
-        export_events(data, fname)
+    fs = rec.sampling_rate
+    names = rec.get_sel_names()
 
-    return show_events(data)
+    # Compute moving mean absolute deviation of the signals, used to detect
+    # peaks as the moving MAD is smoother than the signal itself and increases
+    # strongly when the siginal is peaking or bursting.
+    win = int(np.round(mad_win * fs))
+    compute_mv_mads(rec, win)
 
-def find_event_boundaries(signal, threshold, merge=True):
-    start_idxs = []
-    stop_idxs = []
-    i = 0
-    burst = False
-    while i < signal.shape[0]:
-        if not burst and signal[i] >= threshold:
-            start_idxs.append(i)
-            burst = True
-        if burst and signal[i] < threshold:
-            stop_idxs.append(i)
-            burst = False
+    # compute the envelope of the MAD to estimate the noise threshold of
+    # the moving MAD signal. Attach it to the recording object to be able to
+    # plot it later, when tuning the parameters.
+    mv_mads = rec.mv_mads.read()
+    _, mad_env = envelopes(mv_mads, win)
+    rec.mad_env = mad_env
 
-        i += 1
+    data = rec.get_data()
+    rows, n_peaks, peaks_freq, lower, upper, mad_thresh = (
+            detect_peaks_mv_mad_envs_thresh(data,
+                                            rec.sampling_rate,
+                                            names,
+                                            mv_mads,
+                                            mad_env,
+                                            env_percentile,
+                                            mad_thrsh_f)
+            )
 
-    if burst:
-        stop_idxs.append(i-1)
+    rec.event_mad_thresh = mad_thresh
 
-    if merge:
-        length = len(start_idxs)
-        idx = 0
-        while idx < length - 1:
-            if stop_idxs[idx] + int(signal.shape[0] / 100) >= start_idxs[idx+1]:
-                del stop_idxs[idx]
-                del start_idxs[idx+1]
-                length = len(start_idxs)
-            else:
-                idx += 1
+    # concatenate the list of data frames into one data frame,
+    # sort it by channel and peak index and attach it to the recording object
+    rec.events_df = pd.concat(rows)
 
-    return np.array(start_idxs), np.array(stop_idxs)
+    extract_event_measures(rec)
 
 
+# Maybe parallelize using ProcessPoolExec.
+# @njit(parallel=True)
+def detect_events_mv_mad(data: np.ndarray,
+                         fs: int,
+                         names: list[str],
+                         mv_mads: np.ndarray,
+                         mad_env: list[np.ndarray],
+                         envs: tuple[list[np.ndarray],
+                                     list[np.ndarray]],
+                         env_percentile: int = 5,
+                         mad_thrsh_f: float = 1.5,
+                         env_thrsh_f: float = 2):
+    mad_thresh = np.zeros(data.shape[0])
+    # we'll write concurrently to the list and sort it afterwards
+    rows = []
+    for i in range(data.shape[0]):  # prange
+        durations = []
+        starts = []
+        stops = []
 
-def compute_event_delays(data):
-    first_idx = None
-    for event in data.events:
-        if first_idx is None or first_idx > event.start_idx:
-            first_idx = event.start_idx
+        # the theshold for a peak/burst is a factor times a percentile of
+        # the MAD signal envelope. The factor is given by the user, as well as
+        # the percentile. The envelope percentile approach is chosen to detect
+        # the noise level as the signal is very noisy and so is the moving MAD.
+        mad_thresh[i] = (mad_thrsh_f * np.percentile(
+                                mv_mads[i][mad_env[i]], env_percentile))
 
-    for event in data.events:
-        event.delay = event.start_idx - first_idx
+        # we have a peak/burst, if the mad is above the respective threshold
+        above_thresh = (mv_mads[i] > mad_thresh[i]).astype(int)
+
+        # find the indices where the signal crosses the threshold
+        above_thresh = np.concatenate(([0], above_thresh, [0]))
+        abs_diff = np.abs(np.diff(above_thresh))
+        # and convert it to an array of tuples of the form (start, stop)
+        above_thresh_idxs = np.where(abs_diff == 1)[0].reshape(-1, 2)
+        for (start, stop) in above_thresh_idxs:
+            durations.append((stop - start) / fs)
+            starts.append(start)
+            stops.append(stop)
+
+        channel = np.repeat(names[i], len(durations))
+        channel_events = pd.DataFrame(
+                {"Channel": channel,
+                 "StartIndex": starts,
+                 "StopIndex": stops,
+                 "Duration": durations}
+                )
+        rows.append(channel_events)
+
+    return rows, mad_thresh
 
 
-def compute_event_tes(data):
-    if data.events[0].delay is None:
-        compute_event_delays(data)
+def compute_event_delays(rec: Recording):
+    events_df = rec.events_df
+    first_idx = events_df['StartIndex'].min()
+    events_df['Delay'] = events_df['StartIndex'] - first_idx
 
-    fst_event = None
-    for event in data.events:
-        if event.delay == 0:
-            fst_event = event
-            break
 
-    first_signal = data.data[data.selected_rows.index(fst_event.electrode_idx)]
-    for event in data.events:
-        if event.delay == 0:
-            continue
+def compute_event_tes(rec: Recording):
+    events_df = rec.events_df
+    sel_names = rec.get_sel_names()
 
-        event_signal = data.data[data.selected_rows.index(event.electrode_idx)]
-        event.te = compute_transfer_entropy(first_signal, event_signal)
+    if 'Delay' not in events_df.columns:
+        compute_event_delays(rec)
+
+    fst_el_name = events_df[events_df['Delay'] == 0]['Channel'].iloc[0]
+    fst_el_idx = sel_names.index(fst_el_name)
+    fst_start_idx = events_df[events_df['Delay'] == 0]['StartIndex'].iloc[0]
+    fst_stop_idx = events_df[events_df['Delay'] == 0]['StopIndex'].iloc[0]
+
+    tes = []
+    data = rec.get_data()
+    first_signal = data[fst_el_idx][fst_start_idx:fst_stop_idx]
+    for _, row in events_df.iterrows():
+        el_name = row['Channel']
+        el_idx = sel_names.index(el_name)
+        start_idx = row['StartIndex']
+        stop_idx = row['StopIndex']
+
+        other_signal = data[el_idx][start_idx:stop_idx]
+        tes.append(compute_transfer_entropy(first_signal, other_signal))
+
+    events_df['TransferEntropy'] = tes
+
 
 def show_event_psds(data):
     psds = []
@@ -538,23 +561,7 @@ def compute_isis(spike_idxs, fs):
     return np.array(isis)
 
 
-def extract_longest_burst(burst_times):
-    start_idxs, stop_idxs = burst_times
-    max_duration = 0
-    longest_burst_idx = None
-
-    for i, start_idx in enumerate(start_idxs):
-        if max_duration < stop_idxs[i] - start_idx:
-            max_duration = stop_idxs[i] - start_idx
-            longest_burst_idx = i
-
-    if longest_burst_idx is None:
-        return None, None
-    else:
-        return start_idxs[longest_burst_idx], stop_idxs[longest_burst_idx]
-
-
-def create_event(data, electrode_idx, event_idxs, threshold):
+def extract_event_measures(data, electrode_idx, event_idxs, threshold):
     if data.sampling_rate < 200:
         raise RuntimeError("Sampling rate must not be lower than 200 Hz for the band decomposition to work!")
 

@@ -26,20 +26,31 @@ class TimeSeriesPlottable(Enum):
     THRESH = 4
 
 
+def prev_next_rows_buttons(id_string):
+    return dbc.Row([dbc.Col([
+            dbc.Button("Next", n_clicks=0, id=f"{id_string}-next"),
+            dbc.Button("Prev", n_clicks=0, id=f"{id_string}-prev")
+            ], width="auto")],
+        align="center", justify="center", style={"padding": "20px"})
+
+
 channels_table = dbc.Card(
-    dbc.CardBody([], id="channels-table")
+    dbc.CardBody([
+        html.Table([], id="channels-table",
+                   className=('table table-bordered table-hover '
+                              'table-responsive')),
+        prev_next_rows_buttons("channels-table")
+        ])
 )
 
 peaks_table = dbc.Card(
-    dbc.CardBody([], id="peaks-table")
-)
+    dbc.CardBody([
+        html.Table([], id="peaks-table",
+                   className='table table-bordered table-hover '
+                             'table-responsive'),
+        prev_next_rows_buttons("peaks-table")
+        ])
 
-bursts_table = dbc.Card(
-    dbc.CardBody([], id="bursts-table")
-)
-
-seizure_table = dbc.Card(
-    dbc.CardBody([], id="seizure-table")
 )
 
 network_table = dbc.Card(
@@ -50,13 +61,11 @@ network_table = dbc.Card(
 result_tables = dbc.Col(dbc.Tabs([
     dbc.Tab(channels_table, label="Channels"),
     dbc.Tab(peaks_table, label="Peaks"),
-    dbc.Tab(bursts_table, label="Bursts"),
-    dbc.Tab(seizure_table, label="Seizure"),
     dbc.Tab(network_table, label="Network")
     ]), width='auto')
 
 
-def generate_table(dataframe, from_row=0, to_row=None, max_rows=100):
+def generate_table(dataframe, from_row=0, max_rows=100):
     """
     Generate a HTML table from a pandas dataframe.
 
@@ -75,7 +84,7 @@ def generate_table(dataframe, from_row=0, to_row=None, max_rows=100):
     :rtype: dash_html_components.Table
     """
     rows = []
-    for i in range(from_row, min(to_row, len(dataframe), from_row + max_rows)):
+    for i in range(from_row, min(len(dataframe), from_row + max_rows)):
         cols = []
         for col in dataframe.columns:
             field = dataframe.iloc[i][col]
@@ -88,12 +97,10 @@ def generate_table(dataframe, from_row=0, to_row=None, max_rows=100):
 
         rows.append(html.Tr(cols))
 
-    return (
-        html.Table([
+    return [
             html.Thead(html.Tr([html.Th(col) for col in dataframe.columns])),
-            html.Tbody(rows)],
-            className='table table-bordered table-hover table-responsive')
-        )
+            html.Tbody(rows)
+            ]
 
 
 filters = dbc.AccordionItem([

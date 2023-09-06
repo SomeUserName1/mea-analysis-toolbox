@@ -6,7 +6,7 @@ from fooof import FOOOFGroup
 import numpy as np
 import scipy.signal as sg
 
-from model.data import Recording
+from model.data import Recording, SharedArray
 
 
 # No njit as numpy.fft is not supported & numpy already calls C routines
@@ -24,8 +24,7 @@ def compute_psds(rec: Recording):
     phase = np.angle(fft)
     phase[np.abs(fft) < 1] = 0
 
-    rec.psds = freq, power, phase
-    rec.data.close()
+    rec.psds = SharedArray(freq), SharedArray(power), SharedArray(phase)
 
 
 # No njit as fooof is unknown to numba
@@ -92,4 +91,3 @@ def compute_spectrograms(rec: Recording):
     """
     rec.spectrograms = sg.spectrogram(rec.get_data(), rec.sampling_rate,
                                       nfft=1024)
-    rec.data.close()

@@ -8,7 +8,6 @@ import numpy as np
 from model.data import Recording
 
 
-@njit(parallel=True)
 def compute_rms_jit(signals: np.ndarray) -> np.ndarray:
     """
     Compute the root mean square (RMS) of the signals using numbas
@@ -23,7 +22,6 @@ def compute_rms_jit(signals: np.ndarray) -> np.ndarray:
     return np.sqrt(np.mean(np.square(signals), axis=-1))
 
 
-@njit(parallel=True)
 def compute_snrs_jit(signals: np.ndarray) -> np.ndarray:
     """
     Compute the signal-to-noise ratio (SNR) of the signals using numbas
@@ -69,8 +67,7 @@ def compute_snrs(rec: Recording):
     :param rec: Recording object containing signals to be processed
     :type rec: Recording
     """
-    rec.channels_df.add_column(['SNR'], [compute_snrs_jit(rec.get_data())])
-    rec.data.close()
+    rec.channels_df['SNR'] = compute_snrs_jit(rec.get_data())
 
 
 def compute_rms(rec: Recording):
@@ -81,8 +78,7 @@ def compute_rms(rec: Recording):
     :param rec: Recording object containing signals to be processed
     :type rec: Recording
     """
-    rec.channels_df.add_column(['RMS'], [compute_rms_jit(rec.get_data())])
-    rec.data.close()
+    rec.channels_df['RMS'] = compute_rms_jit(rec.get_data())
 
 
 def compute_entropies(rec: Recording):
@@ -94,8 +90,7 @@ def compute_entropies(rec: Recording):
     :type rec: Recording
     """
     entropies = compute_entropies_jit(rec.get_data())
-    rec.channels_df.add_column(['ApproxEntropy'], [entropies])
-    rec.data.close()
+    rec.channels_df['ApproxEntropy'] = entropies
 
 
 def bin_amplitude(rec: Recording, new_sr: int = 500) -> np.ndarray:
@@ -132,5 +127,4 @@ def bin_amplitude(rec: Recording, new_sr: int = 500) -> np.ndarray:
         bins[:, bin_idx] = bins[:, bin_idx] / n_frames_in_bin
         bin_idx = bin_idx + 1
 
-    rec.data.close()
     return bins
