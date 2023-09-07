@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import pdb
 
 from model.data import Recording, SharedArray
 
@@ -312,32 +313,38 @@ def detect_peaks_mv_mad_envs_thresh(data: np.ndarray,
                 peaks.append(np.argmax(data[i][start:stop]) + start)
                 # find actual boundaries, as the current ones are based on a
                 # a moving quantity with relatively large window size
+                p_start = start
+                p_stop = stop
                 for t in range(peaks[-1], 0):
-                    if data.data[i][t] < upper[i]:
-                        start = t
+                    if data[i][t] < upper[i]:
+                        p_start = t
                         break
                 for t in range(peaks[-1], data.shape[1]):
-                    if data.data[i][t] < upper[i]:
-                        stop = t
+                    if data[i][t] < upper[i]:
+                        p_stop = t
                         break
-                    starts.append(start)
-                    stops.append(stop)
-                peak_durations.append((stop - start) / fs)
+
+                peak_durations.append((p_stop - p_start) / fs)
+                starts.append(p_start)
+                stops.append(p_stop)
 
             if any(data[i][start:stop] < lower[i]):
                 peaks.append(np.argmin(data[i][start:stop]) + start)
 
+                p_start = start
+                p_stop = stop
                 for t in range(peaks[-1], 0):
-                    if data.data[i][t] > lower[i]:
-                        start = t
+                    if data[i][t] > lower[i]:
+                        p_start = t
                         break
                 for t in range(peaks[-1], data.shape[1]):
-                    if data.data[i][t] < lower[i]:
-                        stop = t
+                    if data[i][t] < lower[i]:
+                        p_stop = t
                         break
-                peak_durations.append((stop - start) / fs)
-                starts.append(start)
-                stops.append(stop)
+
+                peak_durations.append((p_stop - p_start) / fs)
+                starts.append(p_start)
+                stops.append(p_stop)
 
         peaks = np.array(peaks).astype(int)
         peak_durations = np.array(peak_durations)

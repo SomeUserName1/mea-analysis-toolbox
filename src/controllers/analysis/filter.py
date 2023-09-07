@@ -43,12 +43,14 @@ def frequency_filter(rec: Recording,
     if low_cut == 0:
         low_cut = None
 
-    if high_cut == fs // 2:
+    if high_cut > fs // 2:
         high_cut = None
 
 # Bandpass or bandstop/notch filter
     if low_cut and high_cut:
         btype = 'bandstop' if stop else 'bandpass'
+        print(f"order {order}, low {low_cut}, high {high_cut} btype {btype}"
+              f"fs {fs}")
         sos = sg.butter(N=order, Wn=[low_cut, high_cut], fs=fs,
                         btype=btype, output='sos')
     else:
@@ -69,7 +71,7 @@ def frequency_filter(rec: Recording,
                         output='sos')
 
     data = rec.get_data()
-    data = sg.sosfiltfilt(sos, data)
+    data[:] = sg.sosfiltfilt(sos, data)[:]
 
 
 def downsample(rec: Recording, new_fs: int):
@@ -143,4 +145,4 @@ def filter_line_noise(rec: Recording, order: Optional[int] = 16) -> None:
     for freq in freqs:
         sos = sg.butter(N=order, Wn=[freq-1.5, freq+1.5], btype='bandstop',
                         output='sos', fs=rec.sampling_rate)
-        data = sg.sosfilt(sos, data)
+        data[:] = sg.sosfilt(sos, data)[:]

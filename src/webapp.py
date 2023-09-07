@@ -39,8 +39,6 @@ from controllers.analysis.analyze import (compute_snrs,
 from controllers.analysis.activity import detect_peaks
 
 from controllers.analysis.spectral import (compute_psds,
-                                           compute_periodic_aperiodic_decomp,
-                                           detrend_fooof,
                                            compute_spectrograms)
 
 from controllers.analysis.network import (compute_xcorrs, compute_mutual_info,
@@ -59,7 +57,10 @@ from ui.analyze import analyze, generate_table, TimeSeriesPlottable
 
 # Plots using Plotly for selection and pyqtgraph everything else
 from views.electrode_grid import draw_electrode_grid
-from views.time_series import plot_time_series_grid
+from views.time_series_plots import plot_time_series_grid
+
+from views.spectral_plots import (plot_psds_grid,
+                                  plot_spectrograms_grid)
 
 # setup for the server and initialization of the data global
 app = Dash(__name__,
@@ -385,8 +386,6 @@ def channels_table_scroll(next_click, prev_click) -> html.Div:
 
     Displays the next or previous 100 rows of the channels table.
     """
-
-    pdb.set_trace()
     global CHANNELS_TABLE_START
     if next_click > 0:
         CHANNELS_TABLE_START += 100
@@ -417,8 +416,6 @@ def peaks_table_scroll(next_click, prev_click) -> html.Div:
 
     Displays the next or previous 100 rows of the channels table.
     """
-
-    pdb.set_trace()
     global PEAKS_TABLE_START
     if next_click > 0:
         PEAKS_TABLE_START += 100
@@ -450,7 +447,7 @@ def analyze_snr(_) -> html.Div:
     """
     compute_snrs(REC)
 
-    return generate_table(REC.channels_df)
+    return generate_table(REC.channels_df, PEAKS_TABLE_START)
 
 
 @app.callback(Output("channels-table", "children", allow_duplicate=True),
@@ -465,7 +462,7 @@ def analyze_rms(_) -> html.Div:
     """
     compute_rms(REC)
 
-    return generate_table(REC.channels_df)
+    return generate_table(REC.channels_df, PEAKS_TABLE_START)
 
 
 @app.callback(Output("channels-table", "children", allow_duplicate=True),
@@ -480,7 +477,7 @@ def analyze_entropy(_) -> html.Div:
     """
     compute_entropies(REC)
 
-    return generate_table(REC.channels_df)
+    return generate_table(REC.channels_df, PEAKS_TABLE_START)
 
 
 # ========== Spectral
@@ -497,11 +494,7 @@ def analyze_psds(_) -> html.Div:
     """
     compute_psds(REC)
 
-    # REC.df["psd_freq"].apply(lambda x: REC.psds[0])
-    # REC.df['psd_power'] = np.split(REC.psds[1], REC.psds[1].shape[0])
-    # REC.df['psd_phase'] = np.split(REC.psds[2], REC.psds[2].shape[0])
-
-    return generate_table(REC.channels_df)
+    return generate_table(REC.channels_df, PEAKS_TABLE_START)
 
 
 # TODO maybe store
@@ -755,12 +748,8 @@ def analyze_plot_time_series(_: int, to_plot: list[int]) -> None:
 
     Plots the raw signals of the selected electrodes in the given time window.
 
-        @param t_start: the start of the selected time windw in s:ms:mus
-        @param t_end: the end of the selected time window in s:ms:mus
-
         @return A dummy as dash callbacks require an output. The plotting is
-                done in a separate process by matplotlib (as Dash plots are
-                only suitable for small amounts of data)
+                done in a separate process by pyqtgraph.
     """
     signals = TimeSeriesPlottable.SIG.value in to_plot
     peaks = TimeSeriesPlottable.PEAKS.value in to_plot
@@ -773,13 +762,56 @@ def analyze_plot_time_series(_: int, to_plot: list[int]) -> None:
         detect_peaks(REC)
 #   if REC.bursts is None:
 #        detect_bursts(REC)
-#    if REC.seizure is None:
-#        detect_seizure(REC)
 
     plot_time_series_grid(REC, selected, signals, peaks, bursts, seizure,
                           thresh)
 
     return None
+
+
+@app.callback(Output("analyze-output-dummy", "children", allow_duplicate=True),
+              Input("analyze-plot-psds", "n_clicks"),
+              prevent_initial_call=True)
+def analyze_plot_psds(_: int) -> None:
+    """
+    Used on select screen.
+
+    Plots the power spectral density aka periodogram of the selected
+        electrodes.
+
+
+        @return A dummy as dash callbacks require an output. The plotting is
+                done in a separate process by pyqtgraph
+                """
+    if REC.psds is None:
+        compute_psds(REC)
+
+    plot_psds_grid(REC)
+
+    return None
+
+
+@app.callback(Output("analyze-output-dummy", "children", allow_duplicate=True),
+              Input("analyze-plot-spects", "n_clicks"),
+              prevent_initial_call=True)
+def analyze_plot_spectrograms(_: int) -> None:
+    """
+    Used on select screen.
+
+    Plots the power spectral density aka periodogram of the selected
+        electrodes.
+
+
+        @return A dummy as dash callbacks require an output. The plotting is
+                done in a separate process by pyqtgraph
+                """
+    if REC.spectrograms is None:
+        compute_spectrograms(REC)
+
+    plot_spectrograms_grid(REC)
+
+    return None
+
 
 
 # ======== Export
@@ -820,7 +852,6 @@ if __name__ == "__main__":
     print("LFP Toolbox")
     mp.set_start_method('spawn')
     pd.set_eng_float_format(accuracy=1)
-    pd.options.mode.string_storage = "pyarrow"
 
     HOST = "localhost"
     PORT = 8080

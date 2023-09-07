@@ -89,7 +89,7 @@ def generate_table(dataframe, from_row=0, max_rows=100):
         for col in dataframe.columns:
             field = dataframe.iloc[i][col]
             if isinstance(field, float):
-                cols.append(html.Td(f"{dataframe.iloc[i][col]:.8f}"))
+                cols.append(html.Td(f"{dataframe.iloc[i][col]:.4e}"))
             elif isinstance(field, np.ndarray):
                 cols.append(html.Td(f"shape: {dataframe.iloc[i][col].shape}"))
             else:
@@ -262,12 +262,11 @@ visualize = dbc.AccordionItem([
         dbc.Row([dbc.Button("Plot Signals", id="analyze-plot-ts")],
                 style={"padding": "5px"}),
     ]),
-    # time series with peak scatter
-    # time series with bursts overlay
-    # time series with seizure overlay
-    # PSD & detrended PSD
-    # FOOOF
-    # Spectrogram
+    dbc.Row([dbc.Button("PSD", id="analyze-plot-psds")],
+            style={"padding": "5px"}),
+    dbc.Row([dbc.Button("PSD", id="analyze-plot-spects")],
+            style={"padding": "5px"}),
+
     # Network relation (w. networkx
     # Coherence
     # Current Source Densities

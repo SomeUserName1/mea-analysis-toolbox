@@ -4,8 +4,6 @@ This module contains the function to plot the time series data in a grid.
 from multiprocessing import Process
 import numpy as np
 import pyqtgraph as pg
-import pdb
-import sys
 
 from model.data import Recording
 from views.grid_plot_iterator import MEAGridPlotIterator
