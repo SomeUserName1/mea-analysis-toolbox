@@ -36,9 +36,11 @@ from controllers.analysis.analyze import (compute_snrs,
                                           compute_rms,
                                           compute_entropies)
 
-from controllers.analysis.activity import detect_peaks
+from controllers.analysis.activity import detect_peaks, detect_events
 
 from controllers.analysis.spectral import (compute_psds,
+                                           detrend_fooof,
+                                           compute_periodic_aperiodic_decomp,
                                            compute_spectrograms)
 
 from controllers.analysis.network import (compute_xcorrs, compute_mutual_info,
@@ -588,34 +590,31 @@ def analyze_peaks(_,
     return generate_table(REC.channels_df), generate_table(REC.peaks_df)
 
 
-# @app.callback(Output("analyze-events-stats", "children"),
-#               Output("analyze-events", "n_clicks"),
-#               Input("analyze-events", "n_clicks"),
-#               State("analyze-events-method", "value"),
-#               State("analyze-events-thresh", "value"),
-#               State("analyze-events-export", "value"),
-#               State("analyze-events-fname", "value"),
-#               prevent_initial_call=True)
-# def analyze_events_moving_dev(clicked, method, thresh_factor, export, fname):
-#     """
-#     Used by analyze screen.
+@app.callback(Output("channels-table", "children", allow_duplicate=True),
+              Output("events-table", "children"),
+              Input("analyze-events", "n_clicks"),
+              State("analyze-events-mad-win", "value"),
+              State("analyze-events-env-percentile", "value"),
+              State("analyze-events-mad-thrsh", "value"),
+              prevent_initial_call=True)
+def analyze_events(_,
+                   mad_win: str,
+                   env_percentile: str,
+                   mad_thrsh: str) -> html.Div:
+    """
+    used by analyze screen.
 
-#     Detects events/bursts by computing the moving average with a large window
-#        #            and a threshold.
-#     """
-#     export = len(export) > 0
-#     res = None
-#     if clicked is not None and clicked > 0:
-#         if thresh_factor is None:
-#             res = detect_events_moving_dev(REC, method,
-#                                            export=export, fname=fname)
-#         else:
-#             res = detect_events_moving_dev(REC, method, STD_BASE_MV_STD,
-#                                            float(thresh_factor),
-#                                            export=export,
-#                                            fname=fname)
-#
-#     return res, 0
+    Detects peaks in the signal by the absolute amplitude with a threshold
+    based on a user defined factor (default is 3) times the mean absolute
+    deviation.
+    """
+    mad_win = float(mad_win) if mad_win else None
+    env_percentile = float(env_percentile) if env_percentile else None
+    mad_thrsh = float(mad_thrsh) if mad_thrsh else None
+
+    detect_events(REC, mad_win, env_percentile, mad_thrsh)
+
+    return generate_table(REC.channels_df), generate_table(REC.peaks_df)
 
 
 # ======== Network
@@ -753,17 +752,16 @@ def analyze_plot_time_series(_: int, to_plot: list[int]) -> None:
     """
     signals = TimeSeriesPlottable.SIG.value in to_plot
     peaks = TimeSeriesPlottable.PEAKS.value in to_plot
-    bursts = TimeSeriesPlottable.BURSTS.value in to_plot
-    seizure = TimeSeriesPlottable.SEIZURE.value in to_plot
+    events = TimeSeriesPlottable.EVENTS.value in to_plot
     thresh = TimeSeriesPlottable.THRESH.value in to_plot
     selected = True
 
     if peaks and REC.peaks_df is None:
         detect_peaks(REC)
-#   if REC.bursts is None:
-#        detect_bursts(REC)
+    if events and REC.events_df is None:
+        detect_events(REC)
 
-    plot_time_series_grid(REC, selected, signals, peaks, bursts, seizure,
+    plot_time_series_grid(REC, selected, signals, peaks, events,
                           thresh)
 
     return None
@@ -811,7 +809,6 @@ def analyze_plot_spectrograms(_: int) -> None:
     plot_spectrograms_grid(REC)
 
     return None
-
 
 
 # ======== Export

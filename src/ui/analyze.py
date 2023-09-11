@@ -21,15 +21,24 @@ class TimeSeriesPlottable(Enum):
     """
     SIG = 0
     PEAKS = 1
-    BURSTS = 2
-    SEIZURE = 3
-    THRESH = 4
+    EVENTS = 2
+    THRESH = 3
 
 
 def prev_next_rows_buttons(id_string):
+    """
+    Generate a row with two buttons to go to the next or previous page of a
+    table.
+
+    :param id_string: The id string to use for the buttons.
+    :type id_string: str
+
+    :return: The row with the buttons.
+    :rtype: dash_bootstrap_components.Row
+    """
     return dbc.Row([dbc.Col([
-            dbc.Button("Next", n_clicks=0, id=f"{id_string}-next"),
-            dbc.Button("Prev", n_clicks=0, id=f"{id_string}-prev")
+            dbc.Button("Prev", n_clicks=0, id=f"{id_string}-prev"),
+            dbc.Button("Next", n_clicks=0, id=f"{id_string}-next")
             ], width="auto")],
         align="center", justify="center", style={"padding": "20px"})
 
@@ -53,6 +62,16 @@ peaks_table = dbc.Card(
 
 )
 
+events_table = dbc.Card(
+    dbc.CardBody([
+        html.Table([], id="events-table",
+                   className='table table-bordered table-hover '
+                             'table-responsive'),
+        prev_next_rows_buttons("events-table")
+        ])
+
+)
+
 network_table = dbc.Card(
     dbc.CardBody([], id="network-table")
 )
@@ -61,6 +80,7 @@ network_table = dbc.Card(
 result_tables = dbc.Col(dbc.Tabs([
     dbc.Tab(channels_table, label="Channels"),
     dbc.Tab(peaks_table, label="Peaks"),
+    dbc.Tab(events_table, label="Events"),
     dbc.Tab(network_table, label="Network")
     ]), width='auto')
 
@@ -182,8 +202,19 @@ spectral = dbc.AccordionItem([
 activity = dbc.AccordionItem([
     # Detect Peaks by MAD
     dbc.Row([
-        html.Strong("Detect peaks by MAD"),
-        dbc.Col(html.H6("Mean absolute deviation threshold:"), width="auto"),
+        html.Strong("Detect Activity"),
+        dbc.Row([dbc.Row([html.H6("Presets:")])]),
+        dbc.Row([
+            dbc.RadioItems(
+                id="analyze-activity-presets",
+                options=[{"label": "Peaks", "value": 0},
+                         {"label": "Bursts", "value": 1}],
+                labelCheckedClassName="text-success",
+                inputCheckedClassName=("border rounded-3"),
+                style={"padding": "25px"}),
+
+            ]),
+        dbc.Col(html.H6("Parameters:"), width="auto"),
         dbc.Input(placeholder="mad window (50ms)", id="analyze-peaks-mad-win"),
         dbc.Input(placeholder="envelope window (100ms)",
                   id="analyze-peaks-env-win"),
@@ -195,21 +226,22 @@ activity = dbc.AccordionItem([
                   id="analyze-peaks-env-thrsh"),
         dbc.Button("Start", id="analyze-peaks-ampl")
      ], style={"padding": "25px"}),
-    # Detect Bursts
-    # Detect Events
     dbc.Row([
-        html.Strong("Detect event by moving deviation measures"),
-        dbc.Row(dbc.RadioItems(id="analyze-events-method", value=1,
-                               inline=True,
-                               options=[{"label": "Moving Std", "value": 1},
-                                        {"label": "Moving MAD", "value": 2}])),
-        dbc.Row([
-            dbc.Col(html.H6("Threshold factor")),
-            dbc.Col(dbc.Input(placeholder="1", id="analyze-events-thresh")),
-        ]),
-        dbc.Button("Start", id="analyze-events"),
-        dbc.Row([], id="analyze-events-stats"),
-    ], style={"padding": "25px"}),
+        html.Strong("Detect Events"),
+        dbc.Row([dbc.Row([html.H6("Presets:")])]),
+        dbc.Col(html.H6("Parameters:"), width="auto"),
+        dbc.Input(placeholder="mad window (50ms)",
+                  id="analyze-events-mad-win"),
+        dbc.Input(placeholder="envelope window (100ms)",
+                  id="analyze-events-env-win"),
+        dbc.Input(placeholder="envelope percentile (5)",
+                  id="analyze-events-env-percentile"),
+        dbc.Input(placeholder="mad treshold (1.5)",
+                  id="analyze-events-mad-thrsh"),
+
+        dbc.Button("Start", id="analyze-events")
+     ], style={"padding": "25px"}),
+
 ], title="Activity Detection")
 
 
@@ -249,10 +281,8 @@ visualize = dbc.AccordionItem([
                      "value": TimeSeriesPlottable.SIG.value},
                     {"label": "Peaks",
                      "value": TimeSeriesPlottable.PEAKS.value},
-                    {"label": "Bursts",
-                     "value": TimeSeriesPlottable.BURSTS.value},
-                    {"label": "Seizure",
-                     "value": TimeSeriesPlottable.SEIZURE.value},
+                    {"label": "Events",
+                     "value": TimeSeriesPlottable.EVENTS.value},
                     {"label": "Detection Thresholds",
                      "value": TimeSeriesPlottable.THRESH.value},
                 ],
@@ -264,7 +294,7 @@ visualize = dbc.AccordionItem([
     ]),
     dbc.Row([dbc.Button("PSD", id="analyze-plot-psds")],
             style={"padding": "5px"}),
-    dbc.Row([dbc.Button("PSD", id="analyze-plot-spects")],
+    dbc.Row([dbc.Button("Spectrograms", id="analyze-plot-spects")],
             style={"padding": "5px"}),
 
     # Network relation (w. networkx

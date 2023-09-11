@@ -427,14 +427,14 @@ def detect_events(rec: Recording,
     rec.mad_env = mad_env
 
     data = rec.get_data()
-    rows, n_peaks, peaks_freq, lower, upper, mad_thresh = (
-            detect_peaks_mv_mad_envs_thresh(data,
-                                            rec.sampling_rate,
-                                            names,
-                                            mv_mads,
-                                            mad_env,
-                                            env_percentile,
-                                            mad_thrsh_f)
+    rows, mad_thresh = (
+            detect_events_mv_mad(data,
+                                 rec.sampling_rate,
+                                 names,
+                                 mv_mads,
+                                 mad_env,
+                                 env_percentile,
+                                 mad_thrsh_f)
             )
 
     rec.event_mad_thresh = mad_thresh
@@ -443,7 +443,7 @@ def detect_events(rec: Recording,
     # sort it by channel and peak index and attach it to the recording object
     rec.events_df = pd.concat(rows)
 
-    extract_event_measures(rec)
+#    extract_event_measures(rec)
 
 
 # Maybe parallelize using ProcessPoolExec.
@@ -453,11 +453,8 @@ def detect_events_mv_mad(data: np.ndarray,
                          names: list[str],
                          mv_mads: np.ndarray,
                          mad_env: list[np.ndarray],
-                         envs: tuple[list[np.ndarray],
-                                     list[np.ndarray]],
                          env_percentile: int = 5,
-                         mad_thrsh_f: float = 1.5,
-                         env_thrsh_f: float = 2):
+                         mad_thrsh_f: float = 1.5):
     mad_thresh = np.zeros(data.shape[0])
     # we'll write concurrently to the list and sort it afterwards
     rows = []

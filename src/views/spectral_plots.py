@@ -3,7 +3,11 @@
 This module contains the function to plot the time series data in a grid.
 """
 from multiprocessing import Process
+import numpy as np
 import pyqtgraph as pg
+
+import sys
+import pdb
 
 from model.data import Recording
 from views.grid_plot_iterator import MEAGridPlotIterator
@@ -71,17 +75,21 @@ def do_plot_spectrograms(rec: Recording):
     pows = rec.spectrograms[2].read()
 
     win = pg.GraphicsLayoutWidget(show=True, title="Raw signals")
-    color_map = pg.colormap.get('virdis', source="matplotlib")
+    color_map = pg.colormap.get('viridis', source="matplotlib")
     pcs = []
     win.resize(1200, 800)
     prev_p = None
+    max_pow = np.max(pows)
+    min_pow = np.min(pows)
+    sys.stdin = open(0)
+    pdb.set_trace()
     it = MEAGridPlotIterator(rec)
     for i, (row, col) in enumerate(it):
         title_str = f'<font size="1">{sel_names[i]}</font>'
         p = win.addPlot(row=row, col=col, title=title_str)
 
         pc = pg.PColorMeshItem(x=times, y=freqs, z=pows[i], colorMap=color_map)
-        pcs.appen(pc)
+        pcs.append(pc)
         p.addItem(pc)
 
         p.setLabel('left', 'Frequency', unit='Hz')
@@ -91,8 +99,7 @@ def do_plot_spectrograms(rec: Recording):
 
         prev_p = p
 
-    cbar = pg.ColorBarItem(color_map, label='Power')
-    cbar.setImageItem(pcs)
+    cbar = pg.ColorBarItem(values=(min_pow, max_pow), colorMap=color_map, label='Power')
     win.addItem(cbar)
 
     pg.exec()

@@ -1,6 +1,8 @@
 """
 This module contains the function to plot the time series data in a grid.
 """
+import sys
+import pdb
 from multiprocessing import Process
 import numpy as np
 import pyqtgraph as pg
@@ -13,8 +15,7 @@ def plot_time_series_grid(rec: Recording,
                           selected: bool = False,
                           signals: bool = True,
                           peaks: bool = False,
-                          bursts: bool = False,
-                          seizure: bool = False,
+                          events: bool = False,
                           thresh: bool = False):
     """
     Wrapper function to plot the time series data in a grid.
@@ -22,7 +23,7 @@ def plot_time_series_grid(rec: Recording,
     exits.
     """
     proc = Process(target=do_plot, args=(rec, selected, signals,
-                   peaks, bursts, seizure, thresh))
+                   peaks, events, thresh))
     proc.start()
 
 
@@ -30,8 +31,7 @@ def do_plot(rec: Recording,
             selected: bool,
             signals: bool,
             peaks: bool,
-            bursts: bool,
-            seizure: bool,
+            events: bool,
             thresh: bool):
     """
     Plot the time series data in a grid. The grid is created using the
@@ -131,14 +131,17 @@ def do_plot(rec: Recording,
                 p.addItem(inf1)
                 p.addItem(inf2)
                 p.addItem(inf3)
-        if bursts:
-            print("TODO")
-            # TODO
-        if seizure:
-            print("TODO")
-            # TODO
 
-        p.setLabel('left', 'Voltag', units='V')
+        if events:
+            edf = rec.events_df[rec.events_df['Channel'] == sel_names[i]]
+            start_idxs = edf['StartIndex'].values.astype(int)
+            stop_idxs = edf['StopIndex'].values.astype(int)
+
+            for start, stop in zip(start_idxs, stop_idxs):
+                p.plot(x=ts[start:stop], y=sigs[i][start:stop],
+                       pen=(0, 255, 0, 255), label="Events")
+
+        p.setLabel('left', 'Voltage', units='V')
         p.setLabel('bottom', 'Time', unit='s')
         if prev_p is not None:
             p.setYLink(prev_p)

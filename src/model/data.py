@@ -48,16 +48,15 @@ class Recording:
         self.data = SharedArray(data)
 
         # Maybe used for burst detection and burst & peak characterization
-        self.derivatives = None # ndarray (data.shape)
-        self.mv_means = None # ndarray (data.shape)
-        self.mv_vars = None # ndarray (data.shape)
         self.mv_mads = None # ndarray (data.shape)
         self.envelopes = None # ndarray (data.shape)
+
         ###### Spectral --- Store output of fooof wrt. psd. May use spectrogram as fooof group
         self.psds = None # tuple[ndarray (1,#freqs), ndarray(data.shape[0], #freqs) ]
         self.detrended_psds = None # ndarray(data.shape[0], #freqs)
         self.fooof_group = None # FOOOFGroup object
         self.spectrograms = None # freqs, ts, ndarray (data.shape[0], freqs, time_res?)
+
         ####### Not sure how to put that into df. maybe max for xcorr, for coherence peaks and so on. check papers
         self.xcorrs = None # tuple[ ndarray (1, data.shape[1]), ndarray (data.shape[0], data.shape[0], data.shape[1])]
         self.mutual_informations = None # ndarray (data.shape[0], data.shape[0])
@@ -67,9 +66,9 @@ class Recording:
         self.spectral_granger = None # freqs, as above
         self.csds = None # neo.AnalogSignal with estimated CSD
         self.channels_df = None # Cols: SNR, RMS, Apprx_Entropy, n_peaks, firing rate
+
         self.peaks_df = None
-        self.bursts_df = None
-        self.seizures_df = None
+        self.events_df = None
         self.network_df = None
 # self.psis = None # finnpy
 # self.pacs = None # tensorpac
