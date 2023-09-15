@@ -72,16 +72,16 @@ events_table = dbc.Card(
 
 )
 
-network_table = dbc.Card(
-    dbc.CardBody([], id="network-table")
-)
+# network_table = dbc.Card(
+#     dbc.CardBody([], id="network-table")
+# )
 
 
 result_tables = dbc.Col(dbc.Tabs([
     dbc.Tab(channels_table, label="Channels"),
     dbc.Tab(peaks_table, label="Peaks"),
     dbc.Tab(events_table, label="Events"),
-    dbc.Tab(network_table, label="Network")
+    # dbc.Tab(network_table, label="Network")
     ]), width='auto')
 
 
@@ -170,33 +170,22 @@ basics = dbc.AccordionItem([
     # Entropies
     dbc.Row([dbc.Button("Approximate Entropy", id="analyze-ent")],
             style={"padding": "5px"}),
-    # Envelope
-    # dbc.Row([dbc.Button("Envelope", id="analyze-env")],
-    #          style={"padding": "5px"}),
-    # Derivative
-    # dbc.Row([dbc.Button("Derivative", id="analyze-derv")],
-    #          style={"padding": "5px"}),
-    # Mv mean
-    # dbc.Row([dbc.Button("Moving Average", id="analyze-mean")],
-    #          style={"padding": "5px"}),
-    # mv mad
-    # dbc.Row([dbc.Button("Moving Mean Absolute Deviation", id="analyze-mad")],
-    #          style={"padding": "5px"}),
 ], title="Basic Properties")
 
 spectral = dbc.AccordionItem([
     # PSD
     dbc.Row([dbc.Button("PSD", id="analyze-psd")], style={"padding": "5px"}),
-    # Periodic-Aperiodic decomposition
-    dbc.Row([dbc.Button("Periodic-Aperiodic PSD decomposition",
-                        id="analyze-fooof")],
-            style={"padding": "5px"}),
-    # Detrend PSD
-    dbc.Row([dbc.Button("Detrend PSD", id="analyze-dpsd")],
-            style={"padding": "5px"}),
     # Spectrogram
     dbc.Row([dbc.Button("Spectrogram", id="analyze-spec")],
             style={"padding": "5px"}),
+    #  # Periodic-Aperiodic decomposition
+    #  dbc.Row([dbc.Button("Periodic-Aperiodic PSD decomposition",
+    #                      id="analyze-fooof")],
+    #          style={"padding": "5px"}),
+    #  # Detrend PSD
+    #  dbc.Row([dbc.Button("Detrend PSD", id="analyze-dpsd")],
+    #          style={"padding": "5px"}),
+
 ], title="Spectral Analysis")
 
 activity = dbc.AccordionItem([
@@ -241,30 +230,29 @@ activity = dbc.AccordionItem([
 
         dbc.Button("Start", id="analyze-events")
      ], style={"padding": "25px"}),
-
 ], title="Activity Detection")
 
 
-network = dbc.AccordionItem([
-    # Cross-Correlation
-    dbc.Row([dbc.Button("Cross-Correlation", id="analyze-xcorr")],
-            style={"padding": "5px"}),
-    # Mutual Info
-    dbc.Row([dbc.Button("Mutual Information", id="analyze-mi")],
-            style={"padding": "5px"}),
-    # Transfer Entropy
-    dbc.Row([dbc.Button("Transfer Entropy", id="analyze-te")],
-            style={"padding": "5px"}),
-    # Coherence
-    dbc.Row([dbc.Button("Coherence", id="analyze-coh")],
-            style={"padding": "5px"}),
-    # Granger Causality
-    dbc.Row([dbc.Button("Granger Causality", id="analyze-gc")],
-            style={"padding": "5px"}),
-    # Spectral Granger Causality
-    dbc.Row([dbc.Button("Spectral Granger Causality", id="analyze-sgc")],
-            style={"padding": "5px"}),
-], title="Network Analysis")
+# network = dbc.AccordionItem([
+#     # Cross-Correlation
+#     dbc.Row([dbc.Button("Cross-Correlation", id="analyze-xcorr")],
+#             style={"padding": "5px"}),
+#     # Mutual Info
+#     dbc.Row([dbc.Button("Mutual Information", id="analyze-mi")],
+#             style={"padding": "5px"}),
+#     # Transfer Entropy
+#     dbc.Row([dbc.Button("Transfer Entropy", id="analyze-te")],
+#             style={"padding": "5px"}),
+#     # Coherence
+#     dbc.Row([dbc.Button("Coherence", id="analyze-coh")],
+#             style={"padding": "5px"}),
+#     # Granger Causality
+#     dbc.Row([dbc.Button("Granger Causality", id="analyze-gc")],
+#             style={"padding": "5px"}),
+#     # Spectral Granger Causality
+#     dbc.Row([dbc.Button("Spectral Granger Causality", id="analyze-sgc")],
+#             style={"padding": "5px"}),
+# ], title="Network Analysis")
 
 
 visualize = dbc.AccordionItem([
@@ -309,31 +297,30 @@ export = dbc.AccordionItem([
     # event stats
     dbc.Row([
         dbc.Col(dbc.Checklist(options=[{"label": "Export", "value": 1}],
-                              value=[], id="analyze-events-export")),
-        dbc.Col(dbc.Input(placeholder="Enter full file path for output",
+                              value=[], id="analyze-export")),
+        dbc.Col(dbc.Input(placeholder="Enter full file path and base name",
                           id="analyze-events-fname")),
     ], style={"padding": "25px"}),
-
-
-    # animations
-    dbc.Row([html.H6("Electrode Amplitude Animation"),
-            dbc.Input(placeholder="Column (only 1D signals)",
-                      id="analyze-animate-value"),
-            dbc.Input(placeholder="Playback Speed in FPS",
-                      id="analyze-animate-fps"),
-            dbc.Input(placeholder="Slow down from real time",
-                      id="analyze-animate-slow-down"),
-            dbc.Button("Generate Video (takes some minutes)",
-                       class_name="fas fa-play",
-                       id="analyze-animate-play",
-                       n_clicks=0)]
-            ),
+    # # animations
+    # dbc.Row([html.H6("Electrode Amplitude Animation"),
+    #         dbc.Input(placeholder="Column (only 1D signals)",
+    #                   id="analyze-animate-value"),
+    #         dbc.Input(placeholder="Playback Speed in FPS",
+    #                   id="analyze-animate-fps"),
+    #         dbc.Input(placeholder="Slow down from real time",
+    #                   id="analyze-animate-slow-down"),
+    #         dbc.Button("Generate Video (takes some minutes)",
+    #                    class_name="fas fa-play",
+    #                    id="analyze-animate-play",
+    #                    n_clicks=0)]
+    #         ),
 ], title="Export")
 
 compute = dbc.AccordionItem([dbc.Accordion([basics,
                                             spectral,
                                             activity,
-                                            network])],
+                                            # network
+                                            ])],
                             title="Compute")
 
 side_bar = dbc.Col([dbc.Accordion([filters, compute, visualize, export],

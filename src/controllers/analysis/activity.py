@@ -1,8 +1,11 @@
 import numpy as np
 import pandas as pd
-import pdb
+import scipy.signal as sg
 
+from constants import default_bins
 from model.data import Recording, SharedArray
+from controllers.analysis.analyze import compute_entropies_jit
+from controllers.analysis.spectral import bin_powers, compute_spectrograms
 
 
 def compute_derivatives_jit(data: np.ndarray, fs: int) -> np.ndarray:
@@ -160,8 +163,142 @@ def compute_envelopes(rec: Recording, win: int = 100):
     # For 10 selected channels, this is 12000 elements * 4 bytes = 48 kB.
     rec.envelopes = envelopes(data, win)
 
-
 def detect_peaks(rec: Recording,
+                     mad_win: float = None,
+                     env_win: float = None,
+                     env_percentile: int = None,
+                     mad_thrsh_f: float = None,
+                     env_thrsh_f: float = None):
+    """
+    Detect peaks in the signals of a recording object.
+    The detection is based on the moving MAD of the signals and the envelope
+    of the moving MAD and amplitude thresholds. The moving MAD is used to
+    detect peaks as it is smoother than the signal itself and increases
+    strongly when the siginal is peaking or bursting. The envelopes are used
+    to estimate the noise noise levels per channel. The thresholds are
+    computed as a factor times a percentile of the respective envelope.
+    The factor is given by the user, as well as the percentile.
+
+    :param rec: the recording object
+    :type rec: Recording
+
+    :param mad_win: window size for the moving MAD, defaults to 0.05
+    :type mad_win: float, optional
+
+    :param env_win: window size for the envelopes, defaults to 0.1
+    :type env_win: float, optional
+
+    :param env_percentile: percentile of the envelope to use as threshold,
+        defaults to 5
+    :type env_percentile: int, optional
+
+    :param mad_thrsh_f: factor to multiply the percentile of the MAD envelope
+        to use as threshold, defaults to 1.5
+    :type mad_thrsh_f: float, optional
+
+    :param env_thrsh_f: factor to multiply the percentile of the signal
+        envelope to use as threshold, defaults to 2
+    :type env_thrsh_f: float, optional
+    """
+    if env_win is None:
+        env_win = 0.1
+    if env_percentile is None:
+        env_percentile = 5
+    if env_thrsh_f is None:
+        env_thrsh_f = 2
+
+    fs = rec.sampling_rate
+    names = rec.get_sel_names()
+
+    win = int(np.round(env_win * fs))
+    compute_envelopes(rec, win)
+
+    data = rec.get_data()
+    n_peaks = np.zeros(data.shape[0])
+    peaks_freq = np.zeros(data.shape[0])
+
+    lower = np.zeros(data.shape[0])
+    upper = np.zeros(data.shape[0])
+    # we'll write concurrently to the list and sort it afterwards
+    rows = []
+    for i in range(data.shape[0]):  # prange
+        peaks = []
+        peak_durations = []
+        starts = []
+        stops = []
+
+        # Analogously, the thrshold for the signal amplitudes is based on a
+        # percentile of the envelope of the signal itself with large window
+        # (0.1s for example) multiplied by a facor. The factor is given by the
+        # user, as well as the percentile.
+        min_env = rec.envelopes[0][i]
+        max_env = rec.envelopes[1][i]
+        lower[i] = env_thrsh_f * np.percentile(data[i][min_env],
+                                               (100 - env_percentile))
+        upper[i] = env_thrsh_f * np.percentile(data[i][max_env],
+                                               env_percentile)
+
+        up_peaks, up_props = sg.find_peaks(data[i],
+                                           height=upper[i],
+                                           prominence=upper[i])
+
+        up_widths = sg.peak_widths(data[i], up_peaks, rel_height=1)
+
+        down_peaks, down_props = sg.find_peaks(-data[i],
+                                               height=-lower[i],
+                                               prominence=-lower[i])
+
+        down_widths = sg.peak_widths(-data[i], down_peaks, 1)
+
+        peaks = np.concatenate((up_peaks, down_peaks))
+        order = np.argsort(peaks)
+        peaks = peaks[order]
+
+        peak_times = peaks / fs
+
+        starts = np.concatenate((up_widths[2], down_widths[2]))
+        starts = starts[order]
+
+        stops = np.concatenate((up_widths[3], down_widths[3]))
+        stops = stops[order]
+
+        peak_durations = np.concatenate((up_widths[0], down_widths[0]))
+        peak_durations = peak_durations[order] / fs
+
+        peak_ampls = data[i][peaks] / data[i][peaks].max()
+
+        n_peaks[i] = peaks.shape[0]
+
+        channel = np.repeat(names[i], len(peaks))
+
+        ipi = np.diff(peaks) / fs
+        if peaks.shape[0] > 0:
+            ipi = np.hstack((np.array([np.nan]), ipi))
+
+        channel_peaks = pd.DataFrame(
+                {"Channel": channel,
+                 "PeakIndex": peaks,
+                 "TimeStamp": peak_times,
+                 "Amplitude [muV]": peak_ampls,
+                 "StartIndex": starts,
+                 "StopIndex": stops,
+                 "Duration [s]": peak_durations,
+                 "InterPeakInterval [s]": ipi}
+                )
+        rows.append(channel_peaks)
+
+    rec.lower = lower
+    rec.upper = upper
+
+    # concatenate the list of data frames into one data frame,
+    # sort it by channel and peak index and attach it to the recording object
+    rec.peaks_df = pd.concat(rows)
+    rec.peaks_df.sort_values(by=["Channel", "PeakIndex"], inplace=True)
+    rec.channels_df['n_peaks'] = n_peaks
+    rec.channels_df['peak_freq'] = peaks_freq
+
+
+def detect_peaks_alt(rec: Recording,
                  mad_win: float = None,
                  env_win: float = None,
                  env_percentile: int = None,
@@ -231,43 +368,6 @@ def detect_peaks(rec: Recording,
     compute_envelopes(rec, win)
 
     data = rec.get_data()
-    rows, n_peaks, peaks_freq, lower, upper, mad_thresh = (
-            detect_peaks_mv_mad_envs_thresh(data,
-                                            rec.sampling_rate,
-                                            names,
-                                            mv_mads,
-                                            mad_env,
-                                            rec.envelopes,
-                                            env_percentile,
-                                            mad_thrsh_f,
-                                            env_thrsh_f)
-            )
-
-    rec.lower = lower
-    rec.upper = upper
-    rec.mad_thresh = mad_thresh
-
-    # concatenate the list of data frames into one data frame,
-    # sort it by channel and peak index and attach it to the recording object
-    rec.peaks_df = pd.concat(rows)
-    rec.peaks_df.sort_values(by=["Channel", "PeakIndex"], inplace=True)
-    rec.channels_df['n_peaks'] = n_peaks
-    rec.channels_df['peak_freq'] = peaks_freq
-
-
-# Maybe parallelize using ProcessPoolExec.
-# @njit(parallel=True)
-def detect_peaks_mv_mad_envs_thresh(data: np.ndarray,
-                                    fs: int,
-                                    names: list[str],
-                                    mv_mads: np.ndarray,
-                                    mad_env: list[np.ndarray],
-                                    envs: tuple[list[np.ndarray],
-                                                list[np.ndarray]],
-                                    env_percentile: int = 5,
-                                    mad_thrsh_f: float = 1.5,
-                                    env_thrsh_f: float = 2):
-
     n_peaks = np.zeros(data.shape[0])
     peaks_freq = np.zeros(data.shape[0])
 
@@ -293,8 +393,8 @@ def detect_peaks_mv_mad_envs_thresh(data: np.ndarray,
         # percentile of the envelope of the signal itself with large window
         # (0.1s for example) multiplied by a facor. The factor is given by the
         # user, as well as the percentile.
-        min_env = envs[0][i]
-        max_env = envs[1][i]
+        min_env = rec.envelopes[0][i]
+        max_env = rec.envelopes[1][i]
         lower[i] = env_thrsh_f * np.percentile(data[i][min_env],
                                                (100 - env_percentile))
         upper[i] = env_thrsh_f * np.percentile(data[i][max_env],
@@ -352,7 +452,7 @@ def detect_peaks_mv_mad_envs_thresh(data: np.ndarray,
         n_peaks[i] = len(peaks)
         peaks_freq[i] = n_peaks[i] / fs / 1000000
 
-        peak_ampls = data[i][peaks]
+        peak_ampls = data[i][peaks] / data[i][peaks].max()
         channel = np.repeat(names[i], len(peaks))
         peak_times = peaks / fs
 
@@ -364,21 +464,31 @@ def detect_peaks_mv_mad_envs_thresh(data: np.ndarray,
                 {"Channel": channel,
                  "PeakIndex": peaks,
                  "TimeStamp": peak_times,
-                 "Amplitude": peak_ampls,
+                 "Amplitude [muV]": peak_ampls,
                  "StartIndex": starts,
                  "StopIndex": stops,
-                 "Duration": peak_durations,
-                 "InterPeakInterval": ipi}
+                 "Duration [s]": peak_durations,
+                 "InterPeakInterval [s]": ipi}
                 )
         rows.append(channel_peaks)
 
-    return rows, n_peaks, peaks_freq, lower, upper, mad_thresh
+    rec.lower = lower
+    rec.upper = upper
+    rec.mad_thresh = mad_thresh
+
+    # concatenate the list of data frames into one data frame,
+    # sort it by channel and peak index and attach it to the recording object
+    rec.peaks_df = pd.concat(rows)
+    rec.peaks_df.sort_values(by=["Channel", "PeakIndex"], inplace=True)
+    rec.channels_df['n_peaks'] = n_peaks
+    rec.channels_df['peak_freq'] = peaks_freq
 
 
 def detect_events(rec: Recording,
                   mad_win: float = None,
                   env_percentile: int = None,
-                  mad_thrsh_f: float = None):
+                  mad_thrsh_f: float = None,
+                  freq_bins: list[tuple[int, int]] = default_bins):
     """
     Detect events in the signals of a recording object.
     The detection is based on the moving MAD of the signals and the envelope
@@ -410,8 +520,15 @@ def detect_events(rec: Recording,
     if mad_thrsh_f is None:
         mad_thrsh_f = 1.5
 
+    if rec.peaks_df is None:
+        detect_peaks(rec)
+
+    if rec.spectrograms is None:
+        compute_spectrograms(rec)
+
     fs = rec.sampling_rate
     names = rec.get_sel_names()
+    freq_bin_names = [f"{bins[0]}-{bins[1]}" for bins in freq_bins]
 
     # Compute moving mean absolute deviation of the signals, used to detect
     # peaks as the moving MAD is smoother than the signal itself and increases
@@ -427,34 +544,6 @@ def detect_events(rec: Recording,
     rec.mad_env = mad_env
 
     data = rec.get_data()
-    rows, mad_thresh = (
-            detect_events_mv_mad(data,
-                                 rec.sampling_rate,
-                                 names,
-                                 mv_mads,
-                                 mad_env,
-                                 env_percentile,
-                                 mad_thrsh_f)
-            )
-
-    rec.event_mad_thresh = mad_thresh
-
-    # concatenate the list of data frames into one data frame,
-    # sort it by channel and peak index and attach it to the recording object
-    rec.events_df = pd.concat(rows)
-
-#    extract_event_measures(rec)
-
-
-# Maybe parallelize using ProcessPoolExec.
-# @njit(parallel=True)
-def detect_events_mv_mad(data: np.ndarray,
-                         fs: int,
-                         names: list[str],
-                         mv_mads: np.ndarray,
-                         mad_env: list[np.ndarray],
-                         env_percentile: int = 5,
-                         mad_thrsh_f: float = 1.5):
     mad_thresh = np.zeros(data.shape[0])
     # we'll write concurrently to the list and sort it afterwards
     rows = []
@@ -462,6 +551,10 @@ def detect_events_mv_mad(data: np.ndarray,
         durations = []
         starts = []
         stops = []
+        freqs = []
+        n_peaks = []
+        app_ens = []
+        ipi = []
 
         # the theshold for a peak/burst is a factor times a percentile of
         # the MAD signal envelope. The factor is given by the user, as well as
@@ -482,115 +575,42 @@ def detect_events_mv_mad(data: np.ndarray,
             durations.append((stop - start) / fs)
             starts.append(start)
             stops.append(stop)
+            freqs.append(
+                    bin_powers(rec, i, (start, stop), freq_bins)
+                        )
+            n_peaks.append(rec.peaks_df[(rec.peaks_df['Channel'] == names[i])
+                                        & (rec.peaks_df['PeakIndex'] >= start)
+                                        & (rec.peaks_df['PeakIndex'] < stop)
+                                        ].shape[0]
+                           )
+            app_ens.append(compute_entropies_jit(data[i][start:stop]))
+            ipi.append(rec.peaks_df[(rec.peaks_df['Channel'] == names[i])
+                                    & (rec.peaks_df['PeakIndex'] >= start)
+                                    & (rec.peaks_df['PeakIndex'] < stop)
+                                    ]['InterPeakInterval'].mean()
+                       )
+        iei = [stops[i - 1] - starts[i] for i in range(1, len(starts))]
+        if len(starts) > 0:
+            iei.insert(0, np.nan)
+        iei = np.array(iei) / fs
 
         channel = np.repeat(names[i], len(durations))
         channel_events = pd.DataFrame(
                 {"Channel": channel,
                  "StartIndex": starts,
                  "StopIndex": stops,
-                 "Duration": durations}
+                 "Duration [s]": durations,
+                 "ApproximateEntropy": app_ens,
+                 "#Peaks": n_peaks,
+                 "MeanInterPeakInterval [s]": ipi,
+                 "InterEventInterval [s]": iei,
+                 } | dict(zip(freq_bin_names, np.array(freqs).T))
                 )
         rows.append(channel_events)
 
-    return rows, mad_thresh
+    rec.event_mad_thresh = mad_thresh
 
-
-def compute_event_delays(rec: Recording):
-    events_df = rec.events_df
-    first_idx = events_df['StartIndex'].min()
-    events_df['Delay'] = events_df['StartIndex'] - first_idx
-
-
-def compute_event_tes(rec: Recording):
-    events_df = rec.events_df
-    sel_names = rec.get_sel_names()
-
-    if 'Delay' not in events_df.columns:
-        compute_event_delays(rec)
-
-    fst_el_name = events_df[events_df['Delay'] == 0]['Channel'].iloc[0]
-    fst_el_idx = sel_names.index(fst_el_name)
-    fst_start_idx = events_df[events_df['Delay'] == 0]['StartIndex'].iloc[0]
-    fst_stop_idx = events_df[events_df['Delay'] == 0]['StopIndex'].iloc[0]
-
-    tes = []
-    data = rec.get_data()
-    first_signal = data[fst_el_idx][fst_start_idx:fst_stop_idx]
-    for _, row in events_df.iterrows():
-        el_name = row['Channel']
-        el_idx = sel_names.index(el_name)
-        start_idx = row['StartIndex']
-        stop_idx = row['StopIndex']
-
-        other_signal = data[el_idx][start_idx:stop_idx]
-        tes.append(compute_transfer_entropy(first_signal, other_signal))
-
-    events_df['TransferEntropy'] = tes
-
-
-def show_event_psds(data):
-    psds = []
-    if len(data.events) == 0:
-        return
-
-    fst = data.events[0]
-    psd_shape = compute_psd(data.data[data.selected_rows.index(fst.electrode_idx), fst.start_idx : fst.end_idx], data.sampling_rate)[0].shape
-    for i in range(data.data.shape[0]):
-        has_event = False
-        for event in data.events:
-            if data.selected_rows.index(event.electrode_idx) == i:
-                event_signal = data.data[data.selected_rows.index(event.electrode_idx), event.start_idx : event.end_idx]
-                psds.append(compute_psd(event_signal, data.sampling_rate))
-                has_event = True
-                break
-
-        if not has_event:
-            psds.append((np.zeros(psd_shape), np.zeros(psd_shape)))
-
-    psds = np.array(psds)
-
-    proc = Process(target=plot_in_grid, args=('psds', psds, data))
-    proc.start()
-    proc.join()
-
-
-def compute_isis(spike_idxs, fs):
-    isis = []
-    for i, (start_idx, end_idx) in enumerate(zip(spike_idxs[0], spike_idxs[1])):
-        if i != 0:
-            isis.append((start_idx - prev_end_idx) * 1 / fs)
-
-        prev_end_idx = end_idx
-
-    return np.array(isis)
-
-
-def extract_event_measures(data, electrode_idx, event_idxs, threshold):
-    if data.sampling_rate < 200:
-        raise RuntimeError("Sampling rate must not be lower than 200 Hz for the band decomposition to work!")
-
-    event_signal = data.data[data.selected_rows.index(electrode_idx), event_idxs[0]:event_idxs[1]]
-    duration = (event_idxs[1] - event_idxs[0]) * 1 / data.sampling_rate
-    spike_idxs = find_event_boundaries(event_signal, threshold, False)
-    rms = compute_rms(event_signal)
-    max_amplitude = np.amax(np.absolute(event_signal))
-    mean_isi = np.mean(compute_isis(spike_idxs, data.sampling_rate))
-    freqs, powers = compute_psd(event_signal, 200)
-
-    delta_start = (np.abs(freqs - 0.5)).argmin()
-    delta_stop = (np.abs(freqs - 4)).argmin()
-    theta_stop = (np.abs(freqs - 8)).argmin()
-    alpha_stop = (np.abs(freqs - 13)).argmin()
-    beta_stop = (np.abs(freqs - 30)).argmin()
-    gamma_stop = (np.abs(freqs - 90)).argmin()
-
-    band_powers = {}
-    band_powers['delta'] = np.mean(powers[delta_start:delta_stop])
-    band_powers['theta'] = np.mean(powers[delta_stop:theta_stop])
-    band_powers['alpha'] = np.mean(powers[theta_stop:alpha_stop])
-    band_powers['beta'] = np.mean(powers[alpha_stop:beta_stop])
-    band_powers['gamma'] = np.mean(powers[beta_stop:gamma_stop])
-
-    return Event(electrode_idx, event_idxs[0], event_idxs[1], duration, spike_idxs, rms, max_amplitude, mean_isi, band_powers)
-
+    # concatenate the list of data frames into one data frame,
+    # sort it by channel and peak index and attach it to the recording object
+    rec.events_df = pd.concat(rows)
 

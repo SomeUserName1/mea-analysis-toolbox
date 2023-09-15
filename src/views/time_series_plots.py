@@ -141,10 +141,17 @@ def do_plot(rec: Recording,
                 p.plot(x=ts[start:stop], y=sigs[i][start:stop],
                        pen=(0, 255, 0, 255), label="Events")
 
+            if thresh:
+                inf3 = pg.InfiniteLine(angle=0, pos=rec.event_mad_thresh[i],
+                                       pen=(155, 165, 0),
+                                       label="event moving MAD threshold")
+                p.addItem(inf1)
+
         p.setLabel('left', 'Voltage', units='V')
         p.setLabel('bottom', 'Time', unit='s')
         if prev_p is not None:
             p.setYLink(prev_p)
+            p.setXLink(prev_p)
 
         prev_p = p
 

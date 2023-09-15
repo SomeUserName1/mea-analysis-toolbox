@@ -39,16 +39,7 @@ from controllers.analysis.analyze import (compute_snrs,
 from controllers.analysis.activity import detect_peaks, detect_events
 
 from controllers.analysis.spectral import (compute_psds,
-                                           detrend_fooof,
-                                           compute_periodic_aperiodic_decomp,
                                            compute_spectrograms)
-
-from controllers.analysis.network import (compute_xcorrs, compute_mutual_info,
-                                          compute_transfer_entropy,
-                                          compute_coherence,
-                                          compute_granger_causality,
-                                          compute_spectral_granger,
-                                          compute_current_source_density)
 
 
 # Dash-wrapped html code for the UI
@@ -76,6 +67,7 @@ app.layout = html.Div([dcc.Location(id="url"), navbar, content])
 REC = None
 CHANNELS_TABLE_START = 0
 PEAKS_TABLE_START = 0
+EVENTS_TABLE_START = 0
 
 
 # ================= Routing
@@ -152,20 +144,13 @@ def import_file(_: int,
             REC.free()
 
         REC, info = mcs_256_import(input_file_path, import_que)
-        # proc_import = Process(target=mcs_256_import,
-        #                      args=(input_file_path, import_que))
+
 #    elif file_type == 1:
-#        proc_import = Process(target=mcs_cmos_import,
-#                              args=(input_file_path, import_que))
+#        proc_import = mcs_cmos_import(input_file_path, import_que)
     else:
         raise IOError("Only Multi Channel System H5 file format is supported"
                       "so far.")
 
-    #  proc_import.start()
-
-    # REC, info = import_que.get()
-
-    # proc_import.join()
     success = REC is not None
     feedback = build_import_infos(info, success=success)
 
@@ -437,6 +422,35 @@ def peaks_table_scroll(next_click, prev_click) -> html.Div:
     return generate_table(REC.peaks_df, PEAKS_TABLE_START)
 
 
+@app.callback(Output("events-table", "children", allow_duplicate=True),
+              Input("events-table-next", "n_clicks"),
+              Input("events-table-prev", "n_clicks"),
+              prevent_initial_call=True)
+def events_table_scroll(next_click, prev_click) -> html.Div:
+    """
+    used by analyze screen.
+
+    Displays the next or previous 100 rows of the channels table.
+    """
+    global EVENTS_TABLE_START
+    if next_click > 0:
+        EVENTS_TABLE_START += 100
+
+        if EVENTS_TABLE_START > REC.peaks_df.shape[0]:
+            EVENTS_TABLE_START -= 100
+
+        next_click = 0
+    elif prev_click > 0:
+        EVENTS_TABLE_START -= 100
+
+        if EVENTS_TABLE_START < 0:
+            EVENTS_TABLE_START = 0
+
+        prev_click = 0
+
+    return generate_table(REC.peaks_df, EVENTS_TABLE_START)
+
+
 @app.callback(Output("channels-table", "children", allow_duplicate=True),
               Input("analyze-snr", "n_clicks"),
               prevent_initial_call=True)
@@ -483,7 +497,6 @@ def analyze_entropy(_) -> html.Div:
 
 
 # ========== Spectral
-# TODO use dummy, only for plotting/subsequent analysis
 @app.callback(Output("channels-table", "children", allow_duplicate=True),
               Input("analyze-psd", "n_clicks"),
               prevent_initial_call=True)
@@ -499,24 +512,6 @@ def analyze_psds(_) -> html.Div:
     return generate_table(REC.channels_df, PEAKS_TABLE_START)
 
 
-# TODO maybe store
-@app.callback(Output("channels-table", "children", allow_duplicate=True),
-              Input("analyze-dpsd", "n_clicks"),
-              prevent_initial_call=True)
-def analyze_detrend_psds(_) -> html.Div:
-    """
-    used by analyze screen.
-
-    Computes the power spectral densities for all selected rows and plots the \
-       #            results.
-    """
-    detrend_fooof(REC)
-    REC.df['detrended_psd'] = np.split(REC.detrended_psds,
-                                       REC.detrended_psds.shape[0])
-
-    return generate_table(REC.channels_df)
-
-
 # Both plotting and qunatities
 @app.callback(Output("channels-table", "children", allow_duplicate=True),
               Input("analyze-spec", "n_clicks"),
@@ -528,32 +523,48 @@ def analyze_spectrograms(_) -> html.Div:
     Computes the spectrogram for all selected rows and plots the results.
     """
     compute_spectrograms(REC)
-    REC.df[:, 'spectrogram_freqs'] = REC.spectrograms[0]
-    REC.df[:, 'spectrogram_time'] = REC.spectrograms[1]
-    REC.df['spectrogram'] = REC.spectrograms[2]
 
     return generate_table(REC.channels_df)
 
 
-# Quantities
-@app.callback(Output("channels-table", "children", allow_duplicate=True),
-              Input("analyze-aperiodic-periodic", "n_clicks"),
-              prevent_initial_call=True)
-def analyze_periodic_aperiodic(_) -> html.Div:
-    """
-    Used by analyze screen.
+# @app.callback(Output("channels-table", "children", allow_duplicate=True),
+#               Input("analyze-dpsd", "n_clicks"),
+#               prevent_initial_call=True)
+# def analyze_detrend_psds(_) -> html.Div:
+#     """
+#     used by analyze screen.
+#
+#     Computes the power spectral densities for all selected rows and plots the \
+#        #            results.
+#     """
+#     detrend_fooof(REC)
+#     REC.df['detrended_psd'] = np.split(REC.detrended_psds,
+#                                        REC.detrended_psds.shape[0])
+#
+#     return generate_table(REC.channels_df)
+#
+#
+# # Quantities
+# @app.callback(Output("channels-table", "children", allow_duplicate=True),
+#               Input("analyze-aperiodic-periodic", "n_clicks"),
+#               prevent_initial_call=True)
+# def analyze_periodic_aperiodic(_) -> html.Div:
+#     """
+#     Used by analyze screen.
+#
+#     Computes the PSDs for selected electrodes and then separates the periodic
+#                    from the aperiodic components. Stores the parameter of the
+#                    aperiodic component to the result dataframe
+#     """
+#     compute_periodic_aperiodic_decomp(REC)
+#     REC.df['aperiodic_offset'] = REC.fooof_group.get_params(
+#                                         'aperiodic_params', 'offset')
+#     REC.df['aperiodic_exponent'] = REC.fooof_group.get_params(
+#                                         'aperiodic_params', 'exponent')
+#
+#     return generate_table(REC.channels_df)
 
-    Computes the PSDs for selected electrodes and then separates the periodic
-                   from the aperiodic components. Stores the parameter of the
-                   aperiodic component to the result dataframe
-    """
-    compute_periodic_aperiodic_decomp(REC)
-    REC.df['aperiodic_offset'] = REC.fooof_group.get_params(
-                                        'aperiodic_params', 'offset')
-    REC.df['aperiodic_exponent'] = REC.fooof_group.get_params(
-                                        'aperiodic_params', 'exponent')
 
-    return generate_table(REC.channels_df)
 
 
 # ================= TODO Activity
@@ -614,7 +625,7 @@ def analyze_events(_,
 
     detect_events(REC, mad_win, env_percentile, mad_thrsh)
 
-    return generate_table(REC.channels_df), generate_table(REC.peaks_df)
+    return generate_table(REC.channels_df), generate_table(REC.events_df)
 
 
 # ======== Network
@@ -635,105 +646,105 @@ def analyze_cross_correlation(_) -> html.Div:
     return generate_table(REC.network_df)
 
 
-@app.callback(Output("network-table", "children", allow_duplicate=True),
-              Input("analyze-mi", "n_clicks"),
-              prevent_initial_call=True)
-def analyze_mutual_information(_) -> html.Div:
-    """
-    used by analyze screen.
-
-    Computes mutual information between all selected channels and adds them to
-    the results.
-    """
-    compute_mutual_info(REC)
-    REC.df['mutual_information'] = REC.mutual_informations
-
-    return generate_table(REC.network_df)
-
-
-@app.callback(Output("network-table", "children", allow_duplicate=True),
-              Input("analyze-te", "n_clicks"),
-              prevent_initial_call=True)
-def analyze_transfer_entropy(_) -> html.Div:
-    """
-    used by analyze screen.
-
-    Computes transfer entropy between all selected channels and adds it to te
-    results.
-    """
-    compute_transfer_entropy(REC)
-    REC.df['transfer_entropy'] = REC.transfer_entropy
-
-    return generate_table(REC.network_df)
-
-
-@app.callback(Output("network-table", "children", allow_duplicate=True),
-              Input("analyze-coh", "n_clicks"),
-              prevent_initial_call=True)
-def analyze_coherence(_) -> html.Div:
-    """
-    used by analyze screen.
-
-    Computes transfer entropy between all selected channels and adds it to the
-    results.
-    """
-    compute_coherence(REC)
-    # TODO correct the addition to df
-    REC.df['coherence_freqs'] = REC.coherences[:][0]
-    REC.df['coherence_lags'] = REC.coherence[:][2]
-    REC.df['coherence'] = REC.coherences[:][1]
-
-    return generate_table(REC.network_df)
-
-
-@app.callback(Output("network-table", "children", allow_duplicate=True),
-              Input("analyze-gc", "n_clicks"),
-              prevent_initial_call=True)
-def analyze_granger_causality(_) -> html.Div:
-    """
-    used by analyze screen.
-
-    Computes transfer entropy between all selected channels and adds it to the
-    results.
-    """
-    compute_granger_causality(REC)
-    REC.df['granger_causality'] = REC.granger_causalities
-
-    return generate_table(REC.network_df)
-
-
-@app.callback(Output("network-table", "children", allow_duplicate=True),
-              Input("analyze-sgc", "n_clicks"),
-              prevent_initial_call=True)
-def analyze_spectral_granger_causality(_) -> html.Div:
-    """
-    used by analyze screen.
-
-    Computes transfer entropy between all selected channels and adds it to the
-    results.
-    """
-    compute_spectral_granger(REC)
-    REC.df['spectral_granger_freqs'] = REC.spectral_granger[0]
-    REC.df['spectral_granger_causality'] = REC.spectral_granger[1]
-
-    return generate_table(REC.network_df)
-
-
-@app.callback(Output("network-table", "children", allow_duplicate=True),
-              Input("analyze-csd", "n_clicks"),
-              prevent_initial_call=True)
-def analyze_current_source_densities(_) -> html.Div:
-    """
-    used by analyze screen.
-
-    Computes transfer entropy between all selected channels and adds it to the
-    results.
-    """
-    compute_current_source_density(REC)
-    # TODO correct the addition to df
-    REC.df['current_source_density'] = REC.csds
-
-    return generate_table(REC.network_df)
+# @app.callback(Output("network-table", "children", allow_duplicate=True),
+#               Input("analyze-mi", "n_clicks"),
+#               prevent_initial_call=True)
+# def analyze_mutual_information(_) -> html.Div:
+#     """
+#     used by analyze screen.
+#
+#     Computes mutual information between all selected channels and adds them to
+#     the results.
+#     """
+#     compute_mutual_info(REC)
+#     REC.df['mutual_information'] = REC.mutual_informations
+#
+#     return generate_table(REC.network_df)
+#
+#
+# @app.callback(Output("network-table", "children", allow_duplicate=True),
+#               Input("analyze-te", "n_clicks"),
+#               prevent_initial_call=True)
+# def analyze_transfer_entropy(_) -> html.Div:
+#     """
+#     used by analyze screen.
+#
+#     Computes transfer entropy between all selected channels and adds it to te
+#     results.
+#     """
+#     compute_transfer_entropy(REC)
+#     REC.df['transfer_entropy'] = REC.transfer_entropy
+#
+#     return generate_table(REC.network_df)
+#
+#
+# @app.callback(Output("network-table", "children", allow_duplicate=True),
+#               Input("analyze-coh", "n_clicks"),
+#               prevent_initial_call=True)
+# def analyze_coherence(_) -> html.Div:
+#     """
+#     used by analyze screen.
+#
+#     Computes transfer entropy between all selected channels and adds it to the
+#     results.
+#     """
+#     compute_coherence(REC)
+#     # TODO correct the addition to df
+#     REC.df['coherence_freqs'] = REC.coherences[:][0]
+#     REC.df['coherence_lags'] = REC.coherence[:][2]
+#     REC.df['coherence'] = REC.coherences[:][1]
+#
+#     return generate_table(REC.network_df)
+#
+#
+# @app.callback(Output("network-table", "children", allow_duplicate=True),
+#               Input("analyze-gc", "n_clicks"),
+#               prevent_initial_call=True)
+# def analyze_granger_causality(_) -> html.Div:
+#     """
+#     used by analyze screen.
+#
+#     Computes transfer entropy between all selected channels and adds it to the
+#     results.
+#     """
+#     compute_granger_causality(REC)
+#     REC.df['granger_causality'] = REC.granger_causalities
+#
+#     return generate_table(REC.network_df)
+#
+#
+# @app.callback(Output("network-table", "children", allow_duplicate=True),
+#               Input("analyze-sgc", "n_clicks"),
+#               prevent_initial_call=True)
+# def analyze_spectral_granger_causality(_) -> html.Div:
+#     """
+#     used by analyze screen.
+#
+#     Computes transfer entropy between all selected channels and adds it to the
+#     results.
+#     """
+#     compute_spectral_granger(REC)
+#     REC.df['spectral_granger_freqs'] = REC.spectral_granger[0]
+#     REC.df['spectral_granger_causality'] = REC.spectral_granger[1]
+#
+#     return generate_table(REC.network_df)
+#
+#
+# @app.callback(Output("network-table", "children", allow_duplicate=True),
+#               Input("analyze-csd", "n_clicks"),
+#               prevent_initial_call=True)
+# def analyze_current_source_densities(_) -> html.Div:
+#     """
+#     used by analyze screen.
+#
+#     Computes transfer entropy between all selected channels and adds it to the
+#     results.
+#     """
+#     compute_current_source_density(REC)
+#     # TODO correct the addition to df
+#     REC.df['current_source_density'] = REC.csds
+#
+#     return generate_table(REC.network_df)
 
 
 # ======= Visualize

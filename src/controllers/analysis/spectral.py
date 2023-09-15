@@ -4,7 +4,6 @@ TODO
 from fooof import FOOOFGroup
 import numpy as np
 import scipy.signal as sg
-import pdb
 
 from model.data import Recording, SharedArray
 
@@ -38,6 +37,52 @@ def compute_psds(rec: Recording):
     ys = rec.get_data()
     freq, power = sg.welch(ys, fs=rec.sampling_rate, nperseg=256)
     rec.psds = SharedArray(freq), SharedArray(power)
+
+
+# No njit as scipy.signal is not supported & scipy already calls C routines
+def compute_spectrograms(rec: Recording):
+    """
+    Compute the spectrograms of the data in the Recording object.
+
+    :param rec: The recording object.
+    :type rec: Recording
+    """
+    win = np.kaiser(256, 0)
+    f, t, sxx = sg.spectrogram(rec.get_data(), rec.sampling_rate,
+                               win, len(win), len(win) / 4)
+    rec.spectrograms = SharedArray(f), SharedArray(t), SharedArray(sxx)
+
+
+def bin_powers(rec, el_idx, idx_range, bin_ranges):
+    """
+    Sum the power per frequency bin.
+
+    :param rec: The recording object.
+    :type rec: Recording
+
+    :param idx_range: The range of time indexes to sum the power for.
+    :type idx_range: tuple[int, int]
+
+    :param bin_range: List of frequency ranges to sum the power in.
+    :type bin_range: list[tuple[int, int]]
+
+    :return: A list of the sum of the powers per frequency bin.
+    :rtype: list[float]
+    """
+    freqs = rec.spectrograms[0].read()
+    t_start = idx_range[0] / rec.sampling_rate
+    t_stop = idx_range[1] / rec.sampling_rate
+    times = rec.spectrograms[1].read()
+    times = times[(times >= t_start) & (times < t_stop)]
+    power = rec.spectrograms[2].read()[:, times, :]
+    bin_powers = np.empty(len(bin_ranges))
+
+    for idx, bin_range in enumerate(bin_ranges):
+        bin_powers[idx] = np.sum(power[(freqs >= bin_range[0])
+                                       & (freqs < bin_range[1]),
+                                       times, el_idx])
+
+    return bin_powers
 
 
 # No njit as fooof is unknown to numba
@@ -93,15 +138,3 @@ def detrend_fooof(rec: Recording):
 
     rec.detrended_psds = norm_psd
 
-
-# No njit as scipy.signal is not supported & scipy already calls C routines
-def compute_spectrograms(rec: Recording):
-    """
-    Compute the spectrograms of the data in the Recording object.
-
-    :param rec: The recording object.
-    :type rec: Recording
-    """
-    f, t, sxx = sg.spectrogram(rec.get_data(), fs=rec.sampling_rate,
-                               nperseg=256)
-    rec.spectrograms = SharedArray(f), SharedArray(t), SharedArray(sxx)

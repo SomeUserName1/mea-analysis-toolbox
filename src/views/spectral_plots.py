@@ -47,6 +47,7 @@ def do_plot_psds(rec: Recording):
         p.setLabel('bottom', 'Frequency', unit='Hz')
         if prev_p is not None:
             p.setYLink(prev_p)
+            p.setXLink(prev_p)
 
         prev_p = p
 
@@ -72,34 +73,44 @@ def do_plot_spectrograms(rec: Recording):
     t_start, t_stop = rec.get_time_s()
     freqs = rec.spectrograms[0].read()
     times = rec.spectrograms[1].read()
-    pows = rec.spectrograms[2].read()
+    xs = np.repeat(times, freqs.shape[0]).reshape(times.shape[0],
+                                                  freqs.shape[0])
+    ys = np.tile(freqs, times.shape[0]).reshape(times.shape[0], freqs.shape[0])
+    pows = rec.spectrograms[2].read().T[:-1, :-1, :]
 
     win = pg.GraphicsLayoutWidget(show=True, title="Raw signals")
-    color_map = pg.colormap.get('viridis', source="matplotlib")
+    color_map = pg.colormap.get('hot', source="matplotlib")
     pcs = []
     win.resize(1200, 800)
     prev_p = None
-    max_pow = np.max(pows)
-    min_pow = np.min(pows)
-    sys.stdin = open(0)
-    pdb.set_trace()
+    min_pow = np.min(pows[pows > 0]) * 0.1
+    pows[pows == 0] = min_pow
+
+    plot_pows = np.log10(pows)
+    min_pow = np.min(plot_pows)
+    max_pow = np.max(plot_pows)
     it = MEAGridPlotIterator(rec)
     for i, (row, col) in enumerate(it):
         title_str = f'<font size="1">{sel_names[i]}</font>'
         p = win.addPlot(row=row, col=col, title=title_str)
-
-        pc = pg.PColorMeshItem(x=times, y=freqs, z=pows[i], colorMap=color_map)
+        pc = pg.PColorMeshItem(colorMap=color_map)
         pcs.append(pc)
         p.addItem(pc)
+        pc.setData(xs, ys, plot_pows[:, :, i])
 
         p.setLabel('left', 'Frequency', unit='Hz')
         p.setLabel('bottom', 'Time', unit='s')
         if prev_p is not None:
             p.setYLink(prev_p)
+            p.setXLink(prev_p)
 
         prev_p = p
 
-    cbar = pg.ColorBarItem(values=(min_pow, max_pow), colorMap=color_map, label='Power')
+    cbar = pg.ColorBarItem(label='log10 Power', cmap=color_map,
+                           limits=(min_pow, max_pow))
+    cbar.setImageItem(pcs)
+    cbar.setLevels((np.percentile(plot_pows, 50),
+                    np.percentile(plot_pows, 99)))
     win.addItem(cbar)
 
     pg.exec()
