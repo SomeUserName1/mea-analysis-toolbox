@@ -4,6 +4,7 @@ TODO
 from fooof import FOOOFGroup
 import numpy as np
 import scipy.signal as sg
+import pdb
 
 from model.data import Recording, SharedArray
 
@@ -35,7 +36,7 @@ def compute_psds(rec: Recording):
     :type rec: Recording
     """
     ys = rec.get_data()
-    freq, power = sg.welch(ys, fs=rec.sampling_rate, nperseg=256)
+    freq, power = sg.welch(ys, fs=rec.sampling_rate, nperseg=256, nfft=512)
     rec.psds = SharedArray(freq), SharedArray(power)
 
 
@@ -49,7 +50,8 @@ def compute_spectrograms(rec: Recording):
     """
     win = np.kaiser(256, 0)
     f, t, sxx = sg.spectrogram(rec.get_data(), rec.sampling_rate,
-                               win, len(win), len(win) / 4)
+                               window=win, nperseg=len(win),
+                               noverlap=len(win) / 4, nfft=2 * len(win))
     rec.spectrograms = SharedArray(f), SharedArray(t), SharedArray(sxx)
 
 
@@ -73,14 +75,14 @@ def bin_powers(rec, el_idx, idx_range, bin_ranges):
     t_start = idx_range[0] / rec.sampling_rate
     t_stop = idx_range[1] / rec.sampling_rate
     times = rec.spectrograms[1].read()
-    times = times[(times >= t_start) & (times < t_stop)]
-    power = rec.spectrograms[2].read()[:, times, :]
+    times = np.argwhere((times >= t_start) & (times < t_stop))
+    power = rec.spectrograms[2].read()
     bin_powers = np.empty(len(bin_ranges))
 
     for idx, bin_range in enumerate(bin_ranges):
-        bin_powers[idx] = np.sum(power[(freqs >= bin_range[0])
+        bin_powers[idx] = np.sum(power[el_idx, (freqs >= bin_range[0])
                                        & (freqs < bin_range[1]),
-                                       times, el_idx])
+                                       times])
 
     return bin_powers
 

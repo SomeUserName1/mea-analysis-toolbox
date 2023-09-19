@@ -49,8 +49,6 @@ def frequency_filter(rec: Recording,
 # Bandpass or bandstop/notch filter
     if low_cut and high_cut:
         btype = 'bandstop' if stop else 'bandpass'
-        print(f"order {order}, low {low_cut}, high {high_cut} btype {btype}"
-              f"fs {fs}")
         sos = sg.butter(N=order, Wn=[low_cut, high_cut], fs=fs,
                         btype=btype, output='sos')
     else:

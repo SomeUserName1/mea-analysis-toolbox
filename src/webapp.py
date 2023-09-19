@@ -40,6 +40,7 @@ from controllers.analysis.activity import detect_peaks, detect_events
 
 from controllers.analysis.spectral import (compute_psds,
                                            compute_spectrograms)
+from controllers.analysis.network import compute_xcorrs
 
 
 # Dash-wrapped html code for the UI
@@ -565,8 +566,6 @@ def analyze_spectrograms(_) -> html.Div:
 #     return generate_table(REC.channels_df)
 
 
-
-
 # ================= TODO Activity
 @app.callback(Output("channels-table", "children", allow_duplicate=True),
               Output("peaks-table", "children"),
@@ -602,6 +601,7 @@ def analyze_peaks(_,
 
 
 @app.callback(Output("channels-table", "children", allow_duplicate=True),
+              Output("peaks-table", "children", allow_duplicate=True),
               Output("events-table", "children"),
               Input("analyze-events", "n_clicks"),
               State("analyze-events-mad-win", "value"),
@@ -625,7 +625,8 @@ def analyze_events(_,
 
     detect_events(REC, mad_win, env_percentile, mad_thrsh)
 
-    return generate_table(REC.channels_df), generate_table(REC.events_df)
+    return (generate_table(REC.channels_df), generate_table(REC.peaks_df),
+            generate_table(REC.events_df))
 
 
 # ======== Network
@@ -823,6 +824,34 @@ def analyze_plot_spectrograms(_: int) -> None:
 
 
 # ======== Export
+@app.callback(Output("analyze-export-feedback", "children"),
+              Input("analyze-export-tables", "n_clicks"),
+              State("analyze-export-fname", "value"),
+              prevent_initial_call=True)
+def analyze_export(_: int, path: str) -> html.Div:
+    """
+    Used on analyze screen.
+
+    Exports the results of the analysis to a csv file.
+
+        @param path: the path to the file to be written to.
+
+        @return A banner indicating if the export was successful.
+    """
+    if path is None:
+        return dbc.Alert("Please enter a valid file path!",
+                         color="danger")
+
+    if REC.channels_df is not None:
+        REC.channels_df.to_csv(path + "_channels.csv")
+    if REC.peaks_df is not None:
+        REC.peaks_df.to_csv(path + "_peaks.csv")
+    if REC.events_df is not None:
+        REC.events_df.to_csv(path + "_events.csv")
+
+    return dbc.Alert("Successfully exported results", color="success")
+
+
 # @app.callback(Output("analyze-animate-play", "n_clicks"),
 #               Input("analyze-animate-play", "n_clicks"),
 #               State("analyze-animate-fps", "value"),

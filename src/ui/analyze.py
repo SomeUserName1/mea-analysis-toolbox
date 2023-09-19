@@ -296,10 +296,10 @@ export = dbc.AccordionItem([
 
     # event stats
     dbc.Row([
-        dbc.Col(dbc.Checklist(options=[{"label": "Export", "value": 1}],
-                              value=[], id="analyze-export")),
         dbc.Col(dbc.Input(placeholder="Enter full file path and base name",
                           id="analyze-events-fname")),
+        dbc.Col(dbc.Button("Export Tables", id="analyze-export-tables")),
+        dbc.Row([], id="analyze-export-feedback"),
     ], style={"padding": "25px"}),
     # # animations
     # dbc.Row([html.H6("Electrode Amplitude Animation"),

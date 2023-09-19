@@ -142,10 +142,10 @@ def do_plot(rec: Recording,
                        pen=(0, 255, 0, 255), label="Events")
 
             if thresh:
-                inf3 = pg.InfiniteLine(angle=0, pos=rec.event_mad_thresh[i],
-                                       pen=(155, 165, 0),
-                                       label="event moving MAD threshold")
-                p.addItem(inf1)
+                inf = pg.InfiniteLine(angle=0, pos=rec.event_mad_thresh[i],
+                                      pen=(155, 165, 0),
+                                      label="event moving MAD threshold")
+                p.addItem(inf)
 
         p.setLabel('left', 'Voltage', units='V')
         p.setLabel('bottom', 'Time', unit='s')

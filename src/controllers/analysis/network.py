@@ -49,8 +49,6 @@ def compute_xcorrs(rec: Recording):
 
             rec.xcorrs[1][i, j] = rec.xcorrs[1][j, i]
 
-    rec.data.close()
-
 
 # for the even more expensive stuff involving time lags, consider epoching
 # parallelizing with con.fut.ProcessPoolExecutor

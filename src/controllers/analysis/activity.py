@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import scipy.signal as sg
+import pdb
 
 from constants import default_bins
 from model.data import Recording, SharedArray
@@ -251,6 +252,10 @@ def detect_peaks(rec: Recording,
         down_widths = sg.peak_widths(-data[i], down_peaks, 1)
 
         peaks = np.concatenate((up_peaks, down_peaks))
+
+        if peaks.shape[0] == 0:
+            continue
+
         order = np.argsort(peaks)
         peaks = peaks[order]
 
@@ -265,9 +270,10 @@ def detect_peaks(rec: Recording,
         peak_durations = np.concatenate((up_widths[0], down_widths[0]))
         peak_durations = peak_durations[order] / fs
 
-        peak_ampls = data[i][peaks] / data[i][peaks].max()
+        peak_ampls = data[i][peaks] / np.abs(data[i][peaks]).max()
 
         n_peaks[i] = peaks.shape[0]
+        peaks_freq[i] = n_peaks[i] / fs / 1000000
 
         channel = np.repeat(names[i], len(peaks))
 
@@ -279,11 +285,11 @@ def detect_peaks(rec: Recording,
                 {"Channel": channel,
                  "PeakIndex": peaks,
                  "TimeStamp": peak_times,
-                 "Amplitude [muV]": peak_ampls,
+                 "RelAmplitude": peak_ampls,
                  "StartIndex": starts,
                  "StopIndex": stops,
-                 "Duration [s]": peak_durations,
-                 "InterPeakInterval [s]": ipi}
+                 "Duration[s]": peak_durations,
+                 "InterPeakInterval[s]": ipi}
                 )
         rows.append(channel_peaks)
 
@@ -450,9 +456,10 @@ def detect_peaks_alt(rec: Recording,
         peak_durations = np.array(peak_durations)
 
         n_peaks[i] = len(peaks)
+
         peaks_freq[i] = n_peaks[i] / fs / 1000000
 
-        peak_ampls = data[i][peaks] / data[i][peaks].max()
+        peak_ampls = data[i][peaks] / np.abs(data[i][peaks]).max()
         channel = np.repeat(names[i], len(peaks))
         peak_times = peaks / fs
 
@@ -464,11 +471,11 @@ def detect_peaks_alt(rec: Recording,
                 {"Channel": channel,
                  "PeakIndex": peaks,
                  "TimeStamp": peak_times,
-                 "Amplitude [muV]": peak_ampls,
+                 "RelAmplitude": peak_ampls,
                  "StartIndex": starts,
                  "StopIndex": stops,
-                 "Duration [s]": peak_durations,
-                 "InterPeakInterval [s]": ipi}
+                 "Duration[s]": peak_durations,
+                 "InterPeakInterval[s]": ipi}
                 )
         rows.append(channel_peaks)
 
@@ -571,6 +578,28 @@ def detect_events(rec: Recording,
         abs_diff = np.abs(np.diff(above_thresh))
         # and convert it to an array of tuples of the form (start, stop)
         above_thresh_idxs = np.where(abs_diff == 1)[0].reshape(-1, 2)
+
+        # merge adjacent events when they are apart less than 100ms
+        del_idxs = []
+        idx_len = int(np.round(0.5 * fs))
+        for j in range(1, above_thresh_idxs.shape[0]):
+            if (above_thresh_idxs[j, 0]
+                    - above_thresh_idxs[j - 1, 1] < idx_len):
+                above_thresh_idxs[j, 0] = above_thresh_idxs[j - 1, 0]
+                del_idxs.append(j - 1)
+
+        above_thresh_idxs = np.delete(above_thresh_idxs, del_idxs, axis=0)
+
+        # Drop all events that are shorter than 10ms
+        del_idxs = []
+        idx_len = int(np.round(0.01 * fs))
+        for j in range(above_thresh_idxs.shape[0]):
+            if (above_thresh_idxs[j, 1]
+                    - above_thresh_idxs[j, 0] < idx_len):
+                del_idxs.append(j)
+
+        above_thresh_idxs = np.delete(above_thresh_idxs, del_idxs, axis=0)
+
         for (start, stop) in above_thresh_idxs:
             durations.append((stop - start) / fs)
             starts.append(start)
@@ -583,11 +612,12 @@ def detect_events(rec: Recording,
                                         & (rec.peaks_df['PeakIndex'] < stop)
                                         ].shape[0]
                            )
-            app_ens.append(compute_entropies_jit(data[i][start:stop]))
+            entropy = compute_entropies_jit(data[i][start:stop].reshape(1, -1))
+            app_ens.append(entropy[0])
             ipi.append(rec.peaks_df[(rec.peaks_df['Channel'] == names[i])
                                     & (rec.peaks_df['PeakIndex'] >= start)
                                     & (rec.peaks_df['PeakIndex'] < stop)
-                                    ]['InterPeakInterval'].mean()
+                                    ]['InterPeakInterval[s]'].mean()
                        )
         iei = [stops[i - 1] - starts[i] for i in range(1, len(starts))]
         if len(starts) > 0:
@@ -602,8 +632,8 @@ def detect_events(rec: Recording,
                  "Duration [s]": durations,
                  "ApproximateEntropy": app_ens,
                  "#Peaks": n_peaks,
-                 "MeanInterPeakInterval [s]": ipi,
-                 "InterEventInterval [s]": iei,
+                 "MeanInterPeakInterval[s]": ipi,
+                 "InterEventInterval[s]": iei,
                  } | dict(zip(freq_bin_names, np.array(freqs).T))
                 )
         rows.append(channel_events)
