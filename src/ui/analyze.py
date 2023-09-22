@@ -297,7 +297,7 @@ export = dbc.AccordionItem([
     # event stats
     dbc.Row([
         dbc.Col(dbc.Input(placeholder="Enter full file path and base name",
-                          id="analyze-events-fname")),
+                          id="analyze-export-fname")),
         dbc.Col(dbc.Button("Export Tables", id="analyze-export-tables")),
         dbc.Row([], id="analyze-export-feedback"),
     ], style={"padding": "25px"}),

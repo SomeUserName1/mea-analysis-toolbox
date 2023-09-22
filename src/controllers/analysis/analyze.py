@@ -3,6 +3,8 @@ TODO
 """
 import antropy as ant
 import numpy as np
+import numba as nb
+from tqdm import tqdm
 
 from model.data import Recording
 
@@ -36,6 +38,7 @@ def compute_snrs_jit(signals: np.ndarray) -> np.ndarray:
     return mean_squared / np.var(signals, axis=-1)
 
 
+@nb.jit(parallel=True)
 def compute_entropies_jit(data: np.ndarray) -> np.ndarray:
     """
     Compute the approximate entropy of the signals using numbas
@@ -51,8 +54,8 @@ def compute_entropies_jit(data: np.ndarray) -> np.ndarray:
     n_els = data.shape[0]
     entropies = np.zeros(n_els)
 
-    for i in range(data.shape[0]):
-        entropies[i] = ant.app_entropy(data[i])
+    for i in tqdm(nb.prange(data.shape[0])):
+        entropies[i] = ant.sample_entropy(data[i])
 
     return entropies
 

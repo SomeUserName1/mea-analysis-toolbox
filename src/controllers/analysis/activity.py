@@ -1,10 +1,11 @@
 import numpy as np
 import pandas as pd
 import scipy.signal as sg
+from tqdm import tqdm
 import pdb
 
-from constants import default_bins
 from model.data import Recording, SharedArray
+from constants import default_bins
 from controllers.analysis.analyze import compute_entropies_jit
 from controllers.analysis.spectral import bin_powers, compute_spectrograms
 
@@ -222,7 +223,7 @@ def detect_peaks(rec: Recording,
     upper = np.zeros(data.shape[0])
     # we'll write concurrently to the list and sort it afterwards
     rows = []
-    for i in range(data.shape[0]):  # prange
+    for i in tqdm(range(data.shape[0])):  # prange
         peaks = []
         peak_durations = []
         starts = []
@@ -382,7 +383,7 @@ def detect_peaks_alt(rec: Recording,
     mad_thresh = np.zeros(data.shape[0])
     # we'll write concurrently to the list and sort it afterwards
     rows = []
-    for i in range(data.shape[0]):  # prange
+    for i in tqdm(range(data.shape[0])):  # prange
         peaks = []
         peak_durations = []
         starts = []
@@ -494,8 +495,7 @@ def detect_peaks_alt(rec: Recording,
 def detect_events(rec: Recording,
                   mad_win: float = None,
                   env_percentile: int = None,
-                  mad_thrsh_f: float = None,
-                  freq_bins: list[tuple[int, int]] = default_bins):
+                  mad_thrsh_f: float = None):
     """
     Detect events in the signals of a recording object.
     The detection is based on the moving MAD of the signals and the envelope
@@ -535,7 +535,7 @@ def detect_events(rec: Recording,
 
     fs = rec.sampling_rate
     names = rec.get_sel_names()
-    freq_bin_names = [f"{bins[0]}-{bins[1]}" for bins in freq_bins]
+    freq_bin_names = [f"{bins[0]}-{bins[1]}" for bins in default_bins]
 
     # Compute moving mean absolute deviation of the signals, used to detect
     # peaks as the moving MAD is smoother than the signal itself and increases
@@ -554,7 +554,7 @@ def detect_events(rec: Recording,
     mad_thresh = np.zeros(data.shape[0])
     # we'll write concurrently to the list and sort it afterwards
     rows = []
-    for i in range(data.shape[0]):  # prange
+    for i in tqdm(range(data.shape[0])):  # prange
         durations = []
         starts = []
         stops = []
@@ -590,23 +590,24 @@ def detect_events(rec: Recording,
 
         above_thresh_idxs = np.delete(above_thresh_idxs, del_idxs, axis=0)
 
-        # Drop all events that are shorter than 10ms
+        # Drop all events that are shorter than 10ms and that don't have peaks
         del_idxs = []
-        idx_len = int(np.round(0.01 * fs))
+        idx_len = int(np.round(0.128 * fs))
         for j in range(above_thresh_idxs.shape[0]):
-            if (above_thresh_idxs[j, 1]
-                    - above_thresh_idxs[j, 0] < idx_len):
+            e_start = above_thresh_idxs[j, 0]
+            e_stop = above_thresh_idxs[j, 1]
+            if ((e_stop - e_start < idx_len)
+                 or not any(data[i][e_start:e_stop] > rec.upper[i])
+                 or not any(data[i][e_start:e_stop] < rec.lower[i])):
                 del_idxs.append(j)
-
+                
         above_thresh_idxs = np.delete(above_thresh_idxs, del_idxs, axis=0)
 
         for (start, stop) in above_thresh_idxs:
             durations.append((stop - start) / fs)
             starts.append(start)
             stops.append(stop)
-            freqs.append(
-                    bin_powers(rec, i, (start, stop), freq_bins)
-                        )
+            freqs.append(bin_powers(rec, i, (start, stop)))
             n_peaks.append(rec.peaks_df[(rec.peaks_df['Channel'] == names[i])
                                         & (rec.peaks_df['PeakIndex'] >= start)
                                         & (rec.peaks_df['PeakIndex'] < stop)
@@ -619,7 +620,7 @@ def detect_events(rec: Recording,
                                     & (rec.peaks_df['PeakIndex'] < stop)
                                     ]['InterPeakInterval[s]'].mean()
                        )
-        iei = [stops[i - 1] - starts[i] for i in range(1, len(starts))]
+        iei = [start[i] - stop[i - 1] for i in range(1, len(starts))]
         if len(starts) > 0:
             iei.insert(0, np.nan)
         iei = np.array(iei) / fs

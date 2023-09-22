@@ -7,6 +7,7 @@ import scipy.signal as sg
 import pdb
 
 from model.data import Recording, SharedArray
+from constants import default_bins
 
 
 # No njit as numpy.fft is not supported & numpy already calls C routines
@@ -48,14 +49,23 @@ def compute_spectrograms(rec: Recording):
     :param rec: The recording object.
     :type rec: Recording
     """
-    win = np.kaiser(256, 0)
+    win = np.kaiser(128, 0)
     f, t, sxx = sg.spectrogram(rec.get_data(), rec.sampling_rate,
                                window=win, nperseg=len(win),
                                noverlap=len(win) / 4, nfft=2 * len(win))
     rec.spectrograms = SharedArray(f), SharedArray(t), SharedArray(sxx)
 
 
-def bin_powers(rec, el_idx, idx_range, bin_ranges):
+    freq_bin_names = [f"{bins[0]}-{bins[1]}" for bins in default_bins]
+    binned_power = []
+    for idx in range(len(rec.selected_electrodes)):
+        binned_power.append(bin_powers(rec, idx, (rec.start_idx, rec.stop_idx)))
+
+    rec.channels_df[freq_bin_names] = binned_power
+
+
+
+def bin_powers(rec, el_idx, idx_range, bin_ranges=default_bins):
     """
     Sum the power per frequency bin.
 
@@ -80,9 +90,10 @@ def bin_powers(rec, el_idx, idx_range, bin_ranges):
     bin_powers = np.empty(len(bin_ranges))
 
     for idx, bin_range in enumerate(bin_ranges):
-        bin_powers[idx] = np.sum(power[el_idx, (freqs >= bin_range[0])
-                                       & (freqs < bin_range[1]),
-                                       times])
+        bin_freqs = np.argwhere(((freqs >= bin_range[0]) & (freqs < bin_range[1])))
+        bin_pow = power[el_idx, bin_freqs, :]
+        bin_pow = bin_pow[:, :, times]
+        bin_powers[idx] = np.sum(bin_pow) / (times.shape[0] * bin_freqs.shape[0])
 
     return bin_powers
 

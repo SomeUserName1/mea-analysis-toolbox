@@ -437,7 +437,7 @@ def events_table_scroll(next_click, prev_click) -> html.Div:
     if next_click > 0:
         EVENTS_TABLE_START += 100
 
-        if EVENTS_TABLE_START > REC.peaks_df.shape[0]:
+        if EVENTS_TABLE_START > REC.events_df.shape[0]:
             EVENTS_TABLE_START -= 100
 
         next_click = 0
@@ -449,7 +449,7 @@ def events_table_scroll(next_click, prev_click) -> html.Div:
 
         prev_click = 0
 
-    return generate_table(REC.peaks_df, EVENTS_TABLE_START)
+    return generate_table(REC.events_df, EVENTS_TABLE_START)
 
 
 @app.callback(Output("channels-table", "children", allow_duplicate=True),
